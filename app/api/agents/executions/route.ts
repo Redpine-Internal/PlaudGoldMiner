@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { QueryResult } from 'pg';
 import { pool } from '@/lib/db';
 
 // Interface para as colunas selecionadas da tabela agent_executions.
@@ -15,6 +16,8 @@ interface AgentExecutionRow {
   completed_at: string | null;
 }
 
+const EXECUTION_COLUMNS = 'id, agent_name, triggered_by, meeting_ids, status, result_id, result_table, created_at, completed_at';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -27,12 +30,11 @@ export async function GET(request: NextRequest) {
     const limit =
       Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
 
-    let res;
+    let res: QueryResult<AgentExecutionRow>;
     if (agent) {
       // Filtra pelo nome do agente fornecido
       res = await pool.query<AgentExecutionRow>(
-        `SELECT id, agent_name, triggered_by, meeting_ids,
-                status, result_id, result_table, created_at, completed_at
+        `SELECT ${EXECUTION_COLUMNS}
            FROM agent_executions
           WHERE agent_name = $1
           ORDER BY created_at DESC
@@ -42,8 +44,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Retorna todas as execuções recentes sem filtro
       res = await pool.query<AgentExecutionRow>(
-        `SELECT id, agent_name, triggered_by, meeting_ids,
-                status, result_id, result_table, created_at, completed_at
+        `SELECT ${EXECUTION_COLUMNS}
            FROM agent_executions
           ORDER BY created_at DESC
           LIMIT $1`,
