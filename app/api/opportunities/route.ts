@@ -9,9 +9,12 @@ interface AppOpportunityRow {
   conversation_id: string | null;
   title: string;
   pain: string;
+  context: string | null;
   score: number;
   type: string;
   status: string;
+  notes: string | null;
+  created_at: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -23,7 +26,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
 
     const res = await pool.query<AppOpportunityRow>(
-      `SELECT id, conversation_id, title, pain, score, type, status
+      `SELECT id, conversation_id, title, pain, context, score, type, status, notes, created_at
          FROM app_opportunities
         ORDER BY created_at DESC
         LIMIT $1`,
@@ -35,9 +38,12 @@ export async function GET(request: NextRequest) {
         id: r.id,
         title: r.title,
         pain: r.pain,
+        context: r.context,
         score: r.score,
         type: r.type,
         status: r.status,
+        notes: r.notes,
+        createdAt: r.created_at,
         conversationId: r.conversation_id,
       }))
     );
