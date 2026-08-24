@@ -1,0 +1,22 @@
+/* Mística webfonts — binaries copied from Telefonica/mistica-web@master (.storybook/css/fonts). One family per skin; --fontFamily in each skin file picks the right one. */
+@font-face{font-family:'Telefonica Sans';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/Telefonica_Sans_Light.woff2') format('woff2')}
+@font-face{font-family:'Telefonica Sans';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/Telefonica_Sans_Regular.woff2') format('woff2')}
+@font-face{font-family:'Telefonica Sans';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/Telefonica_Sans_Medium.woff2') format('woff2')}
+@font-face{font-family:'Telefonica Sans';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/Telefonica_Sans_Bold.woff2') format('woff2')}
+@font-face{font-family:'Movistar Sans';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/MovistarSans-Light.woff2') format('woff2')}
+@font-face{font-family:'Movistar Sans';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/MovistarSans-Regular.woff2') format('woff2')}
+@font-face{font-family:'Movistar Sans';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/MovistarSans-Medium.woff2') format('woff2')}
+@font-face{font-family:'Movistar Sans';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/MovistarSans-Bold.woff2') format('woff2')}
+@font-face{font-family:'Movistar Sans';font-style:normal;font-weight:800;font-display:swap;src:url('/fonts/MovistarSans-Extrabold.woff2') format('woff2')}
+@font-face{font-family:'On Air';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/OnAir-Light.woff2') format('woff2')}
+@font-face{font-family:'On Air';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/OnAir-Regular.woff2') format('woff2')}
+@font-face{font-family:'On Air';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/OnAir-Medium.woff2') format('woff2')}
+@font-face{font-family:'On Air';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/OnAir-Bold.woff2') format('woff2')}
+@font-face{font-family:'Vivo Type';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/vivo-type-light.woff2') format('woff2')}
+@font-face{font-family:'Vivo Type';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/vivo-type-regular.woff2') format('woff2')}
+@font-face{font-family:'Vivo Type';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/vivo-type-medium.woff2') format('woff2')}
+@font-face{font-family:'Vivo Type';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/vivo-type-bold.woff2') format('woff2')}
+@font-face{font-family:'Roboto';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/roboto-v20-latin-ext_latin-300.woff2') format('woff2')}
+@font-face{font-family:'Roboto';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/roboto-v20-latin-ext_latin-regular.woff2') format('woff2')}
+@font-face{font-family:'Roboto';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/roboto-v20-latin-ext_latin-500.woff2') format('woff2')}
+@font-face{font-family:'Roboto';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/roboto-v20-latin-ext_latin-700.woff2') format('woff2')}

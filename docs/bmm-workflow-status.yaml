@@ -1,0 +1,123 @@
+# Workflow Status - BMad Method
+# Este arquivo rastreia o progresso através das fases de Análise, Planejamento e Solutioning do BMM.
+# A fase de Implementação é rastreada separadamente em sprint-status.yaml
+
+# DEFINIÇÕES DE STATUS:
+# ====================
+# Status Inicial (antes da conclusão):
+#   - required: Deve ser completado para progredir
+#   - optional: Pode ser completado mas não é obrigatório
+#   - recommended: Fortemente sugerido mas não obrigatório
+#   - conditional: Obrigatório apenas se certas condições forem atendidas (ex: if_has_ui)
+#   - selected: Selecionado pelo usuário durante workflow-init
+#
+# Status de Conclusão:
+#   - {file-path}: Arquivo criado/encontrado (ex: "docs/product-brief.md")
+#   - skipped: Workflow opcional/condicional que foi pulado
+
+generated: "2025-11-28"
+project: "ehs-insights"
+project_type: "Andresa AI - Plataforma de gestão de conversas, oportunidades e conteúdos"
+selected_track: "bmad-method"
+field_type: "brownfield"
+workflow_path: "method-brownfield.yaml"
+
+workflow_status:
+  # Pré-requisito - Documentação do Projeto Existente
+  prerequisite:
+    - id: "document-project"
+      status: "docs/index.md"
+      agent: "analyst"
+      command: "document-project"
+      purpose: "Entender codebase existente antes do planejamento"
+      completed: "2025-11-28"
+      outputs:
+        - "docs/index.md"
+        - "docs/project-overview.md"
+        - "docs/architecture.md"
+        - "docs/source-tree-analysis.md"
+        - "docs/component-inventory.md"
+        - "docs/data-models.md"
+        - "docs/development-guide.md"
+
+  # Fase 0 - Discovery (Opcional)
+  phase_0_discovery:
+    - id: "brainstorm-project"
+      status: "selected"
+      agent: "analyst"
+      command: "brainstorm-project"
+
+    - id: "research"
+      status: "selected"
+      agent: "analyst"
+      command: "research"
+
+  # Fase 1 - Planning
+  phase_1_planning:
+    - id: "prd"
+      status: "docs/prd.md"
+      agent: "pm"
+      command: "prd"
+      output: "PRD focado em novas features/mudanças"
+      completed: "2025-12-01"
+
+    - id: "validate-prd"
+      status: "optional"
+      agent: "pm"
+      command: "validate-prd"
+
+    - id: "create-design"
+      status: "conditional"
+      condition: "if_has_ui"
+      agent: "ux-designer"
+      command: "create-design"
+
+  # Fase 2 - Solutioning
+  phase_2_solutioning:
+    - id: "create-architecture"
+      status: "docs/architecture.md"
+      agent: "architect"
+      command: "create-architecture"
+      completed: "2025-12-01"
+      outputs:
+        - "docs/architecture.md"
+      summary: "14 decisões arquiteturais, Drizzle+Turso, Vercel AI SDK+Claude, TanStack Query"
+
+    - id: "create-epics-and-stories"
+      status: "docs/epics.md"
+      agent: "pm"
+      command: "create-epics-and-stories"
+      completed: "2025-12-01"
+      outputs:
+        - "docs/epics.md"
+      summary: "6 épicos, 23 stories, 35 FRs cobertos (100%)"
+
+    - id: "test-design"
+      status: "recommended"
+      agent: "tea"
+      command: "test-design"
+
+    - id: "validate-architecture"
+      status: "optional"
+      agent: "architect"
+      command: "validate-architecture"
+
+    - id: "implementation-readiness"
+      status: "docs/implementation-readiness-report-2025-12-01.md"
+      agent: "architect"
+      command: "implementation-readiness"
+      completed: "2025-12-01"
+      outputs:
+        - "docs/implementation-readiness-report-2025-12-01.md"
+      summary: "READY - 35/35 FRs cobertos, gaps corrigidos, pronto para sprint-planning"
+
+  # Fase 3 - Implementation
+  phase_3_implementation:
+    - id: "sprint-planning"
+      status: "docs/sprint-artifacts/sprint-status.yaml"
+      agent: "sm"
+      command: "sprint-planning"
+      completed: "2025-12-01"
+      outputs:
+        - "docs/sprint-artifacts/sprint-status.yaml"
+      summary: "6 épicos, 23 stories no backlog, pronto para implementação"

@@ -1,0 +1,9 @@
+/* Effect aliases over Mística radii (--radius-button/container/input/chip/tag/... come from the skin file). */
+:root{
+--radius:var(--radius-container);--radius-sm:var(--radius-container);--radius-md:var(--radius-input);--radius-lg:var(--radius-container);--radius-xl:var(--radius-popup);--radius-full:9999px;
+--shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+--shadow-lg:0 2px 4px 0 rgba(0,0,0,.2);
+--focus-ring:0 0 0 2px var(--controlActivated);
+--ease:ease-in-out;/* @kind other */
+--duration:100ms;/* @kind other */
+}

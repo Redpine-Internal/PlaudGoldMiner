@@ -1,0 +1,98 @@
+/* Mística component classes — anatomy lifted from Telefonica/mistica-web@master (button.css.ts, chip.css.ts, tag.css.ts/tag.tsx, tabs.css.ts, boxed.css.ts, skeletons.css.ts); colors/radii/spacing from the skin tokens. */
+/* Buttons (mistica Button: border 1.5, radius token, min-width 104/80, transition .1s ease-in-out) */
+.ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:80px;padding:calc(8px - 1.5px) calc(16px - 1.5px);border:1.5px solid transparent;border-radius:var(--radius-button);font:var(--weight-button,500) 14px/20px var(--fontFamily);cursor:pointer;transition:background-color .1s ease-in-out,color .1s ease-in-out,border-color .1s ease-in-out;white-space:nowrap}
+.ds-btn:disabled{opacity:.5;cursor:default;pointer-events:none}
+.ds-btn--primary{background:var(--buttonPrimaryBackground);color:var(--textButtonPrimary)}
+.ds-btn--primary:hover{background:var(--buttonPrimaryBackgroundHover)}
+.ds-btn--primary:active{background:var(--buttonPrimaryBackgroundPressed)}
+.ds-btn--secondary,.ds-btn--outline{background:var(--backgroundContainer);border-color:transparent;color:var(--textButtonSecondary)}
+.ds-btn--secondary:hover,.ds-btn--outline:hover{background:var(--backgroundContainerHover);color:var(--textButtonSecondaryPressed)}
+.ds-btn--secondary:active,.ds-btn--outline:active{background:var(--buttonSecondaryBackgroundPressed)}
+.ds-btn--danger{background:var(--buttonDangerBackground);color:var(--textButtonPrimary)}
+.ds-btn--danger:hover{background:var(--buttonDangerBackgroundHover)}
+.ds-btn--danger:active{background:var(--buttonDangerBackgroundPressed)}
+.ds-btn--success{background:var(--successHigh);color:var(--textButtonPrimary)}
+.ds-btn--success:hover{background:color-mix(in srgb,var(--successHigh) 88%,black)}
+.ds-btn--link{min-width:24px;background:transparent;color:var(--textLink);font-weight:var(--weight-link,500)}
+.ds-btn--link:hover{background:var(--buttonLinkBackgroundPressed)}
+.ds-btn--ghost{background:transparent;color:var(--textLinkNeutral)}
+.ds-btn--ghost:hover{background:var(--backgroundContainerHover)}
+.ds-btn--sm{min-width:64px;padding:calc(5px - 1.5px) calc(12px - 1.5px);font-size:12px;line-height:16px}
+.ds-btn--icononly{min-width:0;padding:calc(8px - 1.5px)}
+.ds-btn--sm.ds-btn--icononly{padding:calc(5px - 1.5px)}
+/* Inputs (TextField: radius input token, border 1px, focus = controlActivated 2px) */
+.ds-label{display:flex;align-items:center;gap:4px;font:400 var(--size-inputLabel,14px)/var(--lineHeight-inputLabel,20px) var(--fontFamily);margin-bottom:4px;color:var(--textSecondary)}
+.ds-input{width:100%;box-sizing:border-box;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-input);background:var(--backgroundContainer);font:400 16px/24px var(--fontFamily);color:var(--textPrimary)}
+.ds-input::placeholder{color:var(--textSecondary)}
+.ds-input--flat{border-color:transparent}
+.ds-input:focus{outline:none;border-color:var(--controlActivated);box-shadow:inset 0 0 0 1px var(--controlActivated)}
+.ds-search{position:relative}
+.ds-search>.ds-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--neutralHigh,var(--textPrimary));pointer-events:none}
+.ds-search .ds-input{padding:8px 36px 8px 38px;font-size:14px;line-height:20px}
+.ds-search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;padding:2px;cursor:pointer;color:var(--neutralHigh,var(--textPrimary));display:inline-flex;border-radius:50%}
+.ds-search-clear:hover{background:var(--backgroundContainerHover)}
+/* Chip (mistica Chip small: 32px, border 1px control, radius chip token) */
+.ds-chip{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:32px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-chip);background:var(--backgroundContainer);color:var(--textPrimary);font:var(--weight-chipLabel,500) 14px/20px var(--fontFamily);cursor:pointer;transition:background-color .1s ease-in-out,color .1s ease-in-out,border-color .1s ease-in-out}
+.ds-chip:hover{background:var(--buttonPrimaryBackground);color:var(--textButtonPrimary)}
+.ds-chip:active{background:var(--buttonPrimaryBackgroundPressed);color:var(--textButtonPrimary)}
+.ds-chip--active,.ds-chip--active:hover{background:var(--brand);color:var(--textButtonPrimary);border-color:var(--brand)}
+.ds-chip .ds-chip-count{padding:1px 7px;font-size:12px;line-height:16px;background:var(--textButtonPrimary);color:var(--brand);border-radius:var(--radius-full)}
+/* Tabs (mistica Tabs: 56px, divider 1px, selected 2px controlActivated) */
+.ds-tabs{display:flex;border-bottom:1px solid var(--divider)}
+.ds-tab{min-height:56px;padding:16px;font:var(--weight-tabsLabel,500) 16px/24px var(--fontFamily);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--textSecondary);cursor:pointer;transition:color .1s ease-in-out}
+.ds-tab:hover{color:var(--textPrimary)}
+.ds-tab--active,.ds-tab--active:hover{color:var(--textPrimary);border-bottom-color:var(--controlActivated)}
+.ds-tabs--stretch .ds-tab{flex:1}
+/* Tag (mistica Tag: radius tag token, min-width 56, py 4, weight indicator) */
+.ds-badge{display:inline-flex;align-items:center;justify-content:center;min-width:40px;font-family:var(--fontFamily);font-size:12px;line-height:16px;font-weight:var(--weight-indicator,500);padding:2px 8px;border-radius:var(--radius-tag);white-space:nowrap;box-sizing:border-box}
+.ds-badge--status{}
+.ds-badge--compact{min-width:32px;padding:1px 6px;font-size:11px;line-height:14px}
+.ds-score{display:inline-flex;justify-content:center;min-width:32px;font-family:var(--fontFamily);font-size:11px;line-height:14px;font-weight:var(--weight-indicator,500);padding:2px 8px;border-radius:var(--radius-tag);background:var(--score-bg);color:var(--score-fg);white-space:nowrap}
+/* Cards (mistica Boxed: 1px border, radius container, hover/pressed overlays — no shadows) */
+.ds-card{padding:12px 16px;background:var(--backgroundContainer);border:1px solid transparent;border-radius:8px;transition:background-color .1s ease-in-out,border-color .1s ease-in-out}
+.ds-card--clickable{cursor:pointer}
+.ds-card--clickable:hover{background:var(--backgroundContainerHover)}
+.ds-card--clickable:active{background:var(--backgroundContainerPressed)}
+.ds-card--selected,.ds-card--selected:hover{border-color:var(--borderSelected);background:var(--backgroundContainer)}
+/* Insight card — Andresa pattern kept, recolored with Mística tokens */
+.ds-insight{padding:16px;background:var(--backgroundContainer);border-radius:8px}
+/* Empty state (mistica EmptyState: boxed, left-aligned, brand icon) */
+.ds-empty{padding:24px;background:var(--backgroundContainer);border-radius:8px;display:flex;flex-direction:column;align-items:flex-start;text-align:left}
+.ds-empty>.ds-icon{color:var(--brand);margin-bottom:16px}
+.ds-empty h3{font:400 var(--size-text4,20px)/var(--lineHeight-text4,28px) var(--fontFamily)}
+.ds-empty p{font:400 16px/24px var(--fontFamily);color:var(--textSecondary);margin:8px 0 0;max-width:400px}
+/* Skeleton (mistica: backgroundSkeleton, pulse 1.5s linear) */
+@keyframes ds-pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
+.ds-skeleton{background:var(--backgroundSkeleton);border-radius:8px;animation:ds-pulse 1.5s linear infinite}
+@keyframes ds-spin{to{transform:rotate(360deg)}}
+.ds-spin{animation:ds-spin 1s linear infinite}
+/* Modal (mistica Dialog: overlay token, radius popup) */
+.ds-modal-root{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center}
+.ds-modal-backdrop{position:absolute;inset:0;background:var(--backgroundOverlay)}
+.ds-modal{position:relative;background:var(--backgroundContainer);border-radius:var(--radius-popup);box-shadow:0 2px 4px 0 rgba(0,0,0,.2);width:100%;max-width:448px;margin:0 16px;padding:24px}
+
+/* ── Shell (Sidebar / OutputPanel / dropdown) — ported verbatim from reference/index.html inline styles ── */
+@keyframes panel-in{from{transform:translateX(100%);opacity:.4}to{transform:translateX(0);opacity:1}}
+.output-panel{animation:panel-in 260ms ease-out}
+.brandmark{display:flex;align-items:center;gap:8px;font:400 20px/24px var(--fontFamily);color:var(--textPrimary);text-decoration:none;white-space:nowrap;min-width:0}
+.brandmark:hover{text-decoration:none}
+.collapse-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;background:var(--backgroundContainer);border:none;border-radius:6px;cursor:pointer;color:var(--textSecondary);padding:0}
+.collapse-btn:hover{background:var(--backgroundContainerHover);color:var(--textPrimary)}
+.avatar-btn{display:flex;align-items:center;gap:10px;background:none;border:none;cursor:pointer;padding:4px;border-radius:var(--radius-input)}
+.avatar-btn:hover{background:var(--backgroundContainerHover)}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--brand);color:var(--textButtonPrimary);display:flex;align-items:center;justify-content:center;font:500 15px/1 var(--fontFamily);flex-shrink:0}
+.menu{position:absolute;min-width:200px;background:var(--backgroundContainer);border:1px solid var(--border);border-radius:var(--radius-popup);box-shadow:0 2px 4px rgba(0,0,0,.2);padding:8px 0;z-index:60}
+.menu a{display:flex;align-items:center;gap:12px;padding:10px 16px;font:400 16px/24px var(--fontFamily);color:var(--textPrimary);text-decoration:none}
+.menu a:hover{background:var(--backgroundContainerHover);text-decoration:none}
+.menu .mdiv{height:1px;background:var(--divider);margin:8px 0}
+.menu .mail{padding:6px 16px 10px;font:400 12px/16px var(--fontFamily);color:var(--textSecondary)}
+.nav-item{display:flex;align-items:center;gap:12px;border-radius:var(--radius-input);padding:8px 12px;color:var(--textSecondary);font:400 16px/24px var(--fontFamily);text-decoration:none;transition:background-color 100ms ease-in-out,color 100ms ease-in-out}
+.nav-item:hover{background:var(--backgroundContainerHover);color:var(--textPrimary);text-decoration:none}
+.nav-item--active,.nav-item--active:hover{background:var(--background);color:var(--textPrimary);font-weight:500}
+.icon-btn{background:none;border:none;padding:4px;border-radius:var(--radius-md);cursor:pointer;display:inline-flex;color:var(--color-muted-foreground)}
+.icon-btn:hover{background:var(--color-muted)}
+.mini-card{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:16px;min-width:0;background:var(--color-sidebar);border:1px solid transparent;border-radius:8px;text-decoration:none;transition:background-color 100ms ease-in-out}
+.mini-card:hover{background:var(--backgroundContainerHover);text-decoration:none}
+main .ds-input{border-color:transparent}
+main .ds-modal .ds-input,main .ds-card .ds-input{border-color:var(--border)}
+main .ds-input:focus{border-color:var(--controlActivated)}

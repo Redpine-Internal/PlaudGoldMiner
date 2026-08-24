@@ -1,0 +1,54 @@
+/* Mística design system (tokens + skin + aliases + components).
+   Loaded before Tailwind so its CSS custom properties exist when @theme inline maps them. */
+@import "../styles/styles.css";
+
+@import "tailwindcss";
+
+/* Bridge Tailwind's utility color/radius/font names onto the Mística variables.
+   The alias layer in styles/tokens/colors.css already defines every --color-* below
+   in terms of the active skin, so utilities like bg-background / text-foreground /
+   bg-primary stay in sync with the design system and the theme engine. */
+@theme inline {
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+
+  --color-popover: var(--color-popover);
+  --color-popover-foreground: var(--color-popover-foreground);
+
+  --color-sidebar: var(--color-sidebar);
+
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-foreground);
+
+  --color-secondary: var(--color-secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
+
+  --color-accent: var(--color-accent);
+  --color-accent-foreground: var(--color-accent-foreground);
+
+  --color-destructive: var(--color-destructive);
+  --color-destructive-foreground: var(--color-destructive-foreground);
+
+  --color-border: var(--color-border);
+  --color-input: var(--color-input);
+  --color-ring: var(--color-ring);
+
+  --color-text-secondary: var(--color-text-secondary);
+
+  /* Radii — the product uses 8px on cards (container override lives in the skin/effects) */
+  --radius-sm: var(--radius-input);
+  --radius-md: var(--radius-input);
+  --radius-lg: var(--radius-container);
+  --radius-xl: var(--radius-popup);
+
+  /* Fonts — single family (Telefonica Sans); headings share it at regular/light */
+  --font-sans: var(--fontFamily);
+  --font-heading: var(--fontFamily);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

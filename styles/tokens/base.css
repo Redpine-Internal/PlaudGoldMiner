@@ -1,0 +1,7 @@
+/* Base element styles — Mística defaults. */
+body{margin:0;background:var(--background);color:var(--textPrimary);font-family:var(--fontFamily);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+h1,h2,h3,h4,h5,h6{font-family:var(--fontFamily);margin:0;font-weight:400}
+a{color:var(--textLink);font-weight:var(--weight-link,500);text-decoration:none}
+a:hover{text-decoration:underline}
+.ds-icon{display:inline-flex;flex-shrink:0}
+.ds-icon svg{width:100%;height:100%;display:block}

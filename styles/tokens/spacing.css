@@ -1,0 +1,5 @@
+/* Andresa AI spacing — 4px Tailwind grid, only steps the app uses — plus fixed layout dimensions. */
+:root{
+--space-05:2px;--space-1:4px;--space-15:6px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;
+--sidebar-width:240px;--output-panel-width:400px;--page-padding:24px;
+}

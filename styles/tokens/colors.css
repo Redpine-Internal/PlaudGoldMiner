@@ -1,0 +1,90 @@
+/* Compatibility alias layer: maps the legacy Andresa AI token names onto Mística constants (mistica/skins/*.css). New work should use the Mística names directly; these keep earlier components/kits working across all skins. */
+:root{
+/* Override do produto: fundo de página cinza-claro em vez do branco do skin */
+--background:#ECECEC;
+/* Override do produto: cor principal preta em vez do azul do skin */
+--brand:#000000;--brandHigh:#000000;
+--buttonPrimaryBackground:#000000;--buttonPrimaryBackgroundHover:#262626;--buttonPrimaryBackgroundPressed:#0D0D0D;
+--textLink:#000000;--textActivated:#000000;--controlActivated:#000000;--borderSelected:#000000;
+--textButtonSecondary:#000000;--textButtonSecondaryPressed:#000000;
+--buttonSecondaryBorder:#000000;--buttonSecondaryBorderPressed:#000000;
+--buttonSecondaryBackgroundHover:rgba(0, 0, 0, 0.05);--buttonSecondaryBackgroundPressed:rgba(0, 0, 0, 0.08);
+--buttonLinkBackgroundPressed:rgba(0, 0, 0, 0.08);
+--backgroundContainerHover:rgba(0, 0, 0, 0.05);--backgroundContainerPressed:rgba(0, 0, 0, 0.08);
+--color-background:var(--background);
+--color-foreground:var(--textPrimary);
+--color-card:var(--backgroundContainer);--color-card-foreground:var(--textPrimary);
+--color-popover:var(--backgroundContainer);--color-popover-foreground:var(--textPrimary);
+--color-sidebar:var(--backgroundContainer);
+--color-primary:var(--buttonPrimaryBackground);--color-primary-foreground:var(--textButtonPrimary);
+--color-secondary:var(--backgroundBrandSecondary);--color-secondary-foreground:var(--textButtonPrimary);
+--color-muted:var(--neutralLow);--color-muted-foreground:var(--textSecondary);
+--color-accent:var(--brandLow);--color-accent-foreground:var(--textActivated);
+--color-text-secondary:var(--textSecondary);
+--color-destructive:var(--buttonDangerBackground);--color-destructive-foreground:var(--textButtonPrimary);
+--color-border:var(--border);--color-input:var(--inputBorder);--color-ring:var(--controlActivated);
+--primary-tint-5:var(--backgroundContainerHover);--primary-tint-10:var(--backgroundContainerPressed);--primary-hover:var(--buttonPrimaryBackgroundHover);
+/* legacy palette names */
+--slate-50:var(--backgroundAlternative);--slate-100:var(--neutralLow);--slate-200:var(--border);--slate-300:var(--neutralMedium);--slate-400:var(--neutralMedium);--slate-500:var(--textSecondary);--slate-600:var(--textSecondary);--slate-700:var(--textPrimary);--slate-800:var(--textPrimary);--slate-900:var(--textPrimary);
+--violet-100:var(--brandLow);--violet-600:var(--brand);--violet-700:var(--textActivated);
+/* Acentos suaves (base p/ badges sólidos): tokens de acento do próprio Mística onde existem; os demais suavizados por color-mix */
+--accent-info:var(--brand);
+--accent-success:var(--success);
+--accent-warning:var(--warning);
+--accent-error:color-mix(in srgb, var(--error) 72%, white);
+--accent-promo:var(--promo);
+--accent-active:color-mix(in srgb, var(--tagTextActive) 72%, white);
+--accent-inactive:var(--neutralMedium);
+/* domain semantics — regra: badges usam a cor de acento (suave) no fundo + texto branco */
+--type-reuniao-bg:var(--accent-info);--type-reuniao-fg:var(--textButtonPrimary);
+--type-treinamento-bg:var(--accent-success);--type-treinamento-fg:var(--textButtonPrimary);
+--type-informal-bg:var(--accent-warning);--type-informal-fg:var(--textButtonPrimary);
+--type-outro-bg:var(--accent-inactive);--type-outro-fg:var(--textButtonPrimary);
+--status-processado-bg:var(--accent-success);--status-processado-fg:var(--textButtonPrimary);
+--status-pendente-bg:var(--accent-warning);--status-pendente-fg:var(--textButtonPrimary);
+--status-erro-bg:var(--accent-error);--status-erro-fg:var(--textButtonPrimary);
+--platform-youtube-bg:var(--accent-error);--platform-youtube-fg:var(--textButtonPrimary);--platform-youtube-icon:var(--tagTextError);
+--platform-linkedin-bg:var(--accent-info);--platform-linkedin-fg:var(--textButtonPrimary);--platform-linkedin-icon:var(--tagTextInfo);
+--platform-blog-bg:var(--accent-promo);--platform-blog-fg:var(--textButtonPrimary);--platform-blog-icon:var(--tagTextPromo);
+--opp-nova-bg:var(--accent-success);--opp-nova-fg:var(--textButtonPrimary);
+--opp-analise-bg:var(--accent-info);--opp-analise-fg:var(--textButtonPrimary);
+--opp-qualificada-bg:var(--accent-promo);--opp-qualificada-fg:var(--textButtonPrimary);
+--opp-descartada-bg:var(--accent-inactive);--opp-descartada-fg:var(--textButtonPrimary);
+--opp-produto-bg:var(--accent-warning);--opp-produto-fg:var(--textButtonPrimary);
+--opp-sistema-bg:var(--accent-info);--opp-sistema-fg:var(--textButtonPrimary);
+--opp-consultoria-bg:var(--accent-promo);--opp-consultoria-fg:var(--textButtonPrimary);
+--opp-servico-bg:var(--accent-active);--opp-servico-fg:var(--textButtonPrimary);
+--content-sugerido-bg:var(--accent-warning);--content-sugerido-fg:var(--textButtonPrimary);
+--content-producao-bg:var(--accent-info);--content-producao-fg:var(--textButtonPrimary);
+--content-publicado-bg:var(--accent-success);--content-publicado-fg:var(--textButtonPrimary);
+--content-descartado-bg:var(--accent-inactive);--content-descartado-fg:var(--textButtonPrimary);
+--score-bg:var(--accent-success);--score-fg:var(--textButtonPrimary);
+--insight-pattern:var(--tagTextInfo);--insight-opportunity:var(--tagTextSuccess);--insight-suggestion:var(--tagTextPromo);--insight-trend:var(--tagTextWarning);--insight-connection:var(--tagTextError);
+--overlay:var(--backgroundOverlay);
+}
+/* Regra p/ superfícies escuras: elementos viram brancos com a cor de acento na fonte */
+[data-surface="dark"]{
+--type-reuniao-bg:var(--textButtonPrimary);--type-reuniao-fg:var(--accent-info);
+--type-treinamento-bg:var(--textButtonPrimary);--type-treinamento-fg:var(--accent-success);
+--type-informal-bg:var(--textButtonPrimary);--type-informal-fg:var(--accent-warning);
+--type-outro-bg:var(--textButtonPrimary);--type-outro-fg:var(--accent-inactive);
+--status-processado-bg:var(--textButtonPrimary);--status-processado-fg:var(--accent-success);
+--status-pendente-bg:var(--textButtonPrimary);--status-pendente-fg:var(--accent-warning);
+--status-erro-bg:var(--textButtonPrimary);--status-erro-fg:var(--accent-error);
+--platform-youtube-bg:var(--textButtonPrimary);--platform-youtube-fg:var(--accent-error);
+--platform-linkedin-bg:var(--textButtonPrimary);--platform-linkedin-fg:var(--accent-info);
+--platform-blog-bg:var(--textButtonPrimary);--platform-blog-fg:var(--accent-promo);
+--opp-nova-bg:var(--textButtonPrimary);--opp-nova-fg:var(--accent-success);
+--opp-analise-bg:var(--textButtonPrimary);--opp-analise-fg:var(--accent-info);
+--opp-qualificada-bg:var(--textButtonPrimary);--opp-qualificada-fg:var(--accent-promo);
+--opp-descartada-bg:var(--textButtonPrimary);--opp-descartada-fg:var(--accent-inactive);
+--opp-produto-bg:var(--textButtonPrimary);--opp-produto-fg:var(--accent-warning);
+--opp-sistema-bg:var(--textButtonPrimary);--opp-sistema-fg:var(--accent-info);
+--opp-consultoria-bg:var(--textButtonPrimary);--opp-consultoria-fg:var(--accent-promo);
+--opp-servico-bg:var(--textButtonPrimary);--opp-servico-fg:var(--accent-active);
+--content-sugerido-bg:var(--textButtonPrimary);--content-sugerido-fg:var(--accent-warning);
+--content-producao-bg:var(--textButtonPrimary);--content-producao-fg:var(--accent-info);
+--content-publicado-bg:var(--textButtonPrimary);--content-publicado-fg:var(--accent-success);
+--content-descartado-bg:var(--textButtonPrimary);--content-descartado-fg:var(--accent-inactive);
+--score-bg:var(--textButtonPrimary);--score-fg:var(--accent-success);
+}
