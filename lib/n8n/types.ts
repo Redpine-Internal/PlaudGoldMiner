@@ -4,20 +4,14 @@
 
 export type N8nWebhookId =
   | 'process-meeting' // 01
-  | 'business-opportunities' // 02
   | 'embedding-compare' // 03
-  | 'article-insights' // 04
-  | 'social-content' // 05
   | 'execution-status' // 06
   | 'embedding-approve'; // 07
 
 /** Relative paths on N8N_BASE_URL. */
 export const N8N_WEBHOOKS: Record<N8nWebhookId, string> = {
   'process-meeting': '/webhook/4197f28e-25f3-4334-9fb0-2ea9ba58599e',
-  'business-opportunities': '/webhook/plaude-business-opportunities',
   'embedding-compare': '/webhook/plaude-embedding-compare',
-  'article-insights': '/webhook/plaude-article-insights',
-  'social-content': '/webhook/plaude-social-content',
   'execution-status': '/webhook/plaude-execution-status',
   'embedding-approve': '/webhook/plaude-embedding-approve',
 };

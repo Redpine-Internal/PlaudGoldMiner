@@ -1,33 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { mapBusinessOpportunities, type BusinessOpportunityRow } from '@/lib/n8n/mappers';
 import { enrichWithConversation } from '@/lib/n8n/enrich';
 
-// id sintético = `${rowId}:${index}`. Estratégia: separar o rowId antes do último ':',
-// buscar essa linha e localizar o card cujo id bate exatamente (find). Se o índice não
-// existir na linha, o find não acha → 404. Só o formato canônico `uuid:index` é resolvível.
+// Fonte local: app_opportunities tem 1 linha por oportunidade, então o id da URL
+// é o id real da linha (sem parsing sintético). Lookup direto por id.
+interface AppOpportunityRow {
+  id: string;
+  conversation_id: string | null;
+  title: string;
+  pain: string;
+  context: string | null;
+  score: number;
+  type: string;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const rowId = id.includes(':') ? id.slice(0, id.lastIndexOf(':')) : id;
 
-    const res = await pool.query<BusinessOpportunityRow>(
-      `SELECT id, meeting_ids, opportunities, created_at
-         FROM business_opportunities WHERE id = $1 LIMIT 1`,
-      [rowId]
+    const res = await pool.query<AppOpportunityRow>(
+      `SELECT id, conversation_id, title, pain, context, score, type, status, notes, created_at
+         FROM app_opportunities WHERE id = $1 LIMIT 1`,
+      [id]
     );
     if (res.rowCount === 0) {
       return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
     }
 
-    const cards = await enrichWithConversation(mapBusinessOpportunities(res.rows));
-    const card = cards.find((c) => c.id === id);
-    if (!card) {
-      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
-    }
+    const [card] = await enrichWithConversation(
+      res.rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        pain: r.pain,
+        context: r.context,
+        score: r.score,
+        type: r.type,
+        status: r.status,
+        notes: r.notes,
+        createdAt: r.created_at,
+        conversationId: r.conversation_id,
+      }))
+    );
     return NextResponse.json({ data: card });
   } catch (error) {
     console.error('Error fetching opportunity:', error);
@@ -35,10 +54,10 @@ export async function GET(
   }
 }
 
-// Read-only nesta fase: os dados são gerados pelo agente n8n (sem estado editável).
+// Edição desabilitada nesta fase: a UI não expõe edição de oportunidade.
 export async function PATCH() {
   return NextResponse.json(
-    { error: 'Edição desabilitada nesta fase (dados read-only do n8n)' },
+    { error: 'Edição de oportunidade desabilitada nesta fase' },
     { status: 405 }
   );
 }
