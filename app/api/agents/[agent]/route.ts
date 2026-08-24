@@ -58,7 +58,7 @@ const schemas: Record<AgentName, z.ZodTypeAny> = {
 // Tipo de contexto — suporta injeção de dependência em testes
 // ---------------------------------------------------------------------------
 
-type TriggerFn = (meetingIds: string[], opts?: BusinessOpts & ArticleOpts & SocialOpts) => Promise<N8nResult<unknown>>;
+type TriggerFn = (meetingIds: string[], opts?: Record<string, unknown>) => Promise<N8nResult<unknown>>;
 
 interface RouteCtx {
   params: Promise<{ agent: string }>;
@@ -83,7 +83,17 @@ export async function POST(request: Request, ctx: RouteCtx) {
 
   const agentName = agent as AgentName;
 
-  // 2. Lê e valida o corpo da requisição
+  // 2. Verifica configuração obrigatória (userId) — fail-fast antes de qualquer trabalho.
+  const userId = ctx.__test?.userId !== undefined ? ctx.__test.userId : getDefaultUserId();
+  if (!userId) {
+    console.error('[API] POST /api/agents/[agent]: N8N_DEFAULT_USER_ID não configurado');
+    return NextResponse.json(
+      { error: 'Configuração ausente: N8N_DEFAULT_USER_ID' },
+      { status: 500 },
+    );
+  }
+
+  // 3. Lê e valida o corpo da requisição
   const raw = await request.json().catch(() => ({}));
 
   let validated: Record<string, unknown>;
@@ -102,16 +112,6 @@ export async function POST(request: Request, ctx: RouteCtx) {
     throw error; // não-Zod: propaga para o handler externo
   }
 
-  // 3. Verifica configuração obrigatória (userId)
-  const userId = ctx.__test?.userId !== undefined ? ctx.__test.userId : getDefaultUserId();
-  if (!userId) {
-    console.error('[API] POST /api/agents/[agent]: N8N_DEFAULT_USER_ID não configurado');
-    return NextResponse.json(
-      { error: 'Configuração ausente: N8N_DEFAULT_USER_ID' },
-      { status: 500 },
-    );
-  }
-
   // 4. Separa meetingIds das opts e despacha para o agente correto
   const { meetingIds, ...opts } = validated as { meetingIds: string[] } & Record<string, unknown>;
 
@@ -119,7 +119,7 @@ export async function POST(request: Request, ctx: RouteCtx) {
 
   if (ctx.__test?.trigger) {
     // Modo teste: usa o trigger injetado
-    result = await ctx.__test.trigger(meetingIds, opts as BusinessOpts & ArticleOpts & SocialOpts);
+    result = await ctx.__test.trigger(meetingIds, opts);
   } else if (agentName === 'business') {
     result = await triggerBusiness(meetingIds, opts as BusinessOpts);
   } else if (agentName === 'article') {
@@ -130,8 +130,10 @@ export async function POST(request: Request, ctx: RouteCtx) {
 
   // 5. Mapeia o resultado do agente para a resposta HTTP
   if (!result.ok) {
+    // Detalhe do n8n (URLs de webhook, nomes de nós) fica só no log do servidor;
+    // o cliente recebe uma mensagem genérica para não vazar internals.
     console.error(`[API] POST /api/agents/${agentName}: agente retornou erro —`, result.error);
-    return NextResponse.json({ error: result.error }, { status: result.status ?? 502 });
+    return NextResponse.json({ error: 'Falha ao disparar agente' }, { status: result.status ?? 502 });
   }
 
   return NextResponse.json(
