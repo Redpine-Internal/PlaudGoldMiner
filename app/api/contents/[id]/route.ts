@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { contents } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
-import { z } from 'zod';
-
-const updateSchema = z.object({
-  status: z.enum(['sugerido', 'producao', 'publicado', 'descartado']).optional(),
-  notes: z.string().optional(),
-  outline: z.string().optional(),
-});
+import { pool } from '@/lib/db';
+import { mapSocialPosts, type SocialPostRow } from '@/lib/n8n/mappers';
+import { enrichWithConversation } from '@/lib/n8n/enrich';
 
 export async function GET(
   request: NextRequest,
@@ -16,66 +9,25 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-
-    const result = await db
-      .select()
-      .from(contents)
-      .where(eq(contents.id, id))
-      .limit(1);
-
-    if (result.length === 0) {
-      return NextResponse.json(
-        { error: 'Content not found' },
-        { status: 404 }
-      );
+    const res = await pool.query<SocialPostRow>(
+      `SELECT id, meeting_ids, platform, content_type, title, body, hashtags, image_prompt, created_at
+         FROM social_posts WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+    if (res.rowCount === 0) {
+      return NextResponse.json({ error: 'Content not found' }, { status: 404 });
     }
-
-    return NextResponse.json({ data: result[0] });
+    const [card] = await enrichWithConversation(mapSocialPosts(res.rows));
+    return NextResponse.json({ data: card });
   } catch (error) {
     console.error('Error fetching content:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch content' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch content' }, { status: 500 });
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    const validated = updateSchema.parse(body);
-
-    const [updated] = await db
-      .update(contents)
-      .set(validated)
-      .where(eq(contents.id, id))
-      .returning();
-
-    if (!updated) {
-      return NextResponse.json(
-        { error: 'Content not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ data: updated });
-  } catch (error) {
-    console.error('Error updating content:', error);
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed' },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to update content' },
-      { status: 500 }
-    );
-  }
+export async function PATCH() {
+  return NextResponse.json(
+    { error: 'Edição desabilitada nesta fase (dados read-only do n8n)' },
+    { status: 405 }
+  );
 }

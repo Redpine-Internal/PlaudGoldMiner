@@ -1,41 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { crossInsights } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { pool } from '@/lib/db';
+import { mapArticleInsights, type ArticleInsightRow } from '@/lib/n8n/mappers';
+import { enrichWithConversation } from '@/lib/n8n/enrich';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const rawLimit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 20;
     const status = searchParams.get('status');
     const type = searchParams.get('type');
 
-    let query = db
-      .select()
-      .from(crossInsights)
-      .orderBy(desc(crossInsights.createdAt))
-      .limit(limit);
+    const res = await pool.query<ArticleInsightRow>(
+      `SELECT id, meeting_ids, title, abstract_text, focus_area, created_at
+         FROM article_insights
+        ORDER BY created_at DESC
+        LIMIT $1`,
+      [limit]
+    );
 
-    const result = await query;
+    const cards = await enrichWithConversation(mapArticleInsights(res.rows));
 
-    // Apply filters
-    let filtered = result;
-    if (status) {
-      filtered = filtered.filter((i) => i.status === status);
-    }
-    if (type) {
-      filtered = filtered.filter((i) => i.insightType === type);
-    }
+    let filtered = cards;
+    if (status) filtered = filtered.filter((i) => i.status === status);
+    if (type) filtered = filtered.filter((i) => i.insightType === type);
 
-    return NextResponse.json({
-      data: filtered,
-      total: filtered.length,
-    });
+    return NextResponse.json({ data: filtered, total: filtered.length });
   } catch (error) {
     console.error('Error fetching insights:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch insights' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch insights' }, { status: 500 });
   }
 }
