@@ -116,10 +116,13 @@ export function mapSocialPosts(rows: SocialPostRow[]): ContentCard[] {
     title: row.title ?? '',
     platform: row.platform ?? '',
     theme: row.content_type ?? '',
+    // A UI (ContentCard.parseOutline) renderiza { angle, points[] }: `angle` sai
+    // em itálico como gancho, `points` vira lista. Mapeamos body→angle e hashtags→points
+    // para o card renderizar limpo em vez de despejar o JSON cru. (image_prompt não tem
+    // lugar neste card; fica de fora do outline visível.)
     outline: JSON.stringify({
-      body: row.body ?? '',
-      hashtags: Array.isArray(row.hashtags) ? row.hashtags : [],
-      imagePrompt: row.image_prompt ?? null,
+      angle: row.body ?? '',
+      points: Array.isArray(row.hashtags) ? row.hashtags.map(String) : [],
     }),
     mentionCount: 1, // social_posts não tem colunas de menção/relevância; UI usa defaults
     relevanceScore: 0,
