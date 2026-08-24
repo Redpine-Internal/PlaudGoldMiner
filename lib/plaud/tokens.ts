@@ -106,3 +106,11 @@ export class PlaudAuthError extends Error {
     this.cause = cause;
   }
 }
+
+// Mensagem de 401 exposta ao cliente. Genérica DE PROPÓSITO: o `message` do
+// PlaudAuthError carrega o caminho do arquivo de token (~/.plaud/...) e o e-mail
+// da conta operadora — detalhes que não podem vazar para o cliente. O detalhe
+// real continua disponível no servidor (cada rota faz console.error do erro cru).
+// O `code` estável ('plaud_auth') é o que a UI usa para reagir.
+export const PLAUD_AUTH_CLIENT_MESSAGE =
+  'Autenticação com o Plaud falhou. Reautentique o MCP do Plaud.';

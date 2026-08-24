@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listFiles } from '@/lib/plaud/client';
-import { PlaudAuthError } from '@/lib/plaud/tokens';
+import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 
 /** Turn a Plaud duration (ms) into a compact "1h 12min" / "8min" display string. */
 function formatDuration(ms: number): string {
@@ -41,7 +41,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: conversations, page: p, page_size });
   } catch (error) {
     if (error instanceof PlaudAuthError) {
-      return NextResponse.json({ error: error.message, code: 'plaud_auth' }, { status: 401 });
+      console.error('Plaud auth error listing files:', error);
+      return NextResponse.json(
+        { error: PLAUD_AUTH_CLIENT_MESSAGE, code: 'plaud_auth' },
+        { status: 401 }
+      );
     }
     console.error('Error listing Plaud files:', error);
     return NextResponse.json({ error: 'Falha ao consultar o Plaud.' }, { status: 502 });

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getFileContent } from '@/lib/plaud/client';
-import { PlaudAuthError } from '@/lib/plaud/tokens';
+import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 import { db } from '@/lib/db';
 import { conversations, opportunities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -50,7 +50,11 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     });
   } catch (error) {
     if (error instanceof PlaudAuthError) {
-      return NextResponse.json({ error: error.message, code: 'plaud_auth' }, { status: 401 });
+      console.error('Plaud auth error fetching file status:', error);
+      return NextResponse.json(
+        { error: PLAUD_AUTH_CLIENT_MESSAGE, code: 'plaud_auth' },
+        { status: 401 }
+      );
     }
     console.error('Error fetching Plaud file status:', error);
     return NextResponse.json({ error: 'Falha ao consultar o Plaud.' }, { status: 502 });
