@@ -6,15 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "lint": "eslint"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.53",
     "@ai-sdk/azure": "^2.0.123",
-    "@libsql/client": "^0.15.15",
     "@types/pg": "^8.23.1",
     "ai": "^5.0.105",
     "class-variance-authority": "^0.7.1",
@@ -39,7 +35,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
-    "drizzle-kit": "^0.31.7",
     "eslint": "^9",
     "eslint-config-next": "16.0.5",
     "tailwindcss": "^4",
