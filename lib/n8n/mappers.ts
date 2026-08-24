@@ -51,6 +51,7 @@ export interface CrossInsightCard {
   status: string;
   actionSuggestion: string | null;
   conversationIds: string; // JSON array de meeting ids
+  conversationId: string | null; // primeiro id (para enrichWithConversation)
   conversationTitle?: string | null;
   conversationDate?: string | null;
   createdAt: string;
@@ -142,6 +143,7 @@ export function mapArticleInsights(rows: ArticleInsightRow[]): CrossInsightCard[
     status: 'new',
     actionSuggestion: null,
     conversationIds: JSON.stringify(row.meeting_ids ?? []),
+    conversationId: row.meeting_ids?.[0] ?? null,
     createdAt: row.created_at,
   }));
 }
