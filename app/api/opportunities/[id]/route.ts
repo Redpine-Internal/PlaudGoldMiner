@@ -1,104 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { opportunities, conversations } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
-import { z } from 'zod';
+import { pool } from '@/lib/db';
+import { mapBusinessOpportunities, type BusinessOpportunityRow } from '@/lib/n8n/mappers';
+import { enrichWithConversation } from '@/lib/n8n/enrich';
 
-const updateSchema = z.object({
-  status: z.enum(['nova', 'analise', 'qualificada', 'descartada']).optional(),
-  type: z.enum(['produto', 'sistema', 'consultoria', 'servico']).optional(),
-  notes: z.string().optional(),
-  tags: z.string().optional(),
-});
-
+// id sintético = `${rowId}:${index}`. Estratégia: separar o rowId antes do último ':',
+// buscar essa linha e localizar o card cujo id bate exatamente (find). Se o índice não
+// existir na linha, o find não acha → 404. Só o formato canônico `uuid:index` é resolvível.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const rowId = id.includes(':') ? id.slice(0, id.lastIndexOf(':')) : id;
 
-    const result = await db
-      .select({
-        id: opportunities.id,
-        title: opportunities.title,
-        pain: opportunities.pain,
-        context: opportunities.context,
-        type: opportunities.type,
-        status: opportunities.status,
-        score: opportunities.score,
-        notes: opportunities.notes,
-        tags: opportunities.tags,
-        conversationId: opportunities.conversationId,
-        conversationTitle: conversations.title,
-        conversationDate: conversations.date,
-        transcription: conversations.transcription,
-        createdAt: opportunities.createdAt,
-      })
-      .from(opportunities)
-      .leftJoin(conversations, eq(opportunities.conversationId, conversations.id))
-      .where(eq(opportunities.id, id))
-      .limit(1);
-
-    if (result.length === 0) {
-      return NextResponse.json(
-        { error: 'Opportunity not found' },
-        { status: 404 }
-      );
+    const res = await pool.query<BusinessOpportunityRow>(
+      `SELECT id, meeting_ids, opportunities, created_at
+         FROM business_opportunities WHERE id = $1 LIMIT 1`,
+      [rowId]
+    );
+    if (res.rowCount === 0) {
+      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: result[0] });
+    const cards = await enrichWithConversation(mapBusinessOpportunities(res.rows));
+    const card = cards.find((c) => c.id === id);
+    if (!card) {
+      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
+    }
+    return NextResponse.json({ data: card });
   } catch (error) {
     console.error('Error fetching opportunity:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch opportunity' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch opportunity' }, { status: 500 });
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    const validated = updateSchema.parse(body);
-
-    const [updated] = await db
-      .update(opportunities)
-      .set(validated)
-      .where(eq(opportunities.id, id))
-      .returning();
-
-    if (!updated) {
-      return NextResponse.json(
-        { error: 'Opportunity not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ data: updated });
-  } catch (error) {
-    console.error('Error updating opportunity:', error);
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: 'Validation failed',
-          details: error.issues.map((e) => ({
-            path: e.path.join('.'),
-            message: e.message,
-          })),
-        },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to update opportunity' },
-      { status: 500 }
-    );
-  }
+// Read-only nesta fase: os dados são gerados pelo agente n8n (sem estado editável).
+export async function PATCH() {
+  return NextResponse.json(
+    { error: 'Edição desabilitada nesta fase (dados read-only do n8n)' },
+    { status: 405 }
+  );
 }
