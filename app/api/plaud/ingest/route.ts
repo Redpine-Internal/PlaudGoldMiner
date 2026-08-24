@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { listFiles } from '@/lib/plaud/client';
-import { PlaudAuthError } from '@/lib/plaud/tokens';
+import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 import { ingestPlaudFile } from '@/lib/plaud/ingest';
 
 const bodySchema = z.object({
@@ -59,10 +59,9 @@ export async function POST(request: NextRequest) {
     return Response.json({ data: summary });
   } catch (error) {
     if (error instanceof PlaudAuthError) {
-      // Mensagem genérica no corpo (o error.message do token embute caminho/email); detalhe só no log.
-      console.error('[API] POST /api/plaud/ingest auth error:', error.message);
+      console.error('[API] POST /api/plaud/ingest auth error:', error);
       return Response.json(
-        { error: 'Autenticação com o Plaud falhou. Reautentique o MCP do Plaud.', code: 'plaud_auth' },
+        { error: PLAUD_AUTH_CLIENT_MESSAGE, code: 'plaud_auth' },
         { status: 401 }
       );
     }

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getFileContent } from '@/lib/plaud/client';
-import { PlaudAuthError } from '@/lib/plaud/tokens';
+import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 import { processTranscription } from '@/lib/ai/services/transcription-processor';
 import { persistTranscriptionResult, markConversationError } from '@/lib/ai/persist-result';
 import { db } from '@/lib/db';
@@ -113,7 +113,11 @@ export async function POST(request: NextRequest) {
       );
     }
     if (error instanceof PlaudAuthError) {
-      return Response.json({ error: error.message, code: 'plaud_auth' }, { status: 401 });
+      console.error('[API] POST /api/plaud/analyze plaud auth error:', error);
+      return Response.json(
+        { error: PLAUD_AUTH_CLIENT_MESSAGE, code: 'plaud_auth' },
+        { status: 401 }
+      );
     }
     console.error('[API] POST /api/plaud/analyze error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
