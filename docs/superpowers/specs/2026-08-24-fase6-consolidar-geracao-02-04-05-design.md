@@ -25,9 +25,13 @@ os workflows 01 (process-meeting), 03 (embedding-compare), 07 (embedding-approve
   - 02 oportunidades → geradas no processamento da reunião
     (`transcription-processor` → `persist-result` → grava `app_opportunities`,
     1 linha por oportunidade).
-- **A única leitura ainda acoplada ao n8n** é `app/api/opportunities/route.ts`,
-  que faz `SELECT ... FROM business_opportunities` (tabela do n8n, jsonb
-  1→N) e usa `mapBusinessOpportunities` + `enrichWithConversation`.
+- **Duas leituras ainda acopladas ao n8n:** `app/api/opportunities/route.ts`
+  (lista) e `app/api/opportunities/[id]/route.ts` (detalhe), ambas fazendo
+  `SELECT ... FROM business_opportunities` (tabela do n8n, jsonb 1→N) via
+  `mapBusinessOpportunities` + `enrichWithConversation`. A rota `[id]` usa id
+  sintético `${rowId}:${index}` porque o n8n agrupava N oportunidades por linha;
+  em `app_opportunities` (1 linha/oportunidade) o id é o id real da linha, então
+  o parsing sintético sai e o lookup vira `WHERE id = $1`.
 - **Auditoria dos workflows 02/04/05** (IDs `QtMaHYa4gZSp27Yi`,
   `JRJnpROaHxDh9U9y`, `UEafFOcgOrcqtMfa`): estrutura idêntica de 12 nós
   (webhook → code → lê `summaries` → lê `agent_prompts` → LLM Azure **Chat**
@@ -67,6 +71,7 @@ histórico do n8n, é decisão separada.
 | # | Item | Ação |
 |---|---|---|
 | 1 | `app/api/opportunities/route.ts` | reapontar `SELECT` de `business_opportunities` → `app_opportunities`, mapeando 1:1 para `OpportunityCard`; reusar `enrichWithConversation`; parar de importar `mapBusinessOpportunities`/`BusinessOpportunityRow` |
+| 1b | `app/api/opportunities/[id]/route.ts` | reapontar para `app_opportunities` (`WHERE id = $1`, id real, sem parsing sintético); manter PATCH 405, mas corrigir a mensagem (fonte agora é local, não n8n) |
 | 2 | `lib/n8n/agents.ts` | **deletar** (camada de disparo Fase 4, sem uso) |
 | 3 | `app/api/agents/[agent]/route.ts` | **deletar** (rota de disparo, sem uso pela UI) |
 | 4 | `app/api/agents/executions/route.ts` | **deletar** (GET de `agent_executions`, sem uso pela UI) |
