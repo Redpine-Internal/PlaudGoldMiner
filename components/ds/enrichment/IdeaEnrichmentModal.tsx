@@ -45,6 +45,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
   const [linkUrl, setLinkUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<Record<string, unknown> | null>(null);
 
   // Carrega o enriquecimento existente ao abrir.
   useEffect(() => {
@@ -93,7 +94,29 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
   // Autosave com debounce para notes e text.
   const scheduleSave = (patch: Record<string, unknown>) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => put(patch), 600);
+    pendingSave.current = patch;
+    saveTimer.current = setTimeout(() => {
+      pendingSave.current = null;
+      put(patch);
+    }, 600);
+  };
+
+  // Descarrega imediatamente qualquer autosave pendente (ao fechar ou criar projeto),
+  // evitando perder as últimas edições dentro da janela de debounce.
+  const flushSave = async () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    const patch = pendingSave.current;
+    pendingSave.current = null;
+    if (patch) await put(patch);
+  };
+
+  // Fecha o modal garantindo a persistência do que estava pendente.
+  const handleClose = () => {
+    void flushSave();
+    onClose();
   };
 
   const toggleInteresting = () => {
@@ -184,14 +207,16 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
   };
 
   const removeRef = async (id: string) => {
-    await fetch(`/api/enrichment/reference?id=${id}`, { method: "DELETE" });
-    setRefs((r) => r.filter((x) => x.id !== id));
+    const res = await fetch(`/api/enrichment/reference?id=${id}`, { method: "DELETE" });
+    if (res.ok) setRefs((r) => r.filter((x) => x.id !== id));
+    else setError("Falha ao remover referência.");
   };
 
   // Monta a descrição enriquecida e cria o projeto.
   const createProject = async () => {
     setBusy(true);
     try {
+      await flushSave();
       const parts = [text.trim()];
       if (notes.trim()) parts.push(`\n\nObservações:\n${notes.trim()}`);
       const links = refs.filter((r) => r.kind === "link");
@@ -229,7 +254,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
 
   return (
     <div
-      onClick={onClose}
+      onClick={handleClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -267,7 +292,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
             >
               {interesting ? "Interessante" : "Marcar"}
             </Button>
-            <button type="button" onClick={onClose} title="Fechar" style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+            <button type="button" onClick={handleClose} title="Fechar" style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
               <Icon name="x" size={20} />
             </button>
           </div>
@@ -345,7 +370,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
-              <Button variant="outline" onClick={onClose}>Fechar</Button>
+              <Button variant="outline" onClick={handleClose}>Fechar</Button>
               <Button variant="primary" icon="layout-dashboard" iconSpin={busy} onClick={createProject} disabled={busy}>Criar Projeto</Button>
             </div>
           </>
