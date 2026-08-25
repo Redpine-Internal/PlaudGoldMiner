@@ -221,6 +221,8 @@ const ConteudosPage = () => {
                 mentionCount={c.mentionCount}
                 relevanceScore={c.relevanceScore}
                 status={c.status}
+                sourceId={c.id}
+                enrichText={c.theme}
                 onApprove={() => setSt(c.id, "producao")}
                 onDiscard={() => setSt(c.id, "descartado")}
                 onPublish={() => setSt(c.id, "publicado")}

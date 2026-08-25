@@ -161,6 +161,8 @@ const DashboardPage = () => {
                 insightType={i.insightType}
                 actionSuggestion={i.actionSuggestion || undefined}
                 isNew={i.status === "new"}
+                sourceId={i.id}
+                enrichText={i.description}
                 onDismiss={() => patchInsight(i.id, "ignored")}
                 onMarkUseful={() => patchInsight(i.id, "useful")}
               />

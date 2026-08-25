@@ -239,6 +239,8 @@ const OportunidadesPage = () => {
                   score={o.score}
                   conversationTitle={o.conversationTitle || undefined}
                   createdAt={o.createdAt}
+                  sourceId={o.id}
+                  enrichText={o.pain}
                   selected={selectedOpportunityId === o.id}
                   onSelect={() => setSelectedOpportunityId(o.id)}
                   action={

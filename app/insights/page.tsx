@@ -230,6 +230,8 @@ const InsightsPage = () => {
                 insightType={i.insightType}
                 actionSuggestion={i.actionSuggestion || undefined}
                 isNew={i.status === "new"}
+                sourceId={i.id}
+                enrichText={i.description}
                 onMarkUseful={i.status !== "useful" ? () => setSt(i.id, "useful") : undefined}
                 onDismiss={i.status !== "dismissed" ? () => setSt(i.id, "dismissed") : undefined}
                 action={
