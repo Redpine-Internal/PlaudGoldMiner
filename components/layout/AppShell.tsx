@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import OutputPanel from "./OutputPanel";
 import { useAppStore } from "@/stores/appStore";
+import { EnrichmentProvider } from "@/components/ds";
 
 const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
@@ -16,7 +17,7 @@ const AppShell = ({ children }: { children: React.ReactNode }) => {
       <Sidebar />
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <main style={{ flex: 1, overflowY: "auto", padding: "24px 24px 24px 14px" }} data-screen-label={pathname}>
-          {children}
+          <EnrichmentProvider>{children}</EnrichmentProvider>
         </main>
         {showPanel ? <OutputPanel /> : null}
       </div>

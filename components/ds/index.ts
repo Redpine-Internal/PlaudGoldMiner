@@ -43,3 +43,7 @@ export { Pagination } from "./Pagination";
 export type { PaginationProps } from "./Pagination";
 export { StartProjectButton } from "./StartProjectButton";
 export type { StartProjectButtonProps } from "./StartProjectButton";
+
+export { EnrichmentProvider } from "./enrichment/EnrichmentProvider";
+export { useEnrichment } from "./enrichment/useEnrichment";
+export type { EnrichmentSourceType, IdeaData } from "./enrichment/useEnrichment";
