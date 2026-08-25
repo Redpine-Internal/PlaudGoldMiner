@@ -12,6 +12,7 @@ const ITEMS = [
   { icon: "lightbulb", label: "Oportunidades", path: "/oportunidades" },
   { icon: "sparkles", label: "IA Insights", path: "/insights" },
   { icon: "document-other", label: "Conteúdos", path: "/conteudos" },
+  { icon: "star", label: "Assuntos de Interesse", path: "/assuntos-interesse" },
   { icon: "layout-dashboard", label: "Projetos", path: "/projetos" },
   { icon: "brain", label: "Clone", path: "/clone" },
   { icon: "settings", label: "Configurações", path: "/configuracoes" },
