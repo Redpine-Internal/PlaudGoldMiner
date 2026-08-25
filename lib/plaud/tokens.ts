@@ -21,6 +21,11 @@ const REFRESH_URL =
   process.env.PLAUD_REFRESH_URL ||
   'https://platform.plaud.ai/developer/api/oauth/third-party/access-token/refresh';
 
+// Fonte primária em produção: o refresh_token vem por env (montado de um Secret
+// no Cloud Run), pois o container não tem o arquivo ~/.plaud/tokens-mcp.json.
+// Em dev, deixe a env vazia e o arquivo do MCP é usado normalmente.
+const ENV_REFRESH_TOKEN = process.env.PLAUD_REFRESH_TOKEN?.trim() || '';
+
 // Refresh a bit before the real expiry, like the MCP client (60s skew).
 const EXPIRY_SKEW_MS = 60_000;
 
@@ -33,8 +38,18 @@ interface TokenSet {
 
 let cache: TokenSet | null = null;
 
-async function readTokenFile(): Promise<TokenSet> {
+async function readTokenSet(): Promise<TokenSet> {
   if (cache) return cache;
+
+  // Fonte primária (produção): refresh_token vindo da env. Sem access_token e
+  // sem expires_at, o getAccessToken força um refresh imediato para obter um
+  // access_token válido — que passa a viver no cache em memória do processo.
+  if (ENV_REFRESH_TOKEN) {
+    cache = { access_token: '', refresh_token: ENV_REFRESH_TOKEN };
+    return cache;
+  }
+
+  // Fallback (dev): tokens do MCP em ~/.plaud/tokens-mcp.json.
   try {
     const raw = await readFile(TOKEN_FILE, 'utf8');
     cache = JSON.parse(raw) as TokenSet;
@@ -85,8 +100,10 @@ async function refresh(refreshToken: string): Promise<TokenSet> {
 
 /** Returns a valid access token, refreshing if it is expired or about to expire. */
 export async function getAccessToken(): Promise<string> {
-  let tokenSet = await readTokenFile();
-  if (tokenSet.expires_at && Date.now() > tokenSet.expires_at - EXPIRY_SKEW_MS) {
+  let tokenSet = await readTokenSet();
+  const expired = tokenSet.expires_at && Date.now() > tokenSet.expires_at - EXPIRY_SKEW_MS;
+  // Sem access_token (caso da env com só refresh_token) OU expirado: renova.
+  if (!tokenSet.access_token || expired) {
     if (!tokenSet.refresh_token) {
       throw new PlaudAuthError('Token do Plaud expirado e sem refresh_token. Reautentique o MCP do Plaud.');
     }

@@ -44,7 +44,7 @@ steps:
       - --min-instances=0
       - --max-instances=4
       - --set-env-vars=NODE_ENV=production,NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      - --set-secrets=MEETINGS_DATABASE_URL=meetings-database-url:latest,SUPABASE_URL_SISTEMA=supabase-url-sistema:latest,SUPABASE_SERVICE_ROLE_KEY_SISTEMA=supabase-service-role-key-sistema:latest,AUTH_SECRET=auth-secret:latest,AZURE_OPENAI_API_KEY=azure-openai-api-key:latest,AZURE_OPENAI_RESOURCE_NAME=azure-openai-resource-name:latest,AZURE_OPENAI_DEPLOYMENT=azure-openai-deployment:latest,N8N_WEBHOOK_SECRET=n8n-webhook-secret:latest,N8N_WEBHOOK_URL=n8n-webhook-url:latest
+      - --set-secrets=MEETINGS_DATABASE_URL=meetings-database-url:latest,SUPABASE_URL_SISTEMA=supabase-url-sistema:latest,SUPABASE_SERVICE_ROLE_KEY_SISTEMA=supabase-service-role-key-sistema:latest,AUTH_SECRET=auth-secret:latest,AZURE_OPENAI_API_KEY=azure-openai-api-key:latest,AZURE_OPENAI_RESOURCE_NAME=azure-openai-resource-name:latest,AZURE_OPENAI_DEPLOYMENT=azure-openai-deployment:latest,N8N_WEBHOOK_SECRET=n8n-webhook-secret:latest,N8N_WEBHOOK_URL=n8n-webhook-url:latest,PLAUD_REFRESH_TOKEN=plaud-refresh-token:latest
 
 images:
   - "${_IMAGE}:$BUILD_ID"
