@@ -1,6 +1,7 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { Button } from "./Button";
+import { useEnrichment } from "./enrichment/useEnrichment";
 
 const P: Record<string, { icon: string; color: string; label: string }> = {
   youtube: { icon: "youtube", color: "var(--platform-youtube-icon)", label: "YouTube" },
@@ -22,6 +23,8 @@ export interface ContentCardProps {
   onPublish?: React.MouseEventHandler<HTMLButtonElement>;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
   action?: React.ReactNode;
+  sourceId?: string;
+  enrichText?: string;
   style?: React.CSSProperties;
   className?: string;
 }
@@ -63,6 +66,8 @@ export function ContentCard({
   onDiscard,
   onPublish,
   action,
+  sourceId,
+  enrichText,
   style,
   className = "",
 }: ContentCardProps) {
@@ -73,15 +78,24 @@ export function ContentCard({
   // relevanceScore comes through as 0-100 from the generator; older rows may be
   // 0-1. Normalise so we never render "9800%".
   const relevancePct = relevanceScore <= 1 ? Math.round(relevanceScore * 100) : Math.round(relevanceScore);
+  const enrichment = useEnrichment();
+  const interesting = enrichment && sourceId ? enrichment.isInteresting("content", sourceId) : false;
+  const handleCardClick = () => {
+    if (enrichment && sourceId) {
+      enrichment.openEnrichment("content", sourceId, { title: title ?? "", originalText: enrichText ?? theme ?? "" });
+    }
+  };
   return (
     <div
       className={("ds-card " + className).trim()}
-      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", ...style }}
+      onClick={handleCardClick}
+      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", cursor: sourceId ? "pointer" : undefined, ...style }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name={p.icon} size={20} color={p.color} />
           <span style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{p.label}</span>
+          {interesting ? <Icon name="star" size={14} color="var(--brand)" /> : null}
         </div>
         <span className="ds-badge ds-badge--compact" style={{ background: `var(--content-${status}-bg)`, color: `var(--content-${status}-fg)` }}>
           {STATUS[status] || status}
@@ -129,15 +143,15 @@ export function ContentCard({
       </div>
       {status === "sugerido" ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
-          <Button size="sm" icon="check" onClick={onApprove} style={{ flex: 1 }}>
+          <Button size="sm" icon="check" onClick={(e) => { e.stopPropagation(); onApprove?.(e); }} style={{ flex: 1 }}>
             Aprovar
           </Button>
-          <Button size="sm" variant="outline" icon="trash-2" onClick={onDiscard} />
+          <Button size="sm" variant="outline" icon="trash-2" onClick={(e) => { e.stopPropagation(); onDiscard?.(e); }} />
         </div>
       ) : null}
       {status === "producao" ? (
         <div style={{ display: "flex", paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
-          <Button size="sm" variant="success" icon="check" onClick={onPublish} style={{ flex: 1 }}>
+          <Button size="sm" variant="success" icon="check" onClick={(e) => { e.stopPropagation(); onPublish?.(e); }} style={{ flex: 1 }}>
             Marcar como Publicado
           </Button>
         </div>

@@ -1,4 +1,6 @@
 import React from "react";
+import { Icon } from "./Icon";
+import { useEnrichment } from "./enrichment/useEnrichment";
 
 const STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
 const TYPES: Record<string, string> = { produto: "Produto", sistema: "Sistema", consultoria: "Consultoria", servico: "Serviço" };
@@ -13,6 +15,8 @@ export interface OpportunityCardProps {
   createdAt?: string | Date;
   selected?: boolean;
   onSelect?: React.MouseEventHandler<HTMLDivElement>;
+  sourceId?: string;
+  enrichText?: string;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
   action?: React.ReactNode;
   style?: React.CSSProperties;
@@ -30,20 +34,33 @@ export function OpportunityCard({
   createdAt,
   selected = false,
   onSelect,
+  sourceId,
+  enrichText,
   action,
   style,
   className = "",
 }: OpportunityCardProps) {
   const fmt = (ds: string | Date) =>
     new Date(ds).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  const enrichment = useEnrichment();
+  const interesting = enrichment && sourceId ? enrichment.isInteresting("opportunity", sourceId) : false;
+  const handleCardClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    if (enrichment && sourceId) {
+      enrichment.openEnrichment("opportunity", sourceId, { title: title ?? "", originalText: enrichText ?? pain ?? "" });
+    }
+    onSelect?.(e);
+  };
   return (
     <div
-      onClick={onSelect}
+      onClick={handleCardClick}
       className={["ds-card ds-card--clickable", selected ? "ds-card--selected" : "", className].filter(Boolean).join(" ")}
       style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", ...style }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
-        <h3 style={{ font: "400 16px/24px var(--fontFamily)" }}>{title}</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <h3 style={{ font: "400 16px/24px var(--fontFamily)" }}>{title}</h3>
+          {interesting ? <Icon name="star" size={16} color="var(--brand)" /> : null}
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${type}-bg)`, color: `var(--opp-${type}-fg)` }}>
             {TYPES[type] || type}

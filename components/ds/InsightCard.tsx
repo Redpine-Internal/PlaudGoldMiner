@@ -1,5 +1,6 @@
 import React from "react";
 import { Icon } from "./Icon";
+import { useEnrichment } from "./enrichment/useEnrichment";
 
 const TYPES: Record<string, { color: string; label: string }> = {
   pattern: { color: "var(--insight-pattern)", label: "Padrão" },
@@ -20,6 +21,8 @@ export interface InsightCardProps {
   onChat?: React.MouseEventHandler<HTMLButtonElement>;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
   action?: React.ReactNode;
+  sourceId?: string;
+  enrichText?: string;
   style?: React.CSSProperties;
   className?: string;
 }
@@ -35,10 +38,19 @@ export function InsightCard({
   onMarkUseful,
   onChat,
   action,
+  sourceId,
+  enrichText,
   style,
   className = "",
 }: InsightCardProps) {
   const t = TYPES[insightType] || { color: "var(--color-primary)", label: "Insight" };
+  const enrichment = useEnrichment();
+  const interesting = enrichment && sourceId ? enrichment.isInteresting("insight", sourceId) : false;
+  const handleCardClick = () => {
+    if (enrichment && sourceId) {
+      enrichment.openEnrichment("insight", sourceId, { title: title ?? "", originalText: enrichText ?? description ?? "" });
+    }
+  };
   const iconBtn: React.CSSProperties = {
     background: "none",
     border: "none",
@@ -50,12 +62,14 @@ export function InsightCard({
   return (
     <div
       className={("ds-insight " + className).trim()}
-      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", borderLeftColor: t.color, ...style }}
+      onClick={handleCardClick}
+      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", borderLeftColor: t.color, cursor: sourceId ? "pointer" : undefined, ...style }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name="sparkles" size={16} color="var(--color-primary)" />
           <span style={{ font: "500 12px/16px var(--font-sans)", color: "var(--color-primary)" }}>{t.label}</span>
+          {interesting ? <Icon name="star" size={14} color="var(--color-primary)" /> : null}
           {isNew ? (
             <span
               style={{
@@ -72,17 +86,17 @@ export function InsightCard({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {onChat ? (
-            <button type="button" onClick={onChat} title="Conversar sobre este insight" style={{ ...iconBtn, color: "var(--brand)" }}>
+            <button type="button" onClick={(e) => { e.stopPropagation(); onChat?.(e); }} title="Conversar sobre este insight" style={{ ...iconBtn, color: "var(--brand)" }}>
               <Icon name="ai-chat" size={16} />
             </button>
           ) : null}
           {onMarkUseful ? (
-            <button type="button" onClick={onMarkUseful} title="Marcar como útil" style={{ ...iconBtn, color: "var(--color-muted-foreground)" }}>
+            <button type="button" onClick={(e) => { e.stopPropagation(); onMarkUseful?.(e); }} title="Marcar como útil" style={{ ...iconBtn, color: "var(--color-muted-foreground)" }}>
               <Icon name="thumbs-up" size={16} />
             </button>
           ) : null}
           {onDismiss ? (
-            <button type="button" onClick={onDismiss} title="Dispensar" style={{ ...iconBtn, color: "var(--color-muted-foreground)" }}>
+            <button type="button" onClick={(e) => { e.stopPropagation(); onDismiss?.(e); }} title="Dispensar" style={{ ...iconBtn, color: "var(--color-muted-foreground)" }}>
               <Icon name="x" size={16} />
             </button>
           ) : null}
