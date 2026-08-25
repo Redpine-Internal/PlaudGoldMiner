@@ -5,6 +5,8 @@ import {
   real,
   timestamp,
   index,
+  boolean,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 // =====================================================================
@@ -170,6 +172,36 @@ export const projectTasks = pgTable('app_project_tasks', {
 }, (table) => [
   index('app_project_tasks_project_idx').on(table.projectId),
   index('app_project_tasks_column_idx').on(table.columnId),
+]);
+
+// ===== IDEA ENRICHMENT (app_idea_enrichment) =====
+// Enriquecimento de uma ideia antes de virar projeto. Vínculo lógico via
+// (source_type, source_id) — sem FK para as tabelas de origem (OFF-LIMITS).
+export const ideaEnrichment = pgTable('app_idea_enrichment', {
+  id: text('id').primaryKey(),
+  sourceType: text('source_type').notNull(),        // 'opportunity' / 'insight' / 'content'
+  sourceId: text('source_id').notNull(),
+  interesting: boolean('interesting').notNull().default(false),
+  notes: text('notes'),
+  textOverride: text('text_override'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('app_idea_enrichment_source_uidx').on(table.sourceType, table.sourceId),
+  index('app_idea_enrichment_interesting_idx').on(table.interesting),
+]);
+
+// ===== IDEA ENRICHMENT REFERENCES (app_idea_enrichment_reference) =====
+export const ideaEnrichmentReference = pgTable('app_idea_enrichment_reference', {
+  id: text('id').primaryKey(),
+  enrichmentId: text('enrichment_id').notNull(),
+  kind: text('kind').notNull(),                     // 'link' / 'image'
+  title: text('title'),
+  url: text('url').notNull(),
+  storagePath: text('storage_path'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('app_idea_enrichment_reference_eid_idx').on(table.enrichmentId),
 ]);
 
 // ===== TYPE EXPORTS =====
