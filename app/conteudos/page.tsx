@@ -2,7 +2,7 @@
 import type React from "react";
 import { useState, useMemo, useEffect } from "react";
 import useSWR from "swr";
-import { Button, SearchInput, FilterChip, ContentCard, EmptyState, Pagination, StartProjectButton } from "@/components/ds";
+import { Button, SearchInput, FilterChip, ContentCard, EmptyState, Pagination, StartProjectButton, useEnrichment } from "@/components/ds";
 
 const PAGE_SIZE = 20;
 
@@ -30,9 +30,11 @@ const CT_STATUS: Record<string, string> = { sugerido: "Sugerido", producao: "Em 
 const CT_PLATFORMS: Record<string, string> = { youtube: "YouTube", linkedin: "LinkedIn", blog: "Blog" };
 
 const ConteudosPage = () => {
+  const enrichment = useEnrichment();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string[]>([]);
   const [platforms, setPlatforms] = useState<string[]>([]);
+  const [onlyInteresting, setOnlyInteresting] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -52,9 +54,10 @@ const ConteudosPage = () => {
         (c) =>
           (!q || c.title.toLowerCase().includes(q.toLowerCase()) || c.theme.toLowerCase().includes(q.toLowerCase())) &&
           (!status.length || status.includes(c.status)) &&
-          (!platforms.length || platforms.includes(c.platform))
+          (!platforms.length || platforms.includes(c.platform)) &&
+          (!onlyInteresting || (enrichment?.isInteresting("content", c.id) ?? false))
       ),
-    [items, q, status, platforms]
+    [items, q, status, platforms, onlyInteresting, enrichment]
   );
 
   const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -62,7 +65,7 @@ const ConteudosPage = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [q, status, platforms]);
+  }, [q, status, platforms, onlyInteresting]);
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
@@ -138,6 +141,9 @@ const ConteudosPage = () => {
           <SearchInput value={q} onChange={setQ} placeholder="Buscar conteúdos..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
           <FilterChip active={showFilters || !!hasFilters} onClick={() => setShowFilters(!showFilters)}>
             Filtros
+          </FilterChip>
+          <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
+            Só interessantes
           </FilterChip>
           {hasFilters ? (
             <button

@@ -2,7 +2,7 @@
 import type React from "react";
 import { useState, useMemo, useEffect } from "react";
 import useSWR from "swr";
-import { Button, SearchInput, FilterChip, InsightCard, EmptyState, Pagination, StartProjectButton } from "@/components/ds";
+import { Button, SearchInput, FilterChip, InsightCard, EmptyState, Pagination, StartProjectButton, useEnrichment } from "@/components/ds";
 
 const PAGE_SIZE = 20;
 
@@ -36,9 +36,11 @@ const IN_TYPES: Record<string, string> = {
 const IN_STATUS: Record<string, string> = { new: "Novos", useful: "Úteis", dismissed: "Dispensados" };
 
 const InsightsPage = () => {
+  const enrichment = useEnrichment();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
+  const [onlyInteresting, setOnlyInteresting] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -61,9 +63,10 @@ const InsightsPage = () => {
             i.title.toLowerCase().includes(q.toLowerCase()) ||
             i.description.toLowerCase().includes(q.toLowerCase())) &&
           (!status.length || status.includes(i.status)) &&
-          (!types.length || types.includes(i.insightType))
+          (!types.length || types.includes(i.insightType)) &&
+          (!onlyInteresting || (enrichment?.isInteresting("insight", i.id) ?? false))
       ),
-    [items, q, status, types]
+    [items, q, status, types, onlyInteresting, enrichment]
   );
 
   const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -73,7 +76,7 @@ const InsightsPage = () => {
   // deixou de existir (ex.: após dispensar itens).
   useEffect(() => {
     setPage(1);
-  }, [q, status, types]);
+  }, [q, status, types, onlyInteresting]);
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
@@ -149,6 +152,9 @@ const InsightsPage = () => {
           <SearchInput value={q} onChange={setQ} placeholder="Buscar insights..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
           <FilterChip active={showFilters || !!hasFilters} onClick={() => setShowFilters(!showFilters)}>
             Filtros
+          </FilterChip>
+          <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
+            Só interessantes
           </FilterChip>
           {hasFilters ? (
             <button
