@@ -1,0 +1,21 @@
+node_modules
+.next
+.git
+.gitignore
+
+# NUNCA copiar segredos/credenciais para a imagem.
+.env
+.env.*
+*.local.db
+local.db
+meetings_access
+
+# Artefatos de dev/ci
+npm-debug.log*
+Dockerfile
+.dockerignore
+cloudbuild.yaml
+README.md
+docs
+scripts/verify
+e2e_cleanup.mjs

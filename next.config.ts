@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Gera um servidor Node autocontido em .next/standalone para a imagem Docker do Cloud Run.
+  output: "standalone",
 };
 
 export default nextConfig;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Icon, SearchInput } from "@/components/ds";
 import { useAppStore } from "@/stores/appStore";
+import { createClient } from "@/lib/supabase/client";
 
 const ITEMS = [
   { icon: "apps", label: "Dashboard", path: "/" },
@@ -30,6 +31,20 @@ const Sidebar = () => {
 
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? "");
+    });
+  }, []);
+
+  const handleSignOut = async () => {
+    await fetch("/auth/signout", { method: "POST" });
+    router.replace("/login");
+    router.refresh();
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -193,7 +208,7 @@ const Sidebar = () => {
                   whiteSpace: "nowrap",
                 }}
               >
-                andreza@example.com
+                {userEmail || "—"}
               </span>
             </span>
           )}
@@ -209,7 +224,14 @@ const Sidebar = () => {
               Configurações
             </Link>
             <div className="mdiv"></div>
-            <a href="#sair" onClick={(e) => e.preventDefault()}>
+            <a
+              href="#sair"
+              onClick={(e) => {
+                e.preventDefault();
+                setOpen(false);
+                void handleSignOut();
+              }}
+            >
               <Icon name="logout" size={20} />
               Sair
             </a>

@@ -1,0 +1,43 @@
+name: Deploy to Cloud Run
+
+# Dispara no push para main. Autentica no GCP via Workload Identity Federation
+# (sem chave secreta) e delega o build+deploy ao Cloud Build (cloudbuild.yaml).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write # necessário para o OIDC do Workload Identity Federation
+
+env:
+  PROJECT_ID: plaudgoldminersistema
+  REGION: us-central1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: plaudgoldminersistema
+          workload_identity_provider: projects/660459290894/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@plaudgoldminersistema.iam.gserviceaccount.com
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build & Deploy via Cloud Build
+        run: |
+          gcloud builds submit \
+            --project="${PROJECT_ID}" \
+            --config=cloudbuild.yaml \
+            --substitutions=_NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL}",_NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

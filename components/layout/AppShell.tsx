@@ -12,6 +12,11 @@ const AppShell = ({ children }: { children: React.ReactNode }) => {
   const selectedConversationId = useAppStore((s) => s.selectedConversationId);
   const showPanel = pathname.startsWith("/conversas") && !!selectedConversationId;
 
+  // A tela de login não usa a shell (sem sidebar/painel).
+  if (pathname === "/login") {
+    return <>{children}</>;
+  }
+
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--background)", color: "var(--textPrimary)", overflow: "hidden" }}>
       <Sidebar />
