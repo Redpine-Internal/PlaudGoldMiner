@@ -131,6 +131,47 @@ export const userProfile = pgTable('app_user_profile', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ===== PROJECTS (app_projects) =====
+// Ideia viva: iniciar um projeto a partir de um card (Oportunidade/Insight/Conteúdo).
+export const projects = pgTable('app_projects', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  status: text('status').notNull().default('ativo'), // ativo / pausado / arquivado
+  sourceType: text('source_type'),                    // 'opportunity' / 'insight' / 'content'
+  sourceId: text('source_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('app_projects_source_idx').on(table.sourceType, table.sourceId),
+  index('app_projects_status_idx').on(table.status),
+]);
+
+// ===== PROJECT COLUMNS (app_project_columns) =====
+export const projectColumns = pgTable('app_project_columns', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  name: text('name').notNull(),
+  position: real('position').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('app_project_columns_project_idx').on(table.projectId),
+]);
+
+// ===== PROJECT TASKS (app_project_tasks) =====
+export const projectTasks = pgTable('app_project_tasks', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  columnId: text('column_id').notNull(),
+  title: text('title').notNull(),
+  detail: text('detail'),
+  kind: text('kind').notNull().default('manual'), // manual / ai:aprofundar / ai:plano / ai:riscos / ai:conteudo
+  position: real('position').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('app_project_tasks_project_idx').on(table.projectId),
+  index('app_project_tasks_column_idx').on(table.columnId),
+]);
+
 // ===== TYPE EXPORTS =====
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
@@ -146,3 +187,9 @@ export type CrossInsight = typeof crossInsights.$inferSelect;
 export type NewCrossInsight = typeof crossInsights.$inferInsert;
 export type CrossInsightConversation = typeof crossInsightConversations.$inferSelect;
 export type NewCrossInsightConversation = typeof crossInsightConversations.$inferInsert;
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
+export type ProjectColumn = typeof projectColumns.$inferSelect;
+export type NewProjectColumn = typeof projectColumns.$inferInsert;
+export type ProjectTask = typeof projectTasks.$inferSelect;
+export type NewProjectTask = typeof projectTasks.$inferInsert;

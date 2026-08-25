@@ -60,6 +60,10 @@
 --content-descartado-bg:var(--accent-inactive);--content-descartado-fg:var(--textButtonPrimary);
 --score-bg:var(--accent-success);--score-fg:var(--textButtonPrimary);
 --insight-pattern:var(--tagTextInfo);--insight-opportunity:var(--tagTextSuccess);--insight-suggestion:var(--tagTextPromo);--insight-trend:var(--tagTextWarning);--insight-connection:var(--tagTextError);
+/* Superfícies de alerta (banners inline): fundo suave + texto/borda no tom forte. Legível, ao contrário de reaproveitar badges de tipo. */
+--alert-error-bg:color-mix(in srgb, var(--error) 10%, var(--backgroundContainer));--alert-error-fg:color-mix(in srgb, var(--error) 78%, black);--alert-error-border:color-mix(in srgb, var(--error) 32%, var(--backgroundContainer));
+--alert-warning-bg:color-mix(in srgb, var(--warning) 14%, var(--backgroundContainer));--alert-warning-fg:color-mix(in srgb, var(--warning) 82%, black);--alert-warning-border:color-mix(in srgb, var(--warning) 36%, var(--backgroundContainer));
+--alert-info-bg:color-mix(in srgb, var(--brand) 8%, var(--backgroundContainer));--alert-info-fg:var(--textPrimary);--alert-info-border:color-mix(in srgb, var(--brand) 24%, var(--backgroundContainer));
 --overlay:var(--backgroundOverlay);
 }
 /* Regra p/ superfícies escuras: elementos viram brancos com a cor de acento na fonte */

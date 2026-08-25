@@ -18,6 +18,8 @@ export interface InsightCardProps {
   onDismiss?: React.MouseEventHandler<HTMLButtonElement>;
   onMarkUseful?: React.MouseEventHandler<HTMLButtonElement>;
   onChat?: React.MouseEventHandler<HTMLButtonElement>;
+  /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
+  action?: React.ReactNode;
   style?: React.CSSProperties;
   className?: string;
 }
@@ -32,6 +34,7 @@ export function InsightCard({
   onDismiss,
   onMarkUseful,
   onChat,
+  action,
   style,
   className = "",
 }: InsightCardProps) {
@@ -45,7 +48,10 @@ export function InsightCard({
     borderRadius: "var(--radius)",
   };
   return (
-    <div className={("ds-insight " + className).trim()} style={{ borderLeftColor: t.color, ...style }}>
+    <div
+      className={("ds-insight " + className).trim()}
+      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", borderLeftColor: t.color, ...style }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name="sparkles" size={16} color="var(--color-primary)" />
@@ -87,6 +93,7 @@ export function InsightCard({
       {actionSuggestion ? (
         <p style={{ margin: 0, font: "500 12px/16px var(--font-sans)", color: "var(--color-primary)" }}>💡 {actionSuggestion}</p>
       ) : null}
+      {action ? <div style={{ marginTop: "auto", paddingTop: 12 }}>{action}</div> : null}
     </div>
   );
 }

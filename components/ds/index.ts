@@ -39,3 +39,7 @@ export { Skeleton, ConversationCardSkeleton } from "./Skeleton";
 export type { SkeletonProps } from "./Skeleton";
 export { Markdown } from "./Markdown";
 export type { MarkdownProps } from "./Markdown";
+export { Pagination } from "./Pagination";
+export type { PaginationProps } from "./Pagination";
+export { StartProjectButton } from "./StartProjectButton";
+export type { StartProjectButtonProps } from "./StartProjectButton";

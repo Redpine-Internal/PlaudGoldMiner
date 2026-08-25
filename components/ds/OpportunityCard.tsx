@@ -13,6 +13,8 @@ export interface OpportunityCardProps {
   createdAt?: string | Date;
   selected?: boolean;
   onSelect?: React.MouseEventHandler<HTMLDivElement>;
+  /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
+  action?: React.ReactNode;
   style?: React.CSSProperties;
   className?: string;
 }
@@ -28,6 +30,7 @@ export function OpportunityCard({
   createdAt,
   selected = false,
   onSelect,
+  action,
   style,
   className = "",
 }: OpportunityCardProps) {
@@ -37,7 +40,7 @@ export function OpportunityCard({
     <div
       onClick={onSelect}
       className={["ds-card ds-card--clickable", selected ? "ds-card--selected" : "", className].filter(Boolean).join(" ")}
-      style={style}
+      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", ...style }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
         <h3 style={{ font: "400 16px/24px var(--fontFamily)" }}>{title}</h3>
@@ -58,6 +61,7 @@ export function OpportunityCard({
         {" · "}
         {pain}
       </p>
+      {action ? <div style={{ marginTop: "auto", paddingTop: 12 }}>{action}</div> : null}
     </div>
   );
 }

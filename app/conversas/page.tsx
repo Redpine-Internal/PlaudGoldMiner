@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { UploadModal } from "@/components/upload";
 import { DriveImportModal } from "@/components/drive";
-import { Button, SearchInput, FilterChip, ConversationCard, EmptyState, ConversationCardSkeleton, Icon } from "@/components/ds";
+import { Button, SearchInput, FilterChip, ConversationCard, EmptyState, ConversationCardSkeleton, Icon, Pagination } from "@/components/ds";
+
+const PAGE_SIZE = 20;
 
 interface ApiConversation {
   id: string;
@@ -106,6 +108,7 @@ const ConversasPage = () => {
   const [period, setPeriod] = useState("all");
   const [content, setContent] = useState<(keyof ContentFlags)[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(1);
   // Content flags per card id, filled in progressively as each row fetches its status.
   const [statusById, setStatusById] = useState<Record<string, CardStatus>>({});
 
@@ -152,6 +155,16 @@ const ConversasPage = () => {
       return content.every((k) => st[k]);
     });
   }, [baseList, contentActive, content, statusById]);
+
+  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [q, types, period, content]);
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
 
   // How many cards are still resolving their status while a filter is active —
   // drives the "verificando…" hint so an empty list doesn't look final.
@@ -289,7 +302,7 @@ const ConversasPage = () => {
       </div>
 
       {error ? (
-        <div style={{ padding: 16, marginBottom: 16, background: "var(--type-informal-bg)", color: "var(--accent-error)", borderRadius: "var(--radius-lg)" }}>
+        <div style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: "var(--radius-lg)" }}>
           Erro ao carregar conversas. Por favor, tente novamente.
         </div>
       ) : null}
@@ -298,14 +311,17 @@ const ConversasPage = () => {
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => <ConversationCardSkeleton key={i} />)
         ) : list.length ? (
-          list.map((c) => (
-            <ConversationRow
-              key={c.id}
-              conversation={c}
-              status={statusById[c.id]}
-              onSelect={() => router.push(`/conversas/${c.id}`)}
-            />
-          ))
+          <>
+            {paged.map((c) => (
+              <ConversationRow
+                key={c.id}
+                conversation={c}
+                status={statusById[c.id]}
+                onSelect={() => router.push(`/conversas/${c.id}`)}
+              />
+            ))}
+            <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+          </>
         ) : (
           <EmptyState
             icon="message-square"

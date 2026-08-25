@@ -1,9 +1,11 @@
 "use client";
 import type React from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import useSWR from "swr";
 import { useAppStore } from "@/stores/appStore";
-import { Button, SearchInput, FilterChip, OpportunityCard, EmptyState, ConversationCardSkeleton } from "@/components/ds";
+import { Button, SearchInput, FilterChip, OpportunityCard, EmptyState, Pagination, StartProjectButton } from "@/components/ds";
+
+const PAGE_SIZE = 20;
 
 interface Opportunity {
   id: string;
@@ -36,6 +38,9 @@ const OportunidadesPage = () => {
   const [status, setStatus] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data, error, isLoading, mutate, isValidating } = useSWR<ApiResponse>(
     "/api/opportunities?limit=100",
@@ -56,6 +61,16 @@ const OportunidadesPage = () => {
     [opps, q, status, types]
   );
 
+  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [q, status, types]);
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
   const counts = useMemo(() => {
     const c: Record<string, number> = { nova: 0, analise: 0, qualificada: 0, descartada: 0 };
     opps.forEach((o) => (c[o.status] = (c[o.status] || 0) + 1));
@@ -67,12 +82,53 @@ const OportunidadesPage = () => {
 
   const hasFilters = q || status.length || types.length;
 
+  const generate = async () => {
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const res = await fetch("/api/opportunities/analyze", { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setGenError(body?.error || `Falha ao detectar oportunidades (HTTP ${res.status}).`);
+        return;
+      }
+      await mutate();
+    } catch (err) {
+      console.error("Failed to detect opportunities:", err);
+      setGenError("Não foi possível detectar oportunidades. Verifique a conexão e tente novamente.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", rowGap: 8 }}>
         <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: 0 }}>Oportunidades</h1>
-        <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={generate} disabled={generating}>
+            {generating ? "Detectando..." : "Detectar Oportunidades"}
+          </Button>
+          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+        </div>
       </div>
+
+      {genError ? (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            background: "var(--alert-error-bg)",
+            color: "var(--alert-error-fg)",
+            border: "1px solid var(--alert-error-border)",
+            borderRadius: "var(--radius-lg)",
+            font: "400 13px/18px var(--font-sans)",
+          }}
+        >
+          {genError}
+        </div>
+      ) : null}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
         {Object.entries(counts).map(([s, n]) => (
@@ -158,29 +214,46 @@ const OportunidadesPage = () => {
       </div>
 
       {error ? (
-        <div style={{ padding: 16, marginBottom: 16, background: "var(--type-informal-bg)", color: "var(--accent-error)", borderRadius: "var(--radius-lg)" }}>
+        <div style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: "var(--radius-lg)" }}>
           Erro ao carregar oportunidades. Por favor, tente novamente.
         </div>
       ) : null}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => <ConversationCardSkeleton key={i} />)
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="ds-card" style={{ height: 160 }} />
+            ))}
+          </div>
         ) : list.length ? (
-          list.map((o) => (
-            <OpportunityCard
-              key={o.id}
-              title={o.title}
-              pain={o.pain}
-              type={o.type}
-              status={o.status}
-              score={o.score}
-              conversationTitle={o.conversationTitle || undefined}
-              createdAt={o.createdAt}
-              selected={selectedOpportunityId === o.id}
-              onSelect={() => setSelectedOpportunityId(o.id)}
-            />
-          ))
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+              {paged.map((o) => (
+                <OpportunityCard
+                  key={o.id}
+                  title={o.title}
+                  pain={o.pain}
+                  type={o.type}
+                  status={o.status}
+                  score={o.score}
+                  conversationTitle={o.conversationTitle || undefined}
+                  createdAt={o.createdAt}
+                  selected={selectedOpportunityId === o.id}
+                  onSelect={() => setSelectedOpportunityId(o.id)}
+                  action={
+                    <StartProjectButton
+                      sourceType="opportunity"
+                      sourceId={o.id}
+                      title={o.title}
+                      description={o.pain}
+                    />
+                  }
+                />
+              ))}
+            </div>
+            <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+          </>
         ) : opps.length ? (
           <EmptyState icon="lightbulb" title="Nenhuma oportunidade encontrada" message="Nenhuma oportunidade corresponde aos filtros selecionados." />
         ) : (

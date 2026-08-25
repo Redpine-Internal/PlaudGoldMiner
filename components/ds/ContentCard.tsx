@@ -20,6 +20,8 @@ export interface ContentCardProps {
   onApprove?: React.MouseEventHandler<HTMLButtonElement>;
   onDiscard?: React.MouseEventHandler<HTMLButtonElement>;
   onPublish?: React.MouseEventHandler<HTMLButtonElement>;
+  /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
+  action?: React.ReactNode;
   style?: React.CSSProperties;
   className?: string;
 }
@@ -60,6 +62,7 @@ export function ContentCard({
   onApprove,
   onDiscard,
   onPublish,
+  action,
   style,
   className = "",
 }: ContentCardProps) {
@@ -138,6 +141,9 @@ export function ContentCard({
             Marcar como Publicado
           </Button>
         </div>
+      ) : null}
+      {action ? (
+        <div style={{ paddingTop: 12, marginTop: 12, borderTop: "1px solid var(--color-border)" }}>{action}</div>
       ) : null}
     </div>
   );

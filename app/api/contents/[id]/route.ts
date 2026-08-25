@@ -1,7 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { mapSocialPosts, type SocialPostRow } from '@/lib/n8n/mappers';
+import type { ContentCard } from '@/lib/n8n/mappers';
 import { enrichWithConversation } from '@/lib/n8n/enrich';
+
+// Fonte local: app_contents. A conversa de origem vem da 1ª app_content_sources.
+interface AppContentRow {
+  id: string;
+  title: string;
+  platform: string;
+  theme: string;
+  outline: string;
+  mention_count: number;
+  relevance_score: number;
+  status: string;
+  notes: string | null;
+  conversation_id: string | null;
+  created_at: string;
+}
+
+function toCard(r: AppContentRow): ContentCard {
+  return {
+    id: r.id,
+    title: r.title,
+    platform: r.platform,
+    theme: r.theme,
+    outline: r.outline,
+    mentionCount: r.mention_count,
+    relevanceScore: r.relevance_score,
+    status: r.status,
+    notes: r.notes,
+    conversationId: r.conversation_id,
+    createdAt: r.created_at,
+  };
+}
 
 export async function GET(
   request: NextRequest,
@@ -9,15 +40,24 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const res = await pool.query<SocialPostRow>(
-      `SELECT id, meeting_ids, platform, content_type, title, body, hashtags, image_prompt, created_at
-         FROM social_posts WHERE id = $1 LIMIT 1`,
+    const res = await pool.query<AppContentRow>(
+      `SELECT c.id, c.title, c.theme, c.platform, c.outline,
+              c.mention_count, c.relevance_score, c.status, c.notes, c.created_at,
+              src.conversation_id
+         FROM app_contents c
+         LEFT JOIN LATERAL (
+           SELECT conversation_id FROM app_content_sources
+            WHERE content_id = c.id LIMIT 1
+         ) src ON true
+        WHERE c.id = $1 LIMIT 1`,
       [id]
     );
     if (res.rowCount === 0) {
       return NextResponse.json({ error: 'Content not found' }, { status: 404 });
     }
-    const [card] = await enrichWithConversation(mapSocialPosts(res.rows));
+    const [card] = await enrichWithConversation(
+      res.rows.map(toCard)
+    );
     return NextResponse.json({ data: card });
   } catch (error) {
     console.error('Error fetching content:', error);
@@ -25,9 +65,37 @@ export async function GET(
   }
 }
 
-export async function PATCH() {
-  return NextResponse.json(
-    { error: 'Edição desabilitada nesta fase (dados read-only do n8n)' },
-    { status: 405 }
-  );
+const ALLOWED_STATUS = new Set(['sugerido', 'producao', 'publicado', 'descartado']);
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json().catch(() => null);
+    const status = body?.status;
+    if (typeof status !== 'string' || !ALLOWED_STATUS.has(status)) {
+      return NextResponse.json(
+        { error: `status inválido; use um de: ${[...ALLOWED_STATUS].join(', ')}` },
+        { status: 400 }
+      );
+    }
+    const res = await pool.query<AppContentRow>(
+      `UPDATE app_contents SET status = $2 WHERE id = $1
+       RETURNING id, title, platform, theme, outline, mention_count,
+                 relevance_score, status, notes, created_at,
+                 (SELECT conversation_id FROM app_content_sources
+                   WHERE content_id = app_contents.id LIMIT 1) AS conversation_id`,
+      [id, status]
+    );
+    if (res.rowCount === 0) {
+      return NextResponse.json({ error: 'Content not found' }, { status: 404 });
+    }
+    const [card] = await enrichWithConversation([toCard(res.rows[0])]);
+    return NextResponse.json({ data: card });
+  } catch (error) {
+    console.error('Error updating content:', error);
+    return NextResponse.json({ error: 'Failed to update content' }, { status: 500 });
+  }
 }

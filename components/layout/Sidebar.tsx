@@ -10,7 +10,9 @@ const ITEMS = [
   { icon: "apps", label: "Dashboard", path: "/" },
   { icon: "chat", label: "Conversas", path: "/conversas" },
   { icon: "lightbulb", label: "Oportunidades", path: "/oportunidades" },
+  { icon: "sparkles", label: "IA Insights", path: "/insights" },
   { icon: "document-other", label: "Conteúdos", path: "/conteudos" },
+  { icon: "layout-dashboard", label: "Projetos", path: "/projetos" },
   { icon: "brain", label: "Clone", path: "/clone" },
   { icon: "settings", label: "Configurações", path: "/configuracoes" },
 ];

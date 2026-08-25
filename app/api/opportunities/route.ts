@@ -24,14 +24,30 @@ export async function GET(request: NextRequest) {
     const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 50;
     const status = searchParams.get('status');
     const type = searchParams.get('type');
+    const filters: string[] = [];
+    const values: string[] = [];
 
-    const res = await pool.query<AppOpportunityRow>(
+    if (status) {
+      values.push(status);
+      filters.push(`status = $${values.length}`);
+    }
+    if (type) {
+      values.push(type);
+      filters.push(`type = $${values.length}`);
+    }
+    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+
+    const [res, count] = await Promise.all([
+      pool.query<AppOpportunityRow>(
       `SELECT id, conversation_id, title, pain, context, score, type, status, notes, created_at
          FROM app_opportunities
+        ${where}
         ORDER BY created_at DESC
-        LIMIT $1`,
-      [limit]
-    );
+        LIMIT $${values.length + 1}`,
+      [...values, limit]
+      ),
+      pool.query<{ total: string }>(`SELECT COUNT(*) AS total FROM app_opportunities ${where}`, values),
+    ]);
 
     const cards = await enrichWithConversation(
       res.rows.map((r) => ({
@@ -48,11 +64,7 @@ export async function GET(request: NextRequest) {
       }))
     );
 
-    let filtered = cards;
-    if (status) filtered = filtered.filter((o) => o.status === status);
-    if (type) filtered = filtered.filter((o) => o.type === type);
-
-    return NextResponse.json({ data: filtered, total: filtered.length });
+    return NextResponse.json({ data: cards, total: Number(count.rows[0].total) });
   } catch (error) {
     console.error('Error fetching opportunities:', error);
     return NextResponse.json({ error: 'Failed to fetch opportunities' }, { status: 500 });
