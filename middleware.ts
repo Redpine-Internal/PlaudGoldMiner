@@ -4,6 +4,19 @@ import { NextResponse, type NextRequest } from 'next/server';
 // Protege todas as rotas: sem sessão Supabase → redireciona para /login.
 // Também refresca a sessão a cada request (mantém o cookie válido).
 export async function middleware(request: NextRequest) {
+  // Rotas de ingestão (cron do Scheduler / operador) não têm sessão de navegador:
+  // autenticam pelo INGEST_CRON_SECRET. Só passam direto se o segredo confere;
+  // sem o header correto, caem na proteção por sessão como qualquer rota.
+  if (request.nextUrl.pathname.startsWith('/api/plaud/ingest')) {
+    const ingestSecret = process.env.INGEST_CRON_SECRET;
+    if (
+      ingestSecret &&
+      request.headers.get('x-ingest-secret') === ingestSecret
+    ) {
+      return NextResponse.next({ request });
+    }
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
