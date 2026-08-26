@@ -58,34 +58,44 @@ export function OpportunityCard({
       className={["ds-card ds-card--clickable", selected ? "ds-card--selected" : "", className].filter(Boolean).join(" ")}
       style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", ...style }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <h3 style={{ font: "400 16px/24px var(--fontFamily)" }}>{title}</h3>
-          {interesting ? <Icon name="star" size={16} color="var(--brand)" /> : null}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${type}-bg)`, color: `var(--opp-${type}-fg)` }}>
-            {TYPES[type] || type}
-          </span>
-          {subtype ? (
-            <span className="ds-badge ds-badge--compact" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-              {subtype}
-            </span>
-          ) : null}
-          <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${status}-bg)`, color: `var(--opp-${status}-fg)` }}>
-            {STATUS[status] || status}
-          </span>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        <h3 style={{ font: "400 16px/24px var(--fontFamily)" }}>{title}</h3>
+        {interesting ? <Icon name="star" size={16} color="var(--brand)" /> : null}
       </div>
-      <p style={{ margin: 0, font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
-        <span style={{ font: "500 12px/20px var(--font-sans)" }}>
-          {createdAt ? fmt(createdAt) + " · " : ""}Score {Math.round(score)}%
-          {conversationTitle ? " · De: " + conversationTitle : ""}
-        </span>
-        {" · "}
+      <span style={{ font: "500 12px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+        {createdAt ? fmt(createdAt) + " · " : ""}Score {Math.round(score)}%
+        {conversationTitle ? " · De: " + conversationTitle : ""}
+      </span>
+      <p
+        style={{
+          margin: "4px 0 0",
+          font: "400 14px/20px var(--font-sans)",
+          color: "var(--color-muted-foreground)",
+          display: "-webkit-box",
+          WebkitLineClamp: 4,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
         {pain}
       </p>
-      {action ? <div style={{ marginTop: "auto", paddingTop: 12 }}>{action}</div> : null}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, marginTop: "auto", paddingTop: 12 }}>
+        <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${type}-bg)`, color: `var(--opp-${type}-fg)` }}>
+          {TYPES[type] || type}
+        </span>
+        {subtype ? (
+          <span
+            className="ds-badge ds-badge--compact"
+            style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)", maxWidth: "100%", whiteSpace: "normal" }}
+          >
+            {subtype}
+          </span>
+        ) : null}
+        <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${status}-bg)`, color: `var(--opp-${status}-fg)` }}>
+          {STATUS[status] || status}
+        </span>
+      </div>
+      {action ? <div style={{ paddingTop: 12 }}>{action}</div> : null}
     </div>
   );
 }
