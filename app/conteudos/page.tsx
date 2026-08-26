@@ -9,7 +9,7 @@ const PAGE_SIZE = 20;
 interface Content {
   id: string;
   title: string;
-  platform: "youtube" | "linkedin" | "blog";
+  platform: "youtube" | "linkedin" | "artigo" | "blog";
   theme: string;
   outline: string | null;
   mentionCount: number;
@@ -27,7 +27,7 @@ interface ApiResponse {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const CT_STATUS: Record<string, string> = { sugerido: "Sugerido", producao: "Em produção", publicado: "Publicado", descartado: "Descartado" };
-const CT_PLATFORMS: Record<string, string> = { youtube: "YouTube", linkedin: "LinkedIn", blog: "Blog" };
+const CT_PLATFORMS: Record<string, string> = { youtube: "YouTube", linkedin: "LinkedIn", artigo: "Artigo" };
 
 const ConteudosPage = () => {
   const enrichment = useEnrichment();

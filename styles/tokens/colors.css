@@ -46,6 +46,7 @@
 --platform-youtube-bg:var(--accent-error);--platform-youtube-fg:var(--textButtonPrimary);--platform-youtube-icon:var(--tagTextError);
 --platform-linkedin-bg:var(--accent-info);--platform-linkedin-fg:var(--textButtonPrimary);--platform-linkedin-icon:var(--tagTextInfo);
 --platform-blog-bg:var(--accent-promo);--platform-blog-fg:var(--textButtonPrimary);--platform-blog-icon:var(--tagTextPromo);
+--platform-artigo-bg:var(--accent-promo);--platform-artigo-fg:var(--textButtonPrimary);--platform-artigo-icon:var(--tagTextPromo);
 --opp-nova-bg:var(--accent-success);--opp-nova-fg:var(--textButtonPrimary);
 --opp-analise-bg:var(--accent-info);--opp-analise-fg:var(--textButtonPrimary);
 --opp-qualificada-bg:var(--accent-promo);--opp-qualificada-fg:var(--textButtonPrimary);
@@ -79,6 +80,7 @@
 --platform-youtube-bg:var(--textButtonPrimary);--platform-youtube-fg:var(--accent-error);
 --platform-linkedin-bg:var(--textButtonPrimary);--platform-linkedin-fg:var(--accent-info);
 --platform-blog-bg:var(--textButtonPrimary);--platform-blog-fg:var(--accent-promo);
+--platform-artigo-bg:var(--textButtonPrimary);--platform-artigo-fg:var(--accent-promo);--platform-artigo-icon:var(--accent-promo);
 --opp-nova-bg:var(--textButtonPrimary);--opp-nova-fg:var(--accent-success);
 --opp-analise-bg:var(--textButtonPrimary);--opp-analise-fg:var(--accent-info);
 --opp-qualificada-bg:var(--textButtonPrimary);--opp-qualificada-fg:var(--accent-promo);

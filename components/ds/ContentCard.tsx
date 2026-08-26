@@ -6,7 +6,8 @@ import { useEnrichment } from "./enrichment/useEnrichment";
 const P: Record<string, { icon: string; color: string; label: string }> = {
   youtube: { icon: "youtube", color: "var(--platform-youtube-icon)", label: "YouTube" },
   linkedin: { icon: "linkedin", color: "var(--platform-linkedin-icon)", label: "LinkedIn" },
-  blog: { icon: "book-open", color: "var(--platform-blog-icon)", label: "Blog" },
+  artigo: { icon: "book-open", color: "var(--platform-artigo-icon)", label: "Artigo" },
+  blog: { icon: "book-open", color: "var(--platform-blog-icon)", label: "Artigo" },
 };
 const STATUS: Record<string, string> = { sugerido: "Sugerido", producao: "Em produção", publicado: "Publicado", descartado: "Descartado" };
 

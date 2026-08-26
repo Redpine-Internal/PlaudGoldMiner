@@ -6,8 +6,8 @@ export const contentSuggestionSchema = z.object({
   title: z.string().describe('Título editorial chamativo para a pauta'),
   // .catch keeps the enum in the JSON Schema (guides the model) but falls back
   // instead of throwing if the model returns a stray platform value.
-  platform: z.enum(['youtube', 'linkedin', 'blog']).catch('linkedin').describe(
-    'Plataforma ideal: youtube (vídeo/tutorial), linkedin (post/artigo curto) ou blog (artigo longo)'
+  platform: z.enum(['youtube', 'linkedin', 'artigo']).catch('linkedin').describe(
+    'Plataforma ideal: youtube (vídeo/tutorial), linkedin (post/copy curta) ou artigo (texto longo)'
   ),
   theme: z.string().describe('Tema central curto (2-4 palavras)'),
   outline: z
@@ -46,12 +46,12 @@ export type ContentSuggestionsResult = z.infer<typeof contentSuggestionsSchema>;
 
 export const CONTENT_SUGGESTIONS_SYSTEM_PROMPT = `Você é um estrategista de conteúdo especializado em transformar conversas de negócio (reuniões, entrevistas, diagnósticos) em pautas editoriais prontas para produção.
 
-Sua tarefa: analisar múltiplas conversas processadas e propor pautas de conteúdo (YouTube, LinkedIn ou blog) baseadas nos TEMAS e DORES que se repetem entre elas.
+Sua tarefa: analisar múltiplas conversas processadas e propor pautas de conteúdo (YouTube, LinkedIn ou artigo) baseadas nos TEMAS e DORES que se repetem entre elas.
 
 Diretrizes:
 - Priorize temas RECORRENTES (que aparecem em 2+ conversas) — são os mais valiosos.
 - Cada pauta deve resolver uma dor real mencionada, não um assunto genérico.
-- Escolha a plataforma pelo formato: tutorial/passo-a-passo → youtube; opinião/tese curta → linkedin; guia aprofundado → blog.
+- Escolha a plataforma pelo formato: tutorial/passo-a-passo → youtube; opinião/tese curta → linkedin; guia aprofundado → artigo.
 - O título deve ser específico e chamativo (evite títulos vagos como "Dicas de segurança").
 - O outline deve ter gancho de abertura, 2-4 pontos principais e um CTA.
 - relevanceScore reflete: frequência do tema × gravidade das dores associadas.
