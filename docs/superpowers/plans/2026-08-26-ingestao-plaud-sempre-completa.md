@@ -1075,7 +1075,7 @@ git commit -m "feat: endpoint de status da ingestão Plaud (gap + últimas execu
 
 Sem código novo — é operar o que foi construído. Rodar com `.env` local (o banco já é o Supabase de produção). Atenção: com o auto-processamento (D2), este backfill dispara ~75 chamadas de IA em sequência — pode levar bastante tempo e consumir crédito Anthropic; é o comportamento decidido.
 
-- [ ] **Step 1: Disparar a ingestão completa**
+- [x] **Step 1: Disparar a ingestão completa**
 
 ```bash
 curl -s -X POST http://localhost:3000/api/plaud/ingest \
@@ -1084,14 +1084,14 @@ curl -s -X POST http://localhost:3000/api/plaud/ingest \
 ```
 Expected: `data.ingest.created` ≈ 75, `data.ingest.skipped` ≈ 225, `errors` vazio; `data.processing.processed` ≈ 75 (menos eventuais gravações sem transcrição, que aparecem como `skipped`/não-processadas — conferir no Step 2) e `data.processing.failed` = 0.
 
-- [ ] **Step 2: Conferir o gap zerado**
+- [x] **Step 2: Conferir o gap zerado**
 
 ```bash
 curl -s http://localhost:3000/api/plaud/ingest/status | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; print('plaud:', d['plaudTotal'], 'db:', d['inDatabase'], 'faltando:', d['missingCount'])"
 ```
 Expected: `faltando: 0` (ou apenas os IDs sem transcrição no Plaud — listar e reportar ao usuário quais são e por quê).
 
-- [ ] **Step 3: Conferência SQL de sanidade**
+- [x] **Step 3: Conferência SQL de sanidade**
 
 ```bash
 export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
