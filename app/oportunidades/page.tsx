@@ -228,14 +228,14 @@ const OportunidadesPage = () => {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {isLoading ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-            {Array.from({ length: 5 }).map((_, i) => (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="ds-card" style={{ height: 160 }} />
             ))}
           </div>
         ) : list.length ? (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
               {paged.map((o) => (
                 <OpportunityCard
                   key={o.id}
