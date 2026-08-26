@@ -1027,7 +1027,7 @@ git commit -m "feat: script de reclassificação IA das oportunidades legadas"
 - Modify: `styles/tokens/colors.css:48,80` (tokens artigo)
 - SQL: migrar linhas legadas
 
-- [ ] **Step 1: Prompt**
+- [x] **Step 1: Prompt**
 
 Em `lib/ai/prompts/content-suggestions.ts`, trocar:
 
@@ -1048,7 +1048,7 @@ por:
 Na linha 49, trocar `(YouTube, LinkedIn ou blog)` por `(YouTube, LinkedIn ou artigo)`.
 Na linha 54, trocar `guia aprofundado → blog` por `guia aprofundado → artigo`.
 
-- [ ] **Step 2: Tokens de cor**
+- [x] **Step 2: Tokens de cor**
 
 Em `styles/tokens/colors.css`, no fim da linha 48 (tema claro), acrescentar:
 
@@ -1062,7 +1062,7 @@ E no fim da linha 80 (tema escuro):
 --platform-artigo-bg:var(--textButtonPrimary);--platform-artigo-fg:var(--accent-promo);--platform-artigo-icon:var(--accent-promo);
 ```
 
-- [ ] **Step 3: Componentes**
+- [x] **Step 3: Componentes**
 
 `components/ds/ContentCard.tsx` map `P` — trocar a entrada `blog` por (mantendo alias para linhas legadas):
 
@@ -1104,7 +1104,7 @@ e no corpo, trocar o fallback e o texto renderizado:
 const CT_PLATFORMS: Record<string, string> = { youtube: "YouTube", linkedin: "LinkedIn", artigo: "Artigo" };
 ```
 
-- [ ] **Step 4: Migrar dados legados**
+- [x] **Step 4: Migrar dados legados**
 
 ```bash
 export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
@@ -1113,7 +1113,7 @@ psql "$DB_URL" -c "UPDATE app_contents SET platform='artigo' WHERE platform='blo
 ```
 Expected: nenhuma linha `blog` restante.
 
-- [ ] **Step 5: Typecheck, build, commit**
+- [x] **Step 5: Typecheck, build, commit**
 
 ```bash
 npx tsc --noEmit && npm run build
