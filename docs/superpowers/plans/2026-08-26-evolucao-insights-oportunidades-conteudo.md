@@ -505,7 +505,7 @@ git commit -m "feat: análise de insights com período, recorrência persistida,
 - Modify: `components/ds/InsightCard.tsx`
 - Modify: `app/insights/page.tsx`
 
-- [ ] **Step 1: Ampliar o SELECT e o card em `app/api/insights/route.ts`**
+- [x] **Step 1: Ampliar o SELECT e o card em `app/api/insights/route.ts`**
 
 Na interface `AppCrossInsightRow`, adicionar:
 
@@ -555,7 +555,7 @@ No objeto retornado dentro do `.map`, adicionar após `createdAt: r.created_at,`
   notes?: string | null;
 ```
 
-- [ ] **Step 2: Mesma ampliação em `app/api/insights/[id]/route.ts` + PATCH com `archived` e `notes`**
+- [x] **Step 2: Mesma ampliação em `app/api/insights/[id]/route.ts` + PATCH com `archived` e `notes`**
 
 Aplicar as mesmas três mudanças (interface da row, lista de colunas no SELECT do GET, campos extras no `toCard`). No PATCH:
 
@@ -590,7 +590,7 @@ const ALLOWED_STATUS = new Set(['new', 'useful', 'dismissed', 'archived']);
 
 (Adaptar aos nomes/estilo reais do arquivo — se o PATCH atual usa Drizzle, fazer o equivalente com `db.update(crossInsights).set({...})`; o essencial é: `archived` passa a ser status válido e `notes` passa a ser gravável.)
 
-- [ ] **Step 3: Recorrência/evidência no `components/ds/InsightCard.tsx`**
+- [x] **Step 3: Recorrência/evidência no `components/ds/InsightCard.tsx`**
 
 Adicionar às props:
 
@@ -635,7 +635,7 @@ Após o `<p>` da descrição (linha do `description`), inserir:
       ) : null}
 ```
 
-- [ ] **Step 4: Passar os campos em `app/insights/page.tsx`**
+- [x] **Step 4: Passar os campos em `app/insights/page.tsx`**
 
 Na interface `Insight`, adicionar:
 
@@ -658,7 +658,7 @@ No `<InsightCard ...>` (dentro do `paged.map`), adicionar props:
 
 (Para linhas legadas sem `frequency`, o `pattern` antigo "Mencionado em N conversas" não é exibido como recorrência — comportamento correto.)
 
-- [ ] **Step 5 (D5): Diálogo "o que fazer com os insights antigos?" ao gerar**
+- [x] **Step 5 (D5): Diálogo "o que fazer com os insights antigos?" ao gerar**
 
 Em `app/insights/page.tsx`, o handler do botão "Gerar" (o que faz `POST /api/insights/analyze`) passa a ter duas fases:
 
@@ -707,7 +707,7 @@ E o JSX do diálogo, renderizado junto ao botão Gerar quando `askPrevious`:
 
 (`period` = objeto `{from, to}` do filtro temporal se a página já o tiver; caso contrário, omitir. Nomes de states/handlers: adaptar aos existentes na página — o comportamento é o que importa.)
 
-- [ ] **Step 6 (D6): Selo "Oportunidade real", filtro e aba "Padrões observados"**
+- [x] **Step 6 (D6): Selo "Oportunidade real", filtro e aba "Padrões observados"**
 
 Ainda em `app/insights/page.tsx`:
 
@@ -774,7 +774,7 @@ e no cálculo da lista exibida (antes da paginação): `const visible = onlyReal
 
 A aba `insights` mantém a lista atual (com o filtro `onlyReal` aplicado). Insights com status `archived` só aparecem quando um filtro "Arquivados" for ativado — adicionar opção no filtro de status existente da página (se houver) ou simplesmente excluí-los da lista default: `items.filter((i) => i.status !== "archived" || showArchived)` com um toggle `showArchived`.
 
-- [ ] **Step 7: Typecheck, build, commit**
+- [x] **Step 7: Typecheck, build, commit**
 
 ```bash
 npx tsc --noEmit && npm run build

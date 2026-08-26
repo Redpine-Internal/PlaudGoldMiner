@@ -17,6 +17,11 @@ interface Insight {
   actionSuggestion: string | null;
   conversationTitle?: string | null;
   createdAt: string;
+  frequency?: number | null;
+  analyzedCount?: number | null;
+  evidence?: { conversationId: string; excerpt: string }[];
+  businessType?: string | null;
+  methodology?: string | null;
 }
 
 interface ApiResponse {
@@ -33,7 +38,7 @@ const IN_TYPES: Record<string, string> = {
   suggestion: "Sugestão",
   opportunity: "Oportunidade",
 };
-const IN_STATUS: Record<string, string> = { new: "Novos", useful: "Úteis", dismissed: "Dispensados" };
+const IN_STATUS: Record<string, string> = { new: "Novos", useful: "Úteis", dismissed: "Dispensados", archived: "Arquivados" };
 
 const InsightsPage = () => {
   const enrichment = useEnrichment();
@@ -45,6 +50,10 @@ const InsightsPage = () => {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [askPrevious, setAskPrevious] = useState(false);
+  const [onlyReal, setOnlyReal] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [tab, setTab] = useState<"insights" | "padroes">("insights");
 
   // limit=200 (teto da API) para trazer o histórico completo de insights.
   const { data, error, isLoading, mutate, isValidating } = useSWR<ApiResponse>(
@@ -64,19 +73,27 @@ const InsightsPage = () => {
             i.description.toLowerCase().includes(q.toLowerCase())) &&
           (!status.length || status.includes(i.status)) &&
           (!types.length || types.includes(i.insightType)) &&
+          (showArchived || i.status !== "archived") &&
           (!onlyInteresting || (enrichment?.isInteresting("insight", i.id) ?? false))
       ),
-    [items, q, status, types, onlyInteresting, enrichment]
+    [items, q, status, types, showArchived, onlyInteresting, enrichment]
   );
+  const visible = onlyReal ? list.filter((i) => i.insightType === "opportunity") : list;
+  const patterns = items.filter((i) => i.insightType === "pattern");
+  const byTheme = new Map<string, Insight[]>();
+  for (const pattern of patterns) {
+    const key = pattern.title.trim().toLowerCase();
+    byTheme.set(key, [...(byTheme.get(key) ?? []), pattern]);
+  }
 
-  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const paged = useMemo(() => visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [visible, page]);
 
   // Volta pra 1ª página quando a filtragem muda o conjunto, ou se a página atual
   // deixou de existir (ex.: após dispensar itens).
   useEffect(() => {
     setPage(1);
-  }, [q, status, types, onlyInteresting]);
+  }, [q, status, types, showArchived, onlyInteresting]);
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
@@ -94,11 +111,16 @@ const InsightsPage = () => {
     }
   };
 
-  const generate = async () => {
+  const generate = async (previous?: "manter" | "arquivar" | "descartar") => {
+    setAskPrevious(false);
     setGenerating(true);
     setGenError(null);
     try {
-      const res = await fetch("/api/insights/analyze", { method: "POST" });
+      const res = await fetch("/api/insights/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(previous ? { previous } : {}),
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         setGenError(body?.error || `Falha ao gerar insights (HTTP ${res.status}).`);
@@ -113,22 +135,39 @@ const InsightsPage = () => {
     }
   };
 
+  const onGenerateClick = () => {
+    const hasUnread = (data?.data ?? []).some((i) => i.status === "new");
+    if (hasUnread) setAskPrevious(true);
+    else generate();
+  };
+
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, v: string) =>
     setter((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
 
-  const hasFilters = q || status.length || types.length;
+  const hasFilters = q || status.length || types.length || onlyReal || showArchived;
 
   return (
     <div>
       <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", rowGap: 8 }}>
         <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: 0 }}>IA Insights</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={generate} disabled={generating}>
+          <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={onGenerateClick} disabled={generating}>
             {generating ? "Gerando..." : "Gerar Insights"}
           </Button>
           <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
         </div>
       </div>
+
+      {askPrevious ? (
+        <div className="ds-card" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+          <span style={{ font: "400 13px/18px var(--font-sans)" }}>
+            Há insights ainda não consultados. O que fazer com eles antes de gerar novos?
+          </span>
+          <Button variant="outline" size="sm" onClick={() => generate("manter")}>Manter</Button>
+          <Button variant="outline" size="sm" onClick={() => generate("arquivar")}>Arquivar</Button>
+          <Button variant="outline" size="sm" onClick={() => generate("descartar")}>Descartar</Button>
+        </div>
+      ) : null}
 
       {genError ? (
         <div
@@ -148,6 +187,10 @@ const InsightsPage = () => {
       ) : null}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button variant={tab === "insights" ? "primary" : "outline"} size="sm" onClick={() => setTab("insights")}>Insights</Button>
+          <Button variant={tab === "padroes" ? "primary" : "outline"} size="sm" onClick={() => setTab("padroes")}>Padrões observados</Button>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8 }}>
           <SearchInput value={q} onChange={setQ} placeholder="Buscar insights..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
           <FilterChip active={showFilters || !!hasFilters} onClick={() => setShowFilters(!showFilters)}>
@@ -155,6 +198,12 @@ const InsightsPage = () => {
           </FilterChip>
           <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
             Só interessantes
+          </FilterChip>
+          <FilterChip active={onlyReal} onClick={() => setOnlyReal((v) => !v)}>
+            Somente oportunidades reais
+          </FilterChip>
+          <FilterChip active={showArchived} onClick={() => setShowArchived((v) => !v)}>
+            Arquivados
           </FilterChip>
           {hasFilters ? (
             <button
@@ -164,13 +213,15 @@ const InsightsPage = () => {
                 setQ("");
                 setStatus([]);
                 setTypes([]);
+                setOnlyReal(false);
+                setShowArchived(false);
               }}
             >
               Limpar filtros
             </button>
           ) : null}
           <span style={{ marginLeft: "auto", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
-            {list.length} insight{list.length !== 1 ? "s" : ""}
+            {visible.length} insight{visible.length !== 1 ? "s" : ""}
           </span>
         </div>
         {showFilters ? (
@@ -225,7 +276,33 @@ const InsightsPage = () => {
             <div key={i} className="ds-card" style={{ height: 180 }} />
           ))}
         </div>
-      ) : list.length ? (
+      ) : tab === "padroes" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[...byTheme.values()].map((group) => {
+            const latest = group[0];
+            const history = [...group].reverse();
+            return (
+              <div key={latest.id} className="ds-card">
+                <h3 style={{ font: "400 16px/24px var(--fontFamily)", margin: 0 }}>{latest.title}</h3>
+                <p style={{ margin: "4px 0 0", font: "500 13px/18px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+                  📊 {latest.pattern}
+                  {history.length > 1
+                    ? ` · Evolução: ${history.map((h) => h.frequency ?? "?").join(" → ")} (${history.length} gerações)`
+                    : ""}
+                </p>
+                <a href={`/insights/${latest.id}`} style={{ font: "500 12px/16px var(--font-sans)", color: "var(--color-primary)" }}>
+                  Detalhes →
+                </a>
+              </div>
+            );
+          })}
+          {byTheme.size === 0 ? (
+            <p style={{ font: "400 13px/18px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+              Nenhum padrão observado ainda. Gere insights para popular esta aba.
+            </p>
+          ) : null}
+        </div>
+      ) : visible.length ? (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 16 }}>
             {paged.map((i) => (
@@ -235,6 +312,15 @@ const InsightsPage = () => {
                 description={i.description}
                 insightType={i.insightType}
                 actionSuggestion={i.actionSuggestion || undefined}
+                recurrenceLabel={i.frequency && i.analyzedCount ? i.pattern : undefined}
+                businessType={i.businessType}
+                methodology={i.methodology}
+                evidence={i.evidence}
+                badge={i.insightType === "opportunity" ? (
+                  <span className="ds-badge ds-badge--compact" style={{ background: "var(--accent-success)", color: "var(--textButtonPrimary)" }}>
+                    Oportunidade real
+                  </span>
+                ) : null}
                 isNew={i.status === "new"}
                 sourceId={i.id}
                 enrichText={i.description}

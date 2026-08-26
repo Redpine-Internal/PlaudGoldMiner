@@ -16,6 +16,13 @@ interface AppCrossInsightRow {
   action_suggestion: string | null;
   conversation_ids: string | null;
   created_at: string;
+  frequency: number | null;
+  analyzed_count: number | null;
+  evidence: { conversationId: string; excerpt: string }[] | null;
+  business_type: string | null;
+  methodology: string | null;
+  is_hypothesis: boolean;
+  notes: string | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -28,7 +35,8 @@ export async function GET(request: NextRequest) {
 
     const res = await pool.query<AppCrossInsightRow>(
       `SELECT id, title, description, pattern, insight_type, confidence,
-              status, action_suggestion, conversation_ids, created_at
+              status, action_suggestion, conversation_ids, created_at,
+              frequency, analyzed_count, evidence, business_type, methodology, is_hypothesis, notes
          FROM app_cross_insights
         ORDER BY created_at DESC
         LIMIT $1`,
@@ -55,6 +63,13 @@ export async function GET(request: NextRequest) {
           conversationIds: JSON.stringify(ids),
           conversationId: ids[0] ?? null,
           createdAt: r.created_at,
+          frequency: r.frequency,
+          analyzedCount: r.analyzed_count,
+          evidence: r.evidence ?? [],
+          businessType: r.business_type,
+          methodology: r.methodology,
+          isHypothesis: r.is_hypothesis,
+          notes: r.notes,
         };
       })
     );

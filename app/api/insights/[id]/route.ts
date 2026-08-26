@@ -15,6 +15,13 @@ interface AppCrossInsightRow {
   action_suggestion: string | null;
   conversation_ids: string | null;
   created_at: string;
+  frequency: number | null;
+  analyzed_count: number | null;
+  evidence: { conversationId: string; excerpt: string }[] | null;
+  business_type: string | null;
+  methodology: string | null;
+  is_hypothesis: boolean;
+  notes: string | null;
 }
 
 function toCard(r: AppCrossInsightRow): CrossInsightCard {
@@ -36,6 +43,13 @@ function toCard(r: AppCrossInsightRow): CrossInsightCard {
     conversationIds: JSON.stringify(ids),
     conversationId: ids[0] ?? null,
     createdAt: r.created_at,
+    frequency: r.frequency,
+    analyzedCount: r.analyzed_count,
+    evidence: r.evidence ?? [],
+    businessType: r.business_type,
+    methodology: r.methodology,
+    isHypothesis: r.is_hypothesis,
+    notes: r.notes,
   };
 }
 
@@ -47,7 +61,8 @@ export async function GET(
     const { id } = await params;
     const res = await pool.query<AppCrossInsightRow>(
       `SELECT id, title, description, pattern, insight_type, confidence,
-              status, action_suggestion, conversation_ids, created_at
+              status, action_suggestion, conversation_ids, created_at,
+              frequency, analyzed_count, evidence, business_type, methodology, is_hypothesis, notes
          FROM app_cross_insights WHERE id = $1 LIMIT 1`,
       [id]
     );
@@ -63,7 +78,7 @@ export async function GET(
 }
 
 // Estados que a UI aciona pelos botões do card: útil / dispensar / reativar.
-const ALLOWED_STATUS = new Set(['new', 'useful', 'dismissed']);
+const ALLOWED_STATUS = new Set(['new', 'useful', 'dismissed', 'archived']);
 
 export async function PATCH(
   request: NextRequest,
@@ -71,19 +86,29 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json().catch(() => null);
-    const status = body?.status;
-    if (typeof status !== 'string' || !ALLOWED_STATUS.has(status)) {
-      return NextResponse.json(
-        { error: `status inválido; use um de: ${[...ALLOWED_STATUS].join(', ')}` },
-        { status: 400 }
-      );
+    const body = await request.json().catch(() => ({}));
+    const sets: string[] = [];
+    const values: unknown[] = [id];
+    if (typeof body.status === 'string') {
+      if (!ALLOWED_STATUS.has(body.status)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+      }
+      values.push(body.status);
+      sets.push(`status=$${values.length}`);
+    }
+    if (typeof body.notes === 'string' || body.notes === null) {
+      values.push(body.notes);
+      sets.push(`notes=$${values.length}`);
+    }
+    if (!sets.length) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
     }
     const res = await pool.query<AppCrossInsightRow>(
-      `UPDATE app_cross_insights SET status = $2 WHERE id = $1
+      `UPDATE app_cross_insights SET ${sets.join(', ')} WHERE id = $1
        RETURNING id, title, description, pattern, insight_type, confidence,
-                 status, action_suggestion, conversation_ids, created_at`,
-      [id, status]
+                 status, action_suggestion, conversation_ids, created_at,
+                 frequency, analyzed_count, evidence, business_type, methodology, is_hypothesis, notes`,
+      values
     );
     if (res.rowCount === 0) {
       return NextResponse.json({ error: 'Insight not found' }, { status: 404 });

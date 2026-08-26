@@ -21,6 +21,13 @@ export interface InsightCardProps {
   onChat?: React.MouseEventHandler<HTMLButtonElement>;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
   action?: React.ReactNode;
+  badge?: React.ReactNode;
+  /** Ex.: "4 de 30 conversas (13%)" — recorrência sobre o universo analisado. */
+  recurrenceLabel?: string;
+  businessType?: string | null;
+  /** Metodologia proposta pela IA — sempre exibida como hipótese. */
+  methodology?: string | null;
+  evidence?: { conversationId: string; excerpt: string }[];
   sourceId?: string;
   enrichText?: string;
   style?: React.CSSProperties;
@@ -38,6 +45,11 @@ export function InsightCard({
   onMarkUseful,
   onChat,
   action,
+  badge,
+  recurrenceLabel,
+  businessType,
+  methodology,
+  evidence = [],
   sourceId,
   enrichText,
   style,
@@ -69,6 +81,12 @@ export function InsightCard({
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name="sparkles" size={16} color="var(--color-primary)" />
           <span style={{ font: "500 12px/16px var(--font-sans)", color: "var(--color-primary)" }}>{t.label}</span>
+          {businessType ? (
+            <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${businessType}-bg)`, color: `var(--opp-${businessType}-fg)` }}>
+              {businessType === 'treinamento' ? 'Treinamento' : businessType === 'consultoria' ? 'Consultoria' : 'Sistema'}
+            </span>
+          ) : null}
+          {badge}
           {interesting ? <Icon name="star" size={14} color="var(--color-primary)" /> : null}
           {isNew ? (
             <span
@@ -104,6 +122,21 @@ export function InsightCard({
       </div>
       <h3 style={{ font: "400 18px/24px var(--fontFamily)", marginBottom: 4 }}>{title}</h3>
       <p style={{ margin: "0 0 8px", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{description}</p>
+      {recurrenceLabel ? (
+        <p style={{ margin: "0 0 8px", font: "500 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+          📊 {recurrenceLabel}
+        </p>
+      ) : null}
+      {evidence.length ? (
+        <p style={{ margin: "0 0 8px", font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)", fontStyle: "italic" }}>
+          &ldquo;{evidence[0].excerpt}&rdquo;{evidence.length > 1 ? ` (+${evidence.length - 1} evidência${evidence.length > 2 ? "s" : ""})` : ""}
+        </p>
+      ) : null}
+      {methodology ? (
+        <p style={{ margin: "0 0 8px", font: "400 12px/16px var(--font-sans)", color: "var(--color-primary)" }}>
+          🧪 Hipótese de abordagem: {methodology}
+        </p>
+      ) : null}
       {actionSuggestion ? (
         <p style={{ margin: 0, font: "500 12px/16px var(--font-sans)", color: "var(--color-primary)" }}>💡 {actionSuggestion}</p>
       ) : null}

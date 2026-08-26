@@ -55,6 +55,14 @@ export interface CrossInsightCard {
   conversationTitle?: string | null;
   conversationDate?: string | null;
   createdAt: string;
+  // Campos de qualificação (reunião 2026-08-25) — presentes só na fonte local.
+  frequency?: number | null;
+  analyzedCount?: number | null;
+  evidence?: { conversationId: string; excerpt: string }[];
+  businessType?: string | null;
+  methodology?: string | null;
+  isHypothesis?: boolean;
+  notes?: string | null;
 }
 
 // ---- Linhas cruas do banco (só os campos que os mappers usam) ----
