@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { UploadModal } from "@/components/upload";
 import { DriveImportModal } from "@/components/drive";
+import { SyncPlaudButton } from "@/components/SyncPlaudButton";
 import { Button, SearchInput, FilterChip, ConversationCard, EmptyState, ConversationCardSkeleton, Icon, Pagination } from "@/components/ds";
 
 const PAGE_SIZE = 20;
@@ -215,6 +216,7 @@ const ConversasPage = () => {
         <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: 0 }}>Conversas</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+          <SyncPlaudButton onDone={() => mutate()} />
           <Button variant="outline" icon="hard-drive" onClick={() => setDriveOpen(true)}>
             Importar do Drive
           </Button>
