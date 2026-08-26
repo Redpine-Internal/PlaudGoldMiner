@@ -3,12 +3,13 @@ import { Icon } from "./Icon";
 import { useEnrichment } from "./enrichment/useEnrichment";
 
 const STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
-const TYPES: Record<string, string> = { produto: "Produto", sistema: "Sistema", consultoria: "Consultoria", servico: "Serviço" };
+const TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto", servico: "Serviço" };
 
 export interface OpportunityCardProps {
   title?: string;
   pain?: string;
   type?: string;
+  subtype?: string | null;
   status?: string;
   score?: number;
   conversationTitle?: string;
@@ -28,6 +29,7 @@ export function OpportunityCard({
   title,
   pain,
   type = "produto",
+  subtype,
   status = "nova",
   score = 0,
   conversationTitle,
@@ -65,6 +67,11 @@ export function OpportunityCard({
           <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${type}-bg)`, color: `var(--opp-${type}-fg)` }}>
             {TYPES[type] || type}
           </span>
+          {subtype ? (
+            <span className="ds-badge ds-badge--compact" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+              {subtype}
+            </span>
+          ) : null}
           <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${status}-bg)`, color: `var(--opp-${status}-fg)` }}>
             {STATUS[status] || status}
           </span>

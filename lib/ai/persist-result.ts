@@ -43,6 +43,7 @@ export async function persistTranscriptionResult(
         pain: opp.pain,
         context: opp.context,
         type: opp.type,
+        subtype: opp.subtype?.trim() ? opp.subtype.trim() : null,
         score: opp.score,
         status: 'nova',
       })

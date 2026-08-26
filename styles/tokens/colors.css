@@ -54,6 +54,7 @@
 --opp-sistema-bg:var(--accent-info);--opp-sistema-fg:var(--textButtonPrimary);
 --opp-consultoria-bg:var(--accent-promo);--opp-consultoria-fg:var(--textButtonPrimary);
 --opp-servico-bg:var(--accent-active);--opp-servico-fg:var(--textButtonPrimary);
+--opp-treinamento-bg:var(--accent-warning);--opp-treinamento-fg:var(--textButtonPrimary);
 --content-sugerido-bg:var(--accent-warning);--content-sugerido-fg:var(--textButtonPrimary);
 --content-producao-bg:var(--accent-info);--content-producao-fg:var(--textButtonPrimary);
 --content-publicado-bg:var(--accent-success);--content-publicado-fg:var(--textButtonPrimary);
@@ -86,6 +87,7 @@
 --opp-sistema-bg:var(--textButtonPrimary);--opp-sistema-fg:var(--accent-info);
 --opp-consultoria-bg:var(--textButtonPrimary);--opp-consultoria-fg:var(--accent-promo);
 --opp-servico-bg:var(--textButtonPrimary);--opp-servico-fg:var(--accent-active);
+--opp-treinamento-bg:var(--textButtonPrimary);--opp-treinamento-fg:var(--accent-warning);
 --content-sugerido-bg:var(--textButtonPrimary);--content-sugerido-fg:var(--accent-warning);
 --content-producao-bg:var(--textButtonPrimary);--content-producao-fg:var(--accent-info);
 --content-publicado-bg:var(--textButtonPrimary);--content-publicado-fg:var(--accent-success);

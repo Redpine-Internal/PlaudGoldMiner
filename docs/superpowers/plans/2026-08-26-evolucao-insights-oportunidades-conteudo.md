@@ -795,7 +795,7 @@ git commit -m "feat: recorrência, selo de oportunidade real, aba de padrões e 
 
 Valores legados (`produto`, `servico`) permanecem nos maps de exibição — há linhas antigas no banco.
 
-- [ ] **Step 1: Enum e prompt em `lib/ai/prompts/process-transcription.ts`**
+- [x] **Step 1: Enum e prompt em `lib/ai/prompts/process-transcription.ts`**
 
 Trocar:
 
@@ -829,7 +829,7 @@ E trocar `- opportunities[].type: apenas "produto", "sistema", "consultoria" ou 
 - opportunities[].type: apenas "treinamento", "consultoria" ou "sistema" (escolha o mais próximo; cursos/capacitações → treinamento; projetos/diagnósticos/assessoria → consultoria; software/ferramenta/produto digital → sistema)
 ```
 
-- [ ] **Step 1b (D8): Campo `subtype` no schema da oportunidade**
+- [x] **Step 1b (D8): Campo `subtype` no schema da oportunidade**
 
 No mesmo `lib/ai/prompts/process-transcription.ts`, no objeto zod da oportunidade (onde está `type: opportunityType()...`), adicionar logo abaixo:
 
@@ -845,7 +845,7 @@ E no system prompt, junto às regras de type, acrescentar a linha:
 - opportunities[].subtype: subtipo específico em texto livre (ex. "Treinamento NR-35"); string vazia se não souber
 ```
 
-- [ ] **Step 1c (D8): Persistir `subtype`**
+- [x] **Step 1c (D8): Persistir `subtype`**
 
 Localizar onde as oportunidades são gravadas em `app_opportunities` (buscar com `grep -rn "app_opportunities\|opportunities)" lib/ai lib/` — provável `lib/ai/persist-result.ts` ou serviço equivalente que faz `db.insert(opportunities)`). No objeto do insert, adicionar:
 
@@ -855,7 +855,7 @@ Localizar onde as oportunidades são gravadas em `app_opportunities` (buscar com
 
 (usando o nome real da variável do loop; o schema Drizzle já tem a coluna pela Task 1.)
 
-- [ ] **Step 2: Maps de exibição**
+- [x] **Step 2: Maps de exibição**
 
 `components/ds/OpportunityCard.tsx:6`:
 
@@ -875,7 +875,7 @@ const OPP_TYPES: Record<string, string> = { treinamento: "Treinamento", consulto
   type: "treinamento" | "consultoria" | "sistema" | "produto" | "servico";
 ```
 
-- [ ] **Step 2b (D8): Exibir `subtype` no card**
+- [x] **Step 2b (D8): Exibir `subtype` no card**
 
 Em `components/ds/OpportunityCard.tsx`, adicionar `subtype?: string | null;` a `OpportunityCardProps` e, no JSX, logo após o badge de tipo (linha do `TYPES[type] || type`), renderizar:
 
@@ -889,7 +889,7 @@ Em `components/ds/OpportunityCard.tsx`, adicionar `subtype?: string | null;` a `
 
 (Adicionar `subtype` também ao destructuring das props.) Em `app/oportunidades/page.tsx`: adicionar `subtype?: string | null;` à interface, incluir `subtype` no SELECT/map da rota GET `app/api/opportunities/route.ts` (coluna + `subtype: r.subtype ?? null`) e passar `subtype={o.subtype}` ao `<OpportunityCard>`.
 
-- [ ] **Step 3: Tokens de cor**
+- [x] **Step 3: Tokens de cor**
 
 Em `styles/tokens/colors.css`, após a linha 56 (`--opp-servico-...` do tema claro), adicionar:
 
@@ -903,7 +903,7 @@ E após a linha 88 (tema escuro):
 --opp-treinamento-bg:var(--textButtonPrimary);--opp-treinamento-fg:var(--accent-warning);
 ```
 
-- [ ] **Step 4: Typecheck, build, commit**
+- [x] **Step 4: Typecheck, build, commit**
 
 ```bash
 npx tsc --noEmit && npm run build

@@ -9,7 +9,7 @@ import { z } from 'zod';
 // Unlike `.transform`, `.catch` IS representable in JSON Schema, so
 // generateObject can still build the request.
 const opportunityType = () =>
-  z.enum(['produto', 'sistema', 'consultoria', 'servico']).catch('servico');
+  z.enum(['treinamento', 'consultoria', 'sistema']).catch('consultoria');
 const severity = () => z.enum(['baixa', 'media', 'alta']).catch('media');
 const conversationType = () =>
   z.enum(['reuniao', 'treinamento', 'informal', 'outro']).catch('outro');
@@ -22,7 +22,10 @@ export const transcriptionResultSchema = z.object({
     title: z.string().describe('Título curto da oportunidade'),
     pain: z.string().describe('Problema ou dor identificada'),
     context: z.string().describe('Contexto onde foi mencionado'),
-    type: opportunityType().describe('Tipo da oportunidade: produto, sistema, consultoria ou servico'),
+    type: opportunityType().describe('Tipo da oportunidade: treinamento, consultoria ou sistema'),
+    subtype: z.string().describe(
+      'Subtipo específico e livre, ex. "Treinamento NR-35", "Consultoria em PGR", "Sistema de gestão de EPIs". String vazia se não for possível especificar.'
+    ),
     score: z.number().min(0).max(100).describe('Score de confiança 0-100'),
   })).describe('Oportunidades de negócio identificadas'),
   problems: z.array(z.object({
@@ -45,14 +48,15 @@ Sua tarefa é extrair informações estruturadas de transcrições, identificand
 1. **Resumo**: Um resumo claro e estruturado do que foi discutido
 2. **Tópicos**: Os principais assuntos abordados
 3. **Participantes**: Quem participou da conversa
-4. **Oportunidades**: Potenciais oportunidades de negócio (produtos, sistemas, consultorias, serviços)
+4. **Oportunidades**: Potenciais oportunidades de negócio (treinamentos, consultorias, sistemas/produtos digitais)
 5. **Problemas/Dores**: Dificuldades e dores mencionadas pelos participantes
 
 Seja objetivo e extraia apenas informações que estão claramente na transcrição.
 Não invente informações - se algo não está claro, não inclua.
 
 IMPORTANTE - use SOMENTE estes valores nos campos categóricos:
-- opportunities[].type: apenas "produto", "sistema", "consultoria" ou "servico" (escolha o mais próximo)
+- opportunities[].type: apenas "treinamento", "consultoria" ou "sistema" (escolha o mais próximo; cursos/capacitações → treinamento; projetos/diagnósticos/assessoria → consultoria; software/ferramenta/produto digital → sistema)
+- opportunities[].subtype: subtipo específico em texto livre (ex. "Treinamento NR-35"); string vazia se não souber
 - problems[].severity: apenas "baixa", "media" ou "alta"
 - suggestedType: apenas "reuniao", "treinamento", "informal" ou "outro"
 

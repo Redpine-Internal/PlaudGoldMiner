@@ -12,7 +12,8 @@ interface Opportunity {
   title: string;
   pain: string;
   context: string | null;
-  type: "produto" | "sistema" | "consultoria" | "servico";
+  type: "treinamento" | "consultoria" | "sistema" | "produto" | "servico";
+  subtype?: string | null;
   status: "nova" | "analise" | "qualificada" | "descartada";
   score: number;
   notes: string | null;
@@ -30,7 +31,7 @@ interface ApiResponse {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const OPP_STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
-const OPP_TYPES: Record<string, string> = { produto: "Produto", sistema: "Sistema", consultoria: "Consultoria", servico: "Serviço" };
+const OPP_TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto", servico: "Serviço" };
 
 const OportunidadesPage = () => {
   const { selectedOpportunityId, setSelectedOpportunityId } = useAppStore();
@@ -241,6 +242,7 @@ const OportunidadesPage = () => {
                   title={o.title}
                   pain={o.pain}
                   type={o.type}
+                  subtype={o.subtype}
                   status={o.status}
                   score={o.score}
                   conversationTitle={o.conversationTitle || undefined}
