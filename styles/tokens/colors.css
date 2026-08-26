@@ -58,7 +58,10 @@
 --opp-treinamento-bg:var(--accent-warning);--opp-treinamento-fg:var(--textButtonPrimary);
 --content-sugerido-bg:var(--accent-warning);--content-sugerido-fg:var(--textButtonPrimary);
 --content-producao-bg:var(--accent-info);--content-producao-fg:var(--textButtonPrimary);
+--content-rascunho-bg:var(--accent-info);--content-rascunho-fg:var(--textButtonPrimary);
+--content-em_revisao-bg:var(--accent-info);--content-em_revisao-fg:var(--textButtonPrimary);
 --content-publicado-bg:var(--accent-success);--content-publicado-fg:var(--textButtonPrimary);
+--content-aprovado-bg:var(--accent-success);--content-aprovado-fg:var(--textButtonPrimary);
 --content-descartado-bg:var(--accent-inactive);--content-descartado-fg:var(--textButtonPrimary);
 --score-bg:var(--accent-success);--score-fg:var(--textButtonPrimary);
 --insight-pattern:var(--tagTextInfo);--insight-opportunity:var(--tagTextSuccess);--insight-suggestion:var(--tagTextPromo);--insight-trend:var(--tagTextWarning);--insight-connection:var(--tagTextError);
@@ -92,7 +95,10 @@
 --opp-treinamento-bg:var(--textButtonPrimary);--opp-treinamento-fg:var(--accent-warning);
 --content-sugerido-bg:var(--textButtonPrimary);--content-sugerido-fg:var(--accent-warning);
 --content-producao-bg:var(--textButtonPrimary);--content-producao-fg:var(--accent-info);
+--content-rascunho-bg:var(--textButtonPrimary);--content-rascunho-fg:var(--accent-info);
+--content-em_revisao-bg:var(--textButtonPrimary);--content-em_revisao-fg:var(--accent-info);
 --content-publicado-bg:var(--textButtonPrimary);--content-publicado-fg:var(--accent-success);
+--content-aprovado-bg:var(--textButtonPrimary);--content-aprovado-fg:var(--accent-success);
 --content-descartado-bg:var(--textButtonPrimary);--content-descartado-fg:var(--accent-inactive);
 --score-bg:var(--textButtonPrimary);--score-fg:var(--accent-success);
 }

@@ -14,7 +14,7 @@ interface Content {
   outline: string | null;
   mentionCount: number;
   relevanceScore: number;
-  status: "sugerido" | "producao" | "publicado" | "descartado";
+  status: "sugerido" | "rascunho" | "em_revisao" | "aprovado" | "descartado" | "producao" | "publicado";
   notes: string | null;
   createdAt: string;
 }
@@ -26,7 +26,10 @@ interface ApiResponse {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const CT_STATUS: Record<string, string> = { sugerido: "Sugerido", producao: "Em produção", publicado: "Publicado", descartado: "Descartado" };
+const CT_STATUS: Record<string, string> = {
+  sugerido: "Sugerido", rascunho: "Rascunho", em_revisao: "Em revisão",
+  aprovado: "Aprovado", descartado: "Descartado", producao: "Em produção", publicado: "Publicado",
+};
 const CT_PLATFORMS: Record<string, string> = { youtube: "YouTube", linkedin: "LinkedIn", artigo: "Artigo" };
 
 const ConteudosPage = () => {
@@ -80,6 +83,21 @@ const ConteudosPage = () => {
       mutate();
     } catch (err) {
       console.error("Failed to update content status:", err);
+    }
+  };
+
+  const generateDraft = async (id: string) => {
+    try {
+      const res = await fetch(`/api/contents/${id}/draft`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setGenError(body?.error || `Falha ao gerar rascunho (HTTP ${res.status}).`);
+        return;
+      }
+      await mutate();
+    } catch (err) {
+      console.error("Failed to generate content draft:", err);
+      setGenError("Não foi possível gerar o rascunho. Verifique a conexão e tente novamente.");
     }
   };
 
@@ -229,9 +247,13 @@ const ConteudosPage = () => {
                 status={c.status}
                 sourceId={c.id}
                 enrichText={c.theme}
-                onApprove={() => setSt(c.id, "producao")}
+                onApprove={() => {
+                  if (c.status === "sugerido") return generateDraft(c.id);
+                  if (c.status === "rascunho") return setSt(c.id, "em_revisao");
+                  if (c.status === "em_revisao") return setSt(c.id, "aprovado");
+                  if (c.status === "aprovado") return setSt(c.id, "publicado");
+                }}
                 onDiscard={() => setSt(c.id, "descartado")}
-                onPublish={() => setSt(c.id, "publicado")}
                 action={
                   <StartProjectButton
                     sourceType="content"

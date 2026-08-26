@@ -9,7 +9,10 @@ const P: Record<string, { icon: string; color: string; label: string }> = {
   artigo: { icon: "book-open", color: "var(--platform-artigo-icon)", label: "Artigo" },
   blog: { icon: "book-open", color: "var(--platform-blog-icon)", label: "Artigo" },
 };
-const STATUS: Record<string, string> = { sugerido: "Sugerido", producao: "Em produção", publicado: "Publicado", descartado: "Descartado" };
+const STATUS: Record<string, string> = {
+  sugerido: "Sugerido", rascunho: "Rascunho", em_revisao: "Em revisão",
+  aprovado: "Aprovado", producao: "Em produção", publicado: "Publicado", descartado: "Descartado",
+};
 
 export interface ContentCardProps {
   title?: string;
@@ -21,7 +24,6 @@ export interface ContentCardProps {
   status?: string;
   onApprove?: React.MouseEventHandler<HTMLButtonElement>;
   onDiscard?: React.MouseEventHandler<HTMLButtonElement>;
-  onPublish?: React.MouseEventHandler<HTMLButtonElement>;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
   action?: React.ReactNode;
   sourceId?: string;
@@ -65,7 +67,6 @@ export function ContentCard({
   status = "sugerido",
   onApprove,
   onDiscard,
-  onPublish,
   action,
   sourceId,
   enrichText,
@@ -136,24 +137,39 @@ export function ContentCard({
           color: "var(--color-muted-foreground)",
           marginTop: "auto",
           paddingTop: 8,
-          marginBottom: status === "sugerido" || status === "producao" ? 12 : 0,
+          marginBottom: ["sugerido", "rascunho", "em_revisao", "aprovado", "producao"].includes(status) ? 12 : 0,
         }}
       >
         <span>Mencionado {mentionCount}x</span>
         <span>Relevância: {relevancePct}%</span>
       </div>
-      {status === "sugerido" ? (
+      {status === "sugerido" && (onApprove || onDiscard) ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
-          <Button size="sm" icon="check" onClick={(e) => { e.stopPropagation(); onApprove?.(e); }} style={{ flex: 1 }}>
-            Aprovar
+          {onApprove ? <Button size="sm" icon="check" onClick={(e) => { e.stopPropagation(); onApprove(e); }} style={{ flex: 1 }}>
+            Gerar rascunho
           </Button>
-          <Button size="sm" variant="outline" icon="trash-2" onClick={(e) => { e.stopPropagation(); onDiscard?.(e); }} />
+          : null}
+          {onDiscard ? <Button size="sm" variant="outline" icon="trash-2" onClick={(e) => { e.stopPropagation(); onDiscard(e); }} /> : null}
         </div>
       ) : null}
-      {status === "producao" ? (
+      {status === "rascunho" && onApprove ? (
         <div style={{ display: "flex", paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
-          <Button size="sm" variant="success" icon="check" onClick={(e) => { e.stopPropagation(); onPublish?.(e); }} style={{ flex: 1 }}>
-            Marcar como Publicado
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onApprove(e); }} style={{ flex: 1 }}>
+            Enviar para revisão
+          </Button>
+        </div>
+      ) : null}
+      {status === "em_revisao" && onApprove ? (
+        <div style={{ display: "flex", paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
+          <Button size="sm" icon="check" onClick={(e) => { e.stopPropagation(); onApprove(e); }} style={{ flex: 1 }}>
+            Aprovar
+          </Button>
+        </div>
+      ) : null}
+      {status === "aprovado" && onApprove ? (
+        <div style={{ display: "flex", paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
+          <Button size="sm" variant="outline" icon="check" onClick={(e) => { e.stopPropagation(); onApprove(e); }} style={{ flex: 1 }}>
+            Marcar como publicado
           </Button>
         </div>
       ) : null}

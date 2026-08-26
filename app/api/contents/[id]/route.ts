@@ -65,7 +65,11 @@ export async function GET(
   }
 }
 
-const ALLOWED_STATUS = new Set(['sugerido', 'producao', 'publicado', 'descartado']);
+const ALLOWED_STATUS = new Set([
+  'sugerido', 'rascunho', 'em_revisao', 'aprovado', 'publicado', 'descartado',
+  // legado (linhas antigas / compat UI)
+  'producao',
+]);
 
 export async function PATCH(
   request: NextRequest,
@@ -74,20 +78,36 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json().catch(() => null);
-    const status = body?.status;
-    if (typeof status !== 'string' || !ALLOWED_STATUS.has(status)) {
-      return NextResponse.json(
-        { error: `status inválido; use um de: ${[...ALLOWED_STATUS].join(', ')}` },
-        { status: 400 }
-      );
+    const sets: string[] = [];
+    const values: unknown[] = [id];
+    if (typeof body?.status === 'string') {
+      if (!ALLOWED_STATUS.has(body.status)) {
+        return NextResponse.json(
+          { error: `status inválido; use um de: ${[...ALLOWED_STATUS].join(', ')}` },
+          { status: 400 }
+        );
+      }
+      values.push(body.status);
+      sets.push(`status = $${values.length}`);
+    }
+    if (typeof body?.notes === 'string' || body?.notes === null) {
+      values.push(body.notes);
+      sets.push(`notes = $${values.length}`);
+    }
+    if (typeof body?.draft === 'string') {
+      values.push(body.draft);
+      sets.push(`draft = $${values.length}`);
+    }
+    if (sets.length === 0) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
     }
     const res = await pool.query<AppContentRow>(
-      `UPDATE app_contents SET status = $2 WHERE id = $1
+      `UPDATE app_contents SET ${sets.join(', ')} WHERE id = $1
        RETURNING id, title, platform, theme, outline, mention_count,
                  relevance_score, status, notes, created_at,
                  (SELECT conversation_id FROM app_content_sources
                    WHERE content_id = app_contents.id LIMIT 1) AS conversation_id`,
-      [id, status]
+      values
     );
     if (res.rowCount === 0) {
       return NextResponse.json({ error: 'Content not found' }, { status: 404 });

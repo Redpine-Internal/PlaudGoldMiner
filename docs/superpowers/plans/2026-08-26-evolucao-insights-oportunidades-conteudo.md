@@ -1395,7 +1395,7 @@ git commit -m "feat: tela de detalhe do insight com evidências e decisão"
 
 Fluxo (D9): `sugerido → rascunho → em_revisao → aprovado → publicado / descartado`. A publicação em si é manual e externa; "Marcar como publicado" apenas registra que aconteceu. Legado `producao` continua renderizando.
 
-- [ ] **Step 1: PATCH aceita os novos status e o campo `draft` (D13)**
+- [x] **Step 1: PATCH aceita os novos status e o campo `draft` (D13)**
 
 Em `app/api/contents/[id]/route.ts`, localizar a validação de status do PATCH (set/array de valores permitidos contendo `sugerido/producao/publicado/descartado`) e substituir por:
 
@@ -1436,7 +1436,7 @@ E ampliar o corpo aceito pelo PATCH para incluir `draft` (edição manual do ras
 
 (Adaptar ao estilo real do arquivo — se ele usa Drizzle, montar o objeto do `.set()` condicionalmente com as mesmas regras; manter os campos que o PATCH já aceitava hoje, ex. `notes`.)
 
-- [ ] **Step 2: `components/ds/ContentCard.tsx`**
+- [x] **Step 2: `components/ds/ContentCard.tsx`**
 
 Trocar o map STATUS por:
 
@@ -1476,7 +1476,7 @@ Ajustar os botões de ação por status (bloco atual "Aprovar/Descartar" para `s
 
 (Manter os handlers existentes `onApprove`/`onDiscard` — ou os nomes reais das props do arquivo; a página decide qual status gravar.)
 
-- [ ] **Step 3: `app/conteudos/page.tsx`**
+- [x] **Step 3: `app/conteudos/page.tsx`**
 
 ```ts
 const CT_STATUS: Record<string, string> = {
@@ -1494,7 +1494,7 @@ E ampliar o union do status na interface `Content`:
 
 No handler que hoje chama `setSt(id, 'producao')` no Aprovar do card sugerido: passar a chamar a geração de rascunho (Task 10) — a rota já grava `status='rascunho'`; "Enviar para revisão" → `setSt(id, 'em_revisao')`; "Aprovar" → `setSt(id, 'aprovado')`; "Marcar como publicado" (card em `aprovado`) → `setSt(id, 'publicado')` (D9 — registra manualmente que o conteúdo foi publicado fora do sistema).
 
-- [ ] **Step 4: Typecheck, build, commit**
+- [x] **Step 4: Typecheck, build, commit**
 
 ```bash
 npx tsc --noEmit && npm run build
