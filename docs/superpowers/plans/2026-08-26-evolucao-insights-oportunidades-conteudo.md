@@ -1563,7 +1563,7 @@ rm -f /tmp/clone-workflow.json
 - Create: `app/api/contents/[id]/draft/route.ts`
 - Modify: `app/conteudos/page.tsx` (botão "Gerar rascunho" chama a rota; exibir draft)
 
-- [ ] **Step 1: Criar `lib/ai/prompts/article-draft.ts`**
+- [x] **Step 1: Criar `lib/ai/prompts/article-draft.ts`**
 
 ```ts
 import { z } from 'zod';
@@ -1648,7 +1648,7 @@ Produza o texto integral seguindo o tom de voz e as regras de linguagem. Lembre-
 }
 ```
 
-- [ ] **Step 2: Criar `app/api/contents/[id]/draft/route.ts`**
+- [x] **Step 2: Criar `app/api/contents/[id]/draft/route.ts`**
 
 ```ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -1747,7 +1747,7 @@ export async function POST(
 
 (Conferir os exports reais de `lib/ai/client` — o repo usa `anthropic(DEFAULT_MODEL)` nos serviços existentes, ex. `lib/ai/services/cross-insight-analyzer.ts`; copiar exatamente o mesmo import de lá.)
 
-- [ ] **Step 3: Ligar na página**
+- [x] **Step 3: Ligar na página**
 
 Em `app/conteudos/page.tsx`, adicionar handler:
 
@@ -1782,7 +1782,7 @@ E no `<ContentCard>` do map, o handler de aprovar do estado `sugerido` passa a c
 
 (Posicionar dentro do wrapper do card na página; se o card não aceitar children, envolver `<ContentCard>` + `<details>` numa `<div>` da grade.)
 
-- [ ] **Step 3b (D13): Componente `DraftEditor` — editar, salvar e regenerar**
+- [x] **Step 3b (D13): Componente `DraftEditor` — editar, salvar e regenerar**
 
 No mesmo `app/conteudos/page.tsx` (fora do componente da página), adicionar:
 
@@ -1841,7 +1841,9 @@ function DraftEditor({
 
 Também incluir `draft` no SELECT do GET `/api/contents` (rota `app/api/contents/route.ts`): adicionar a coluna `draft` à query e ao objeto mapeado (`draft: r.draft ?? null`).
 
-- [ ] **Step 4: Verificação real**
+- [x] **Step 4: Verificação real**
+
+> Executado em 2026-08-26 pelo revisor via script tsx descartável invocando o handler `POST` direto (o dev server exige sessão Supabase no middleware; mesmo código, mesmo pool). Conteúdo `e197839e` (artigo, "Segurança de terceiros..."): `status: rascunho`, `kind: artigo_completo`, `travessões: 0` (resposta e banco), draft de 10283 chars gravado, texto coerente com o tema.
 
 Com `npm run dev` rodando e pelo menos 1 conteúdo `sugerido` existente:
 
@@ -1851,7 +1853,9 @@ curl -s -X POST "http://localhost:3000/api/contents/$CONTENT_ID/draft" | python3
 ```
 Expected: `status: rascunho`, `travessões: 0`, texto coerente com o tema.
 
-- [ ] **Step 5: Typecheck, build, commit**
+- [x] **Step 5: Typecheck, build, commit**
+
+> `npx tsc --noEmit` OK e commit criado em 2026-08-26; `npm run build` fica para o gate da Task 11 (não rodar build com o `next dev` do usuário ativo na porta 3000 — o build limpa `.next`).
 
 ```bash
 npx tsc --noEmit && npm run build

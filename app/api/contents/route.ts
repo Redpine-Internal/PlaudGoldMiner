@@ -12,6 +12,7 @@ interface AppContentRow {
   platform: string;
   theme: string;
   outline: string;
+  draft: string | null;
   mention_count: number;
   relevance_score: number;
   status: string;
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     const [res, count] = await Promise.all([
       pool.query<AppContentRow>(
-      `SELECT c.id, c.title, c.theme, c.platform, c.outline,
+      `SELECT c.id, c.title, c.theme, c.platform, c.outline, c.draft,
               c.mention_count, c.relevance_score, c.status, c.notes, c.created_at,
               src.conversation_id
          FROM app_contents c
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest) {
         platform: r.platform,
         theme: r.theme,
         outline: r.outline,
+        draft: r.draft ?? null,
         mentionCount: r.mention_count,
         relevanceScore: r.relevance_score,
         status: r.status,

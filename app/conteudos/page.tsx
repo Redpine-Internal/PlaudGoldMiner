@@ -12,6 +12,7 @@ interface Content {
   platform: "youtube" | "linkedin" | "artigo" | "blog";
   theme: string;
   outline: string | null;
+  draft?: string | null;
   mentionCount: number;
   relevanceScore: number;
   status: "sugerido" | "rascunho" | "em_revisao" | "aprovado" | "descartado" | "producao" | "publicado";
@@ -41,6 +42,7 @@ const ConteudosPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
   const { data, error, isLoading, mutate, isValidating } = useSWR<ApiResponse>(
@@ -87,6 +89,7 @@ const ConteudosPage = () => {
   };
 
   const generateDraft = async (id: string) => {
+    setDrafting(id);
     try {
       const res = await fetch(`/api/contents/${id}/draft`, { method: "POST" });
       if (!res.ok) {
@@ -98,6 +101,8 @@ const ConteudosPage = () => {
     } catch (err) {
       console.error("Failed to generate content draft:", err);
       setGenError("Não foi possível gerar o rascunho. Verifique a conexão e tente novamente.");
+    } finally {
+      setDrafting(null);
     }
   };
 
@@ -236,8 +241,8 @@ const ConteudosPage = () => {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
             {paged.map((c) => (
-              <ContentCard
-                key={c.id}
+              <div key={c.id}>
+                <ContentCard
                 title={c.title}
                 platform={c.platform}
                 theme={c.theme}
@@ -263,7 +268,14 @@ const ConteudosPage = () => {
                     style={{ alignSelf: "flex-start" }}
                   />
                 }
-              />
+                />
+                {c.draft ? (
+                  <details style={{ marginTop: 8 }}>
+                    <summary style={{ font: "500 12px/16px var(--font-sans)", cursor: "pointer" }}>Ver / editar rascunho</summary>
+                    <DraftEditor id={c.id} draft={c.draft} onSaved={mutate} onRegenerate={() => generateDraft(c.id)} regenerating={drafting === c.id} />
+                  </details>
+                ) : null}
+              </div>
             ))}
           </div>
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
@@ -282,3 +294,52 @@ const ConteudosPage = () => {
 };
 
 export default ConteudosPage;
+
+function DraftEditor({
+  id,
+  draft,
+  onSaved,
+  onRegenerate,
+  regenerating,
+}: {
+  id: string;
+  draft: string;
+  onSaved: () => void;
+  onRegenerate: () => void;
+  regenerating: boolean;
+}) {
+  const [text, setText] = useState(draft);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setText(draft), [draft]);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await fetch(`/api/contents/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft: text }),
+      });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div style={{ marginTop: 8 }}>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={14}
+        style={{ width: "100%", boxSizing: "border-box", font: "400 13px/19px var(--font-sans)", background: "transparent", color: "inherit", border: "1px solid var(--color-border)", borderRadius: 6, padding: 8, resize: "vertical" }}
+      />
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <Button variant="primary" size="sm" onClick={save} disabled={saving || text === draft}>
+          {saving ? "Salvando..." : "Salvar rascunho"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onRegenerate} disabled={regenerating}>
+          {regenerating ? "Regenerando..." : "Regenerar"}
+        </Button>
+      </div>
+    </div>
+  );
+}
