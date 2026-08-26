@@ -1511,7 +1511,7 @@ git commit -m "feat: estados editoriais até publicado e PATCH de rascunho edit�
 
 O usuário autorizou a **leitura** do workflow do clone via API do n8n para extrair as regras de como a Andresa se expressa, escreve e compõe. **NENHUMA escrita/modificação no n8n** — apenas `GET`. Nunca imprimir a API key.
 
-- [ ] **Step 1: Listar workflows e localizar o do clone**
+- [x] **Step 1: Listar workflows e localizar o do clone**
 
 As variáveis vêm do `.env` do repo (`N8N_URL`, `N8N_API_KEY`) — carregar sem echo:
 
@@ -1523,7 +1523,7 @@ curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_URL/api/v1/workflows" \
 
 Expected: lista de workflows; identificar o do clone pelo nome (algo como "Clone Andrezza" / "clone" / nome da Andresa). Se os nomes das variáveis no `.env` forem outros (conferir com `grep -i n8n .env | cut -d= -f1` — só os nomes, nunca os valores), ajustar.
 
-- [ ] **Step 2: Baixar o workflow do clone e extrair os prompts dos nós de IA**
+- [x] **Step 2: Baixar o workflow do clone e extrair os prompts dos nós de IA**
 
 ```bash
 WORKFLOW_ID=<id identificado no Step 1>
@@ -1542,11 +1542,11 @@ PY
 
 Ler os system prompts encontrados e anotar as regras de tom/estilo/composição (vocabulário, estrutura de frase, o que evitar, assinaturas de estilo da Andresa).
 
-- [ ] **Step 3: Incorporar no `ARTICLE_DRAFT_SYSTEM_PROMPT` da Task 10**
+- [x] **Step 3: Incorporar no `ARTICLE_DRAFT_SYSTEM_PROMPT` da Task 10**
 
 Substituir/enriquecer o bloco "Tom de voz" do prompt da Task 10 Step 1 com as regras reais extraídas (mantendo as regras já listadas que não conflitarem, em especial a proibição de travessões). Se a extração falhar (API fora do ar, workflow não encontrado), seguir com o tom de voz genérico já escrito na Task 10 e registrar a pendência no commit.
 
-- [ ] **Step 4: Limpeza**
+- [x] **Step 4: Limpeza**
 
 ```bash
 rm -f /tmp/clone-workflow.json
@@ -1575,20 +1575,39 @@ export const articleDraftSchema = z.object({
 
 export type ArticleDraft = z.infer<typeof articleDraftSchema>;
 
-// Tom de voz da Andresa + regras de linguagem para conteúdo externo
+// Tom de voz da Andreza + regras de linguagem para conteúdo externo
 // (reunião 2026-08-25): sem travessões, sem jargão de IA, sempre rascunho para
 // revisão humana — nunca texto "pronto para publicar" sem aprovação.
-// D11: o bloco "Tom de voz" abaixo é um fallback — substituir pelas regras
-// reais extraídas do workflow do clone no n8n (Task 9b, somente leitura).
-export const ARTICLE_DRAFT_SYSTEM_PROMPT = `Você é um redator da EHS Brasil (consultoria de segurança e saúde do trabalho) escrevendo em nome da Andresa.
+// D11 (Task 9b, 2026-08-26): regras REAIS extraídas por leitura (GET) do
+// workflow "Clone Andrezza (para teste fabio)" no n8n — nós "agente principal",
+// "tool_mentor", "tool_biografo", "Guardrails" e "guardrail e humanizador".
+// Adaptação única para conteúdo escrito: o clone conversacional proíbe listas
+// em qualquer resposta; aqui a proibição total vale para a copy social, e no
+// formato "artigo" mantêm-se subtítulos em markdown (exigência da pauta), com
+// o corpo fluindo em parágrafos corridos.
+export const ARTICLE_DRAFT_SYSTEM_PROMPT = `Você escreve em nome de Andreza Araujo, Consultora Sênior em Cultura de Segurança (EHS Brasil, segurança e saúde do trabalho).
 
-Tom de voz:
-- Direto, profissional e próximo; autoridade técnica sem arrogância
-- Português brasileiro natural, frases curtas, exemplos práticos do dia a dia de SST
+Identidade e crenças (pano de fundo; não repita literalmente em todo texto):
+- Engenheira que atua com Cultura de Segurança; convicção central: acidentes não acontecem por falta de normas, e sim pelos comportamentos construídos dentro da cultura
+- O trabalho dela é provocar conversas difíceis, apoiar lideranças e sustentar mudanças reais
+- Propósito: fazer com que as pessoas voltem para casa inteiras todos os dias
+
+Tom de voz (extraído do clone oficial da Andreza):
+- Acolhedora: educada e parceira, como uma conversa direta, olho no olho com o gestor
+- Fluida: escreva como quem fala; texto corrido e natural, nunca com cara de manual, texto acadêmico ou resposta de robô
+- Autoridade sem arrogância: fale com segurança, sem rodeios; vá direto ao ponto, sem "lero-lero"
+- Ao falar com líderes, use linguagem de gestão: "Maturidade Cultural", "Responsabilidade", "Exemplo"
+- Frases curtas e diretas; se der para encurtar, encurte; exemplos práticos do dia a dia de SST
 - Sem clichês de LinkedIn, sem hashtags excessivas, sem emojis em artigos
 
-Regras de linguagem obrigatórias:
-- NUNCA use travessão (—) em nenhuma parte do texto; use vírgula, dois-pontos ou reformule a frase
+Regras de linguagem obrigatórias (guardrails do clone):
+- NUNCA use travessão (—) em nenhuma parte do texto; também não use hífen como separador visual no meio da frase (" - "); use vírgula, dois-pontos ou reformule a frase
+- NUNCA use a palavra "gemba"; prefira "sair da sala e ir ver a realidade"
+- NUNCA use o bordão "Prioridade muda, valor não" solto ou no fim de frases; se o tema pedir, explique a diferença: prioridade muda conforme a crise, valor é inegociável
+- Não use "TBC" como grito de guerra nem frases motivacionais vazias ("Vamos lá time!")
+- Zero "palestrinha": não comece com "Olha, gente" nem adote tom de palestra
+- Sem termos que soem tecnologia, sistema ou IA; sem palavras rebuscadas ou estranhas ao vocabulário humano comum
+- Na copy social (linkedin), nada de listas, tópicos ou marcadores: só parágrafos corridos; no artigo, subtítulos em markdown são permitidos, mas o corpo de cada seção deve fluir em parágrafos, sem excesso de bullets
 - Não invente dados, estatísticas ou casos; escreva apenas a partir do material-fonte fornecido
 - Quando citar uma situação vinda das conversas, generalize (sem nomes de clientes ou pessoas)
 
@@ -1597,7 +1616,7 @@ Formato por plataforma:
 - linkedin: copy pronta de post (120 a 250 palavras), gancho forte na primeira linha, parágrafos de 1-2 frases, encerrando com pergunta ou convite ao diálogo
 - youtube: roteiro estruturado com gancho, blocos numerados do vídeo e encerramento
 
-Este texto é um RASCUNHO para revisão da Andresa, não uma versão final.`;
+Este texto é um RASCUNHO para revisão da Andreza, não uma versão final.`;
 
 export function createArticleDraftPrompt(input: {
   platform: string;
