@@ -51,7 +51,7 @@ Longo prazo: apenas backlog documentado no fim (sem tasks).
 - Modify: `lib/db/schema.ts:102-125` (crossInsights), `lib/db/schema.ts:74-89` (contents) e `lib/db/schema.ts:56-72` (opportunities)
 - SQL via psql
 
-- [ ] **Step 1: Aplicar DDL**
+- [x] **Step 1: Aplicar DDL**
 
 ```bash
 export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
@@ -77,7 +77,7 @@ Expected: `ALTER TABLE` ×3.
 
 Semântica: `evidence` = array de `{conversationId, excerpt}` (trechos-fonte rastreáveis); `business_type` ∈ treinamento/consultoria/sistema/null; `is_hypothesis`+`methodology` = proposta de abordagem da IA marcada como hipótese; `notes` = anotações da Andresa no insight (D12); `kind` ∈ 'pauta' | 'artigo_completo'; `draft` = texto integral do rascunho gerado; `subtype` = subtipo livre sugerido pela IA, ex. "Treinamento NR-35" (D8).
 
-- [ ] **Step 2: Atualizar `lib/db/schema.ts`**
+- [x] **Step 2: Atualizar `lib/db/schema.ts`**
 
 No bloco `crossInsights`, após a linha `actionSuggestion: text('action_suggestion'),` inserir:
 
@@ -106,7 +106,7 @@ No bloco `opportunities`, após `type: text('type').notNull(),` inserir:
   subtype: text('subtype'), // subtipo livre sugerido pela IA, ex. "Treinamento NR-35" (D8)
 ```
 
-- [ ] **Step 3: Typecheck e commit**
+- [x] **Step 3: Typecheck e commit**
 
 ```bash
 npx tsc --noEmit

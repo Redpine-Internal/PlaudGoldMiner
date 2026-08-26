@@ -62,6 +62,7 @@ export const opportunities = pgTable('app_opportunities', {
   context: text('context'),
   score: real('score').notNull(),
   type: text('type').notNull(),
+  subtype: text('subtype'), // subtipo livre sugerido pela IA, ex. "Treinamento NR-35" (D8)
   status: text('status').notNull().default('nova'),
   notes: text('notes'),
   tags: text('tags'),
@@ -82,6 +83,8 @@ export const contents = pgTable('app_contents', {
   relevanceScore: real('relevance_score').notNull(),
   status: text('status').notNull().default('sugerido'),
   notes: text('notes'),
+  kind: text('kind').notNull().default('pauta'), // pauta / artigo_completo
+  draft: text('draft'),                          // rascunho integral gerado
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('app_contents_status_idx').on(table.status),
@@ -110,6 +113,15 @@ export const crossInsights = pgTable('app_cross_insights', {
   confidence: real('confidence').notNull(),
   status: text('status').notNull().default('new'),
   actionSuggestion: text('action_suggestion'),
+  // Recorrência e qualificação (reunião 2026-08-25): "X de Y conversas (Z%)",
+  // trechos-fonte, tipo de negócio e hipótese de metodologia proposta pela IA.
+  frequency: integer('frequency'),
+  analyzedCount: integer('analyzed_count'),
+  evidence: text('evidence'),            // jsonb no banco; lido como string JSON
+  businessType: text('business_type'),   // treinamento / consultoria / sistema
+  methodology: text('methodology'),
+  isHypothesis: boolean('is_hypothesis').notNull().default(false),
+  notes: text('notes'),                  // anotações da Andresa (D12)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('app_cross_insights_status_idx').on(table.status),
