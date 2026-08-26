@@ -1871,12 +1871,15 @@ git commit -m "feat: geração de artigo completo e copy social em rascunho com 
 
 > Executado em 2026-08-26: `npx tsc --noEmit` OK; `npx next build` exit 0 sem erros, rodado em git worktree isolado (`/tmp/ehs-build-gate`, HEAD `edbd47b`, node_modules clonado via APFS) para não limpar o `.next` do `next dev` do usuário na porta 3000. Único aviso: convenção `middleware` deprecada em favor de `proxy` (Next 16) — não bloqueante.
 
-- [ ] **Step 2:** Smoke manual no browser (`npm run dev`):
+- [x] **Step 2:** Smoke manual no browser (`npm run dev`):
   - **/insights**: gerar insights com insights `new` existentes → diálogo manter/arquivar/descartar aparece (D5); ver "X de Y (Z%)"; selo "Oportunidade real" e filtro "somente oportunidades reais" (D6); aba "Padrões observados" com métricas (D6); abrir detalhe → salvar anotação (D12), botão Arquivar (D5), aprovar/descartar.
   - **/oportunidades**: badges de tipo novos e legados; badge de subtipo quando existir (D8).
   - **/conteudos**: plataforma Artigo; gerar rascunho; editar rascunho + "Salvar rascunho" + "Regenerar" (D13); fluxo sugerido→rascunho→em revisão→aprovado→"Marcar como publicado" (D9).
 
-> Pendente de ação manual do usuário (2026-08-26): o smoke exige sessão Supabase no browser (middleware bloqueia acesso anônimo) — não automatizável pelo agente. Rodar com o `next dev` já ativo na porta 3000.
+> Executado em 2026-08-26 via browser-harness (CDP no Chrome do usuário, sessão Supabase logada pelo usuário em localhost:3000):
+> - **/insights** ✅ — lista, aba "Padrões observados", detalhe, descarte e arquivamento validados por cliques reais (PATCH 200 + estado refletido). Não exercitado: disparo de geração de insights novos (evitado de propósito — criaria dados de IA; o diálogo D5 fica para o primeiro uso real).
+> - **/oportunidades** ✅ — taxonomia nova exibida; limpeza dos tipos legados segue pendente no Step 3.
+> - **/conteudos** ✅ — editor de rascunho: "Salvar rascunho" validado 2× via clique real (inserção de marcador e reversão ao original; PATCH 200 nos logs + verificação no banco: `length(draft)`=10283 restaurado). Botão "Regenerar" presente (não clicado — dispararia IA; a geração real já foi validada antes). Transições de status via botão do card: rascunho→em_revisao→aprovado→publicado, cada uma conferida em `app_contents` (depois revertida para `rascunho` via PATCH). **Bug real encontrado e corrigido durante o smoke**: `ContentCard` com `height:100%` dentro do grid esticado fazia o `<details>` do editor transbordar por baixo do card vizinho (editor invisível/inclicável); fix em `app/conteudos/page.tsx` (wrapper flex + override `height:auto` no card).
 
 - [ ] **Step 3:** Conferir dados:
 

@@ -241,8 +241,9 @@ const ConteudosPage = () => {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
             {paged.map((c) => (
-              <div key={c.id}>
+              <div key={c.id} style={{ display: "flex", flexDirection: "column" }}>
                 <ContentCard
+                style={{ height: "auto", flex: 1 }}
                 title={c.title}
                 platform={c.platform}
                 theme={c.theme}
