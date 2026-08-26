@@ -920,7 +920,7 @@ git commit -m "feat: taxonomia treinamento/consultoria/sistema + subtipo livre d
 
 Reclassifica as linhas com `type IN ('produto','servico')` para a taxonomia nova (`treinamento`/`consultoria`/`sistema`) e sugere `subtype`, imprimindo um log de-para completo para auditoria. Nada é excluído; só `type`/`subtype` mudam.
 
-- [ ] **Step 1: Criar `scripts/reclassify-opportunities.mts`**
+- [x] **Step 1: Criar `scripts/reclassify-opportunities.mts`**
 
 ```ts
 // Uso: npx tsx scripts/reclassify-opportunities.mts [--dry-run]
