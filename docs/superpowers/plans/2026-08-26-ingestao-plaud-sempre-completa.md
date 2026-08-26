@@ -48,7 +48,7 @@ Nota: `lib/plaud/ingest.ts` NÃO muda — o status inicial continua `received` (
 - Modify: `lib/db/schema.ts` (adicionar as duas tabelas no fim, antes de TYPE EXPORTS)
 - SQL direto no banco (padrão do repo: DDL via psql)
 
-- [ ] **Step 1: Aplicar o DDL no Supabase**
+- [x] **Step 1: Aplicar o DDL no Supabase**
 
 Executar (a connection string vem de `/Users/wesleycardoso/Redpine/meetings_access` — nunca imprimir):
 
@@ -343,14 +343,14 @@ export const __testing = {
 };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node_modules/.bin/tsx scripts/verify/token-store.mts`
 Expected: `=== VERIFY token-store OK ===`
 
 Nota: o teste de concorrência usa 5 promises no MESMO processo compartilhando o pool — o lock `FOR UPDATE` serializa nas conexões distintas do pool, então valida o caminho real.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/plaud/token-store.ts scripts/verify/token-store.mts
@@ -406,7 +406,7 @@ export async function getAccessToken(): Promise<string> {
 Run: `npx tsc --noEmit`
 Expected: sem erros.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add lib/plaud/tokens.ts
@@ -451,7 +451,7 @@ async function main() {
 main().catch(async (e) => { console.error('SEED FALHOU:', e.message); try { await pool.end(); } catch {} process.exit(1); });
 ```
 
-- [ ] **Step 2: Rodar o seed e validar com uma chamada real**
+- [x] **Step 2: Rodar o seed e validar com uma chamada real**
 
 ```bash
 node_modules/.bin/tsx scripts/seed-plaud-tokens.mts
@@ -646,7 +646,7 @@ Extrai o loop de paginação de `app/api/plaud/ingest/route.ts` para `lib/plaud/
 - Test: `scripts/verify/ingest-runs.mts`
 - Modify: `.env` (adicionar `INGEST_CRON_SECRET=<gerar com openssl rand -hex 32>`) — NUNCA commitar.
 
-- [ ] **Step 1: Write the failing verification script**
+- [x] **Step 1: Write the failing verification script**
 
 Create `scripts/verify/ingest-runs.mts` (testa só a camada de persistência de runs, sem bater no Plaud):
 
@@ -682,7 +682,7 @@ main().catch(async (e) => { console.error('VERIFY FALHOU:', e.message); try { aw
 Run: `node_modules/.bin/tsx scripts/verify/ingest-runs.mts`
 Expected: FAIL — módulo `@/lib/plaud/run-log` não existe.
 
-- [ ] **Step 2: Criar `lib/plaud/run-log.ts`**
+- [x] **Step 2: Criar `lib/plaud/run-log.ts`**
 
 ```ts
 import { randomUUID } from 'crypto';
@@ -853,14 +853,14 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-- [ ] **Step 5: Typecheck + build**
+- [x] **Step 5: Typecheck + build**
 
 ```bash
 npx tsc --noEmit && npm run build
 ```
 Expected: sem erros.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/plaud/run-log.ts lib/plaud/ingest-all.ts app/api/plaud/ingest/route.ts scripts/verify/ingest-runs.mts
@@ -980,7 +980,7 @@ curl -s -X POST http://localhost:3000/api/plaud/sync -m 1200 | python3 -m json.t
 ```
 Expected: JSON `data.ingest` com contadores e `data.processing` com `processed`/`failed`. Na UI (`http://localhost:3000/conversas`), o botão aparece e mostra o resumo ao terminar.
 
-- [ ] **Step 5: Typecheck + build + commit**
+- [x] **Step 5: Typecheck + build + commit**
 
 ```bash
 npx tsc --noEmit && npm run build
@@ -1053,7 +1053,7 @@ export async function GET() {
 }
 ```
 
-- [ ] **Step 2: Verificar localmente**
+- [x] **Step 2: Verificar localmente**
 
 ```bash
 npm run dev &
@@ -1172,7 +1172,7 @@ Anotar no PR/commit final (mensagem ou descrição): "Zap Plaud→n8n desligado 
 - [ ] **Step 1:** `npx tsc --noEmit && npm run build` — sem erros.
 - [ ] **Step 2:** `curl -s $SERVICE_URL/api/plaud/ingest/status` → `missingCount: 0` em produção.
 - [ ] **Step 3:** Na UI de produção, clicar em "Sincronizar com Plaud" → termina com resumo (tudo `skipped`, `processed: 0`) e a lista revalida.
-- [ ] **Step 4:** Conferir que nenhum segredo vazou: `git log -p --all | grep -c "postgresql://"` deve ser `0`; `.env` fora do git (`git check-ignore .env` → `.env`).
+- [x] **Step 4:** Conferir que nenhum segredo vazou: `git log -p --all | grep -c "postgresql://"` deve ser `0`; `.env` fora do git (`git check-ignore .env` → `.env`).
 - [ ] **Step 5:** Remover scripts de verificação descartáveis:
 
 ```bash
