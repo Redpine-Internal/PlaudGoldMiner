@@ -1867,11 +1867,17 @@ git commit -m "feat: geração de artigo completo e copy social em rascunho com 
 
 ## Task 11: Verificação final e limpeza
 
-- [ ] **Step 1:** `npx tsc --noEmit && npm run build` — sem erros.
+- [x] **Step 1:** `npx tsc --noEmit && npm run build` — sem erros.
+
+> Executado em 2026-08-26: `npx tsc --noEmit` OK; `npx next build` exit 0 sem erros, rodado em git worktree isolado (`/tmp/ehs-build-gate`, HEAD `edbd47b`, node_modules clonado via APFS) para não limpar o `.next` do `next dev` do usuário na porta 3000. Único aviso: convenção `middleware` deprecada em favor de `proxy` (Next 16) — não bloqueante.
+
 - [ ] **Step 2:** Smoke manual no browser (`npm run dev`):
   - **/insights**: gerar insights com insights `new` existentes → diálogo manter/arquivar/descartar aparece (D5); ver "X de Y (Z%)"; selo "Oportunidade real" e filtro "somente oportunidades reais" (D6); aba "Padrões observados" com métricas (D6); abrir detalhe → salvar anotação (D12), botão Arquivar (D5), aprovar/descartar.
   - **/oportunidades**: badges de tipo novos e legados; badge de subtipo quando existir (D8).
   - **/conteudos**: plataforma Artigo; gerar rascunho; editar rascunho + "Salvar rascunho" + "Regenerar" (D13); fluxo sugerido→rascunho→em revisão→aprovado→"Marcar como publicado" (D9).
+
+> Pendente de ação manual do usuário (2026-08-26): o smoke exige sessão Supabase no browser (middleware bloqueia acesso anônimo) — não automatizável pelo agente. Rodar com o `next dev` já ativo na porta 3000.
+
 - [ ] **Step 3:** Conferir dados:
 
 ```bash
@@ -1884,12 +1890,19 @@ psql "$DB_URL" -c "SELECT status, count(*), count(draft) AS com_rascunho FROM ap
 
 Expected: nenhuma oportunidade `produto`/`servico` restante (Task 5b); rascunhos gravados em `draft`; status `archived`/`publicado` funcionando quando usados.
 
-- [ ] **Step 4:** Remover script descartável:
+> Executado em 2026-08-26 (queries OK):
+> - `app_contents`: OK — 1 `rascunho` com `draft` gravado, 19 `sugerido` (nenhum com draft, esperado).
+> - `app_cross_insights`: colunas novas presentes; `frequency`/`notes`/`archived` ainda zerados — dependem do uso via smoke do Step 2 (gerar insights novos / salvar anotação / arquivar), condição "quando usados" atendida.
+> - `app_opportunities`: **43 linhas legadas restantes** (6 `produto`, 37 `servico`), todas criadas 19:11–19:23 UTC — *depois* da reclassificação da Task 5b (conferida às 19:10 UTC). Causa: lote de auto-processamento do backfill (Task 9/Plano 1) ainda com o prompt antigo carregado em memória; o código atual só emite `treinamento`/`consultoria`/`sistema`. Remediação prevista pela própria Task 5b ("rodar de novo"): dry-run de `npx tsx scripts/reclassify-opportunities.mts --dry-run` validado (43/43 com de-para coerente), mas a execução real foi bloqueada pelo sistema de permissões do agente. **Ação do usuário:** rodar `npx tsx scripts/reclassify-opportunities.mts | tee /tmp/reclass-opportunities-log.txt` e reconferir a query acima. Obs.: produção (Cloud Run) segue com código antigo até o próximo push/deploy — pode gerar novas linhas legadas até lá.
+
+- [x] **Step 4:** Remover script descartável:
 
 ```bash
 git rm scripts/verify/insights-analyze.mts
 git commit -m "chore: remove script de verificação descartável"
 ```
+
+> Executado em 2026-08-26: commit `89c7122`.
 
 ---
 
