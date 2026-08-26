@@ -100,9 +100,19 @@ async function refresh(refreshToken: string): Promise<TokenSet> {
 
 /** Returns a valid access token, refreshing if it is expired or about to expire. */
 export async function getAccessToken(): Promise<string> {
+  // Fonte primária: token set durável no Postgres (sobrevive a restarts e
+  // rotação do refresh_token). Fallback env/arquivo só quando o banco ainda
+  // não foi semeado (dev local pré-seed).
+  try {
+    const { getStoredAccessToken } = await import('@/lib/plaud/token-store');
+    return await getStoredAccessToken();
+  } catch (e) {
+    const emptyStore =
+      e instanceof PlaudAuthError && e.message.includes('Nenhum token do Plaud no banco');
+    if (!emptyStore) throw e;
+  }
   let tokenSet = await readTokenSet();
   const expired = tokenSet.expires_at && Date.now() > tokenSet.expires_at - EXPIRY_SKEW_MS;
-  // Sem access_token (caso da env com só refresh_token) OU expirado: renova.
   if (!tokenSet.access_token || expired) {
     if (!tokenSet.refresh_token) {
       throw new PlaudAuthError('Token do Plaud expirado e sem refresh_token. Reautentique o MCP do Plaud.');
