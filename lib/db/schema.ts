@@ -204,6 +204,37 @@ export const ideaEnrichmentReference = pgTable('app_idea_enrichment_reference', 
   index('app_idea_enrichment_reference_eid_idx').on(table.enrichmentId),
 ]);
 
+// ===== PLAUD TOKENS (app_plaud_tokens) =====
+// Linha única (id='default'). O refresh_token do Plaud ROTACIONA a cada refresh
+// (validade 24h) — por isso o token set vive no banco, não em env/arquivo.
+export const plaudTokens = pgTable('app_plaud_tokens', {
+  id: text('id').primaryKey().default('default'),
+  accessToken: text('access_token').notNull().default(''),
+  refreshToken: text('refresh_token').notNull(),
+  tokenType: text('token_type').notNull().default('Bearer'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ===== INGEST RUNS (app_ingest_runs) =====
+export const ingestRuns = pgTable('app_ingest_runs', {
+  id: text('id').primaryKey(),
+  trigger: text('trigger').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  ok: boolean('ok'),
+  total: integer('total').notNull().default(0),
+  created: integer('created').notNull().default(0),
+  updated: integer('updated').notNull().default(0),
+  skipped: integer('skipped').notNull().default(0),
+  processed: integer('processed').notNull().default(0),
+  processFailed: integer('process_failed').notNull().default(0),
+  errors: text('errors'),
+  errorMessage: text('error_message'),
+}, (table) => [
+  index('app_ingest_runs_started_idx').on(table.startedAt),
+]);
+
 // ===== TYPE EXPORTS =====
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
@@ -225,3 +256,5 @@ export type ProjectColumn = typeof projectColumns.$inferSelect;
 export type NewProjectColumn = typeof projectColumns.$inferInsert;
 export type ProjectTask = typeof projectTasks.$inferSelect;
 export type NewProjectTask = typeof projectTasks.$inferInsert;
+export type PlaudTokenRow = typeof plaudTokens.$inferSelect;
+export type IngestRun = typeof ingestRuns.$inferSelect;
