@@ -1130,7 +1130,7 @@ git commit -m "feat: renomeia canal blog para artigo"
 
 A rota hoje pega as 20 conversas 'processado' mais recentes sem corpo de request. Adicionar o mesmo filtro `{from,to}` da Task 3.
 
-- [ ] **Step 1: Editar `app/api/contents/analyze/route.ts`**
+- [x] **Step 1: Editar `app/api/contents/analyze/route.ts`**
 
 Adicionar imports no topo (junto aos existentes de drizzle):
 
@@ -1162,7 +1162,7 @@ E trocar o `.where(eq(conversations.status, 'processado'))` por `.where(and(...f
 
 (Se a assinatura atual do handler for `POST()` sem parâmetro, mudá-la para `POST(request: NextRequest)` e importar `NextRequest`.)
 
-- [ ] **Step 2: Typecheck, build, commit**
+- [x] **Step 2: Typecheck, build, commit**
 
 ```bash
 npx tsc --noEmit && npm run build

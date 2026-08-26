@@ -1,21 +1,35 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { conversations, opportunities, contents, contentSources } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, type SQL } from 'drizzle-orm';
 import { generateContentSuggestions } from '@/lib/ai/services/content-suggestion-generator';
 import { randomUUID } from 'crypto';
+import { z } from 'zod';
 
 /**
  * Generate content-piece suggestions from recurring themes across processed
  * conversations, persisting them into `contents` (+ `content_sources` for
  * traceability). Mirrors POST /api/insights/analyze.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const bodySchema = z.object({
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    });
+    const parsed = bodySchema.safeParse(await request.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Parâmetros inválidos: use from/to como YYYY-MM-DD' }, { status: 400 });
+    }
+    const { from, to } = parsed.data;
+    const filters: SQL[] = [eq(conversations.status, 'processado')];
+    if (from) filters.push(gte(conversations.date, new Date(`${from}T00:00:00Z`)));
+    if (to) filters.push(lte(conversations.date, new Date(`${to}T23:59:59Z`)));
+
     const processed = await db
       .select()
       .from(conversations)
-      .where(eq(conversations.status, 'processado'))
+      .where(and(...filters))
       .orderBy(desc(conversations.date))
       .limit(20);
 
