@@ -981,7 +981,7 @@ main().catch((e) => { console.error(e); process.exit(1); });
 
 (Conferir os exports reais de `lib/db` — se `pool` não for exportado, usar o mesmo padrão de conexão dos scripts existentes em `scripts/`.)
 
-- [ ] **Step 2: Dry-run, revisar, aplicar**
+- [x] **Step 2: Dry-run, revisar, aplicar**
 
 ```bash
 npx tsx scripts/reclassify-opportunities.mts --dry-run
@@ -995,7 +995,7 @@ npx tsx scripts/reclassify-opportunities.mts | tee /tmp/reclass-opportunities-lo
 
 Expected: todas as linhas `produto`/`servico` migradas; log de-para completo em `/tmp/reclass-opportunities-log.txt`.
 
-- [ ] **Step 3: Conferir no banco**
+- [x] **Step 3: Conferir no banco**
 
 ```bash
 export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
@@ -1005,7 +1005,7 @@ psql "$DB_URL" -c "SELECT type, count(*), count(subtype) AS com_subtipo FROM app
 
 Expected: nenhuma linha `produto`/`servico` restante (a menos que a IA não tenha respondido para alguma — nesse caso rodar de novo ou classificar manualmente).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add scripts/reclassify-opportunities.mts
