@@ -121,7 +121,7 @@ git commit -m "feat: colunas de qualificação, notas, rascunho e subtipo nas ta
 **Files:**
 - Modify: `lib/ai/prompts/cross-insights.ts` (arquivo inteiro substituído abaixo)
 
-- [ ] **Step 1: Substituir o conteúdo de `lib/ai/prompts/cross-insights.ts`**
+- [x] **Step 1: Substituir o conteúdo de `lib/ai/prompts/cross-insights.ts`**
 
 ```ts
 import { z } from 'zod';
@@ -230,12 +230,12 @@ Lembre-se: O objetivo é surpreender Andresa com insights que ela não teria soz
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npx tsc --noEmit`
 Expected: erro em `app/api/insights/analyze/route.ts` (o call-site ainda não passa `date`) — esperado; corrigido na Task 3. Nenhum outro erro.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add lib/ai/prompts/cross-insights.ts
