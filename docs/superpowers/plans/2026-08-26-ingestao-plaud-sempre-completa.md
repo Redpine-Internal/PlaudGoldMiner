@@ -1169,7 +1169,7 @@ Anotar no PR/commit final (mensagem ou descrição): "Zap Plaud→n8n desligado 
 
 ## Task 12: Verificação final
 
-- [ ] **Step 1:** `npx tsc --noEmit && npm run build` — sem erros.
+- [x] **Step 1:** `npx tsc --noEmit && npm run build` — sem erros. (Satisfeito pelos dois gates tsc+build com exit 0 durante a execução do Plano 2.)
 - [ ] **Step 2:** `curl -s $SERVICE_URL/api/plaud/ingest/status` → `missingCount: 0` em produção.
 - [ ] **Step 3:** Na UI de produção, clicar em "Sincronizar com Plaud" → termina com resumo (tudo `skipped`, `processed: 0`) e a lista revalida.
 - [x] **Step 4:** Conferir que nenhum segredo vazou: `git log -p --all | grep -c "postgresql://"` deve ser `0`; `.env` fora do git (`git check-ignore .env` → `.env`).
