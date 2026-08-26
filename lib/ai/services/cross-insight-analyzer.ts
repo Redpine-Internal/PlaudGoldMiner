@@ -10,6 +10,7 @@ import {
 interface ConversationForAnalysis {
   id: string;
   title: string;
+  date: string;
   summary: string | null;
   topics: string[];
   opportunities: { title: string; pain: string }[];

@@ -250,7 +250,7 @@ git commit -m "feat: prompt de insights com evidências, qualificação e datas"
 - Modify: `app/api/insights/analyze/route.ts` (arquivo inteiro substituído abaixo)
 - Test: `scripts/verify/insights-analyze.mts`
 
-- [ ] **Step 1: Substituir `app/api/insights/analyze/route.ts`**
+- [x] **Step 1: Substituir `app/api/insights/analyze/route.ts`**
 
 ```ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -433,12 +433,12 @@ export async function POST(request: NextRequest) {
 
 Nota: `app_cross_insights` é tabela real (não view) — `.returning()` é seguro aqui.
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npx tsc --noEmit`
 Expected: sem erros (o call-site agora passa `date`).
 
-- [ ] **Step 3: Verificação real (custa 1 chamada de IA)**
+- [x] **Step 3: Verificação real (custa 1 chamada de IA)**
 
 Create `scripts/verify/insights-analyze.mts`:
 
@@ -488,7 +488,7 @@ node_modules/.bin/tsx scripts/verify/insights-analyze.mts
 ```
 Expected: `=== VERIFY insights-analyze OK ===`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add app/api/insights/analyze/route.ts scripts/verify/insights-analyze.mts
