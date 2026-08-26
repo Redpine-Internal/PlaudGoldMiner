@@ -1179,7 +1179,7 @@ git commit -m "feat: filtro temporal na geração de sugestões de conteúdo"
 
 Mostra: descrição, recorrência com percentual, evidências com link para cada conversa, tipo de negócio, hipótese/metodologia e as decisões (útil = aprovar, dispensar = descartar, aprofundar = StartProjectButton — mesma semântica dos botões do card, reutilizando o PATCH existente).
 
-- [ ] **Step 1: Criar `app/insights/[id]/page.tsx`**
+- [x] **Step 1: Criar `app/insights/[id]/page.tsx`**
 
 ```tsx
 "use client";
@@ -1353,7 +1353,7 @@ export default function InsightDetailPage({ params }: { params: Promise<{ id: st
 
 (Se `/conversas` não suportar o query param `open`, o link ainda leva à listagem — comportamento aceitável; ajuste fino fica para depois.)
 
-- [ ] **Step 2: Linkar o card para o detalhe**
+- [x] **Step 2: Linkar o card para o detalhe**
 
 Em `app/insights/page.tsx`, envolver o `<InsightCard>` do `paged.map` com navegação: adicionar import `import { useRouter } from "next/navigation";`, `const router = useRouter();` no topo do componente, e no card adicionar a prop:
 
@@ -1376,7 +1376,7 @@ Em `app/insights/page.tsx`, envolver o `<InsightCard>` do `paged.map` com navega
 
 Usar a alternativa do `action` (não mexe no onChat).
 
-- [ ] **Step 3: Typecheck, build, commit**
+- [x] **Step 3: Typecheck, build, commit**
 
 ```bash
 npx tsc --noEmit && npm run build

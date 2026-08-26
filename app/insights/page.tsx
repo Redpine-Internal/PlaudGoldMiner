@@ -327,13 +327,18 @@ const InsightsPage = () => {
                 onMarkUseful={i.status !== "useful" ? () => setSt(i.id, "useful") : undefined}
                 onDismiss={i.status !== "dismissed" ? () => setSt(i.id, "dismissed") : undefined}
                 action={
-                  <StartProjectButton
-                    sourceType="insight"
-                    sourceId={i.id}
-                    title={i.title}
-                    description={i.description}
-                    style={{ alignSelf: "flex-start" }}
-                  />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <StartProjectButton
+                      sourceType="insight"
+                      sourceId={i.id}
+                      title={i.title}
+                      description={i.description}
+                      style={{ alignSelf: "flex-start" }}
+                    />
+                    <a href={`/insights/${i.id}`} onClick={(e) => e.stopPropagation()} style={{ font: "500 12px/16px var(--font-sans)", color: "var(--color-primary)" }}>
+                      Detalhes →
+                    </a>
+                  </div>
                 }
               />
             ))}
