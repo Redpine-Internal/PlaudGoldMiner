@@ -13,6 +13,7 @@ interface AppOpportunityRow {
   score: number;
   type: string;
   subtype: string | null;
+  generated_idea: string | null;
   status: string;
   notes: string | null;
   created_at: string;
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const [res, count] = await Promise.all([
       pool.query<AppOpportunityRow>(
-      `SELECT id, conversation_id, title, pain, context, score, type, subtype, status, notes, created_at
+      `SELECT id, conversation_id, title, pain, context, score, type, subtype, generated_idea, status, notes, created_at
          FROM app_opportunities
         ${where}
         ORDER BY created_at DESC
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
         score: r.score,
         type: r.type,
         subtype: r.subtype ?? null,
+        generatedIdea: r.generated_idea,
         status: r.status,
         notes: r.notes,
         createdAt: r.created_at,

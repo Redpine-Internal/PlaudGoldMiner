@@ -14,6 +14,7 @@ interface Opportunity {
   context: string | null;
   type: "treinamento" | "consultoria" | "sistema" | "produto" | "servico";
   subtype?: string | null;
+  generatedIdea: string | null;
   status: "nova" | "analise" | "qualificada" | "descartada";
   score: number;
   notes: string | null;
@@ -244,6 +245,7 @@ const OportunidadesPage = () => {
                   context={o.context}
                   type={o.type}
                   subtype={o.subtype}
+                  generatedIdea={o.generatedIdea}
                   status={o.status}
                   score={o.score}
                   conversationTitle={o.conversationTitle || undefined}

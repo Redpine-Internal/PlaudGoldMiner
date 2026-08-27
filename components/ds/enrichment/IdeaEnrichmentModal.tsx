@@ -40,6 +40,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
   const [notes, setNotes] = useState("");
   const [text, setText] = useState("");
   const [textEdited, setTextEdited] = useState(false);
+  const [generatingIdea, setGeneratingIdea] = useState(false);
   const [refs, setRefs] = useState<ReferenceItem[]>([]);
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
@@ -47,35 +48,73 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSave = useRef<Record<string, unknown> | null>(null);
 
-  // Carrega o enriquecimento existente ao abrir.
+  // Carrega o enriquecimento existente ao abrir. Para oportunidades sem
+  // override e sem ideia cacheada, dispara a geração da ideia via IA — o modal
+  // já renderiza (loading=false) enquanto a caixa mostra "gerando".
   useEffect(() => {
     let alive = true;
     (async () => {
+      let override: string | null = null;
+      let loaded = false;
       try {
         const res = await fetch(
           `/api/enrichment?sourceType=${sourceType}&sourceId=${encodeURIComponent(sourceId)}`
         );
         const body = (await res.json()) as { data: EnrichmentData | null };
         if (!alive) return;
+        loaded = true;
         if (body.data) {
           setInteresting(body.data.interesting);
           setNotes(body.data.notes ?? "");
-          setText(body.data.textOverride ?? idea.originalText);
-          setTextEdited(body.data.textOverride != null);
           setRefs(body.data.references || []);
-        } else {
-          setText(idea.originalText);
+          override = body.data.textOverride;
         }
       } catch {
         if (alive) setError("Não foi possível carregar o enriquecimento.");
       } finally {
         if (alive) setLoading(false);
       }
+      if (!alive || !loaded) return;
+      if (override != null) {
+        setText(override);
+        setTextEdited(true);
+        return;
+      }
+      if (sourceType === "opportunity") {
+        if (idea.generatedIdea) {
+          setText(idea.generatedIdea);
+          return;
+        }
+        setGeneratingIdea(true);
+        try {
+          const res = await fetch("/api/opportunities/idea", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: sourceId }),
+          });
+          const body = (await res.json()) as { data?: { idea: string }; error?: string };
+          if (!alive) return;
+          if (body.data?.idea) {
+            setText(body.data.idea);
+          } else {
+            setText(idea.originalText);
+            setError(body.error || "Não foi possível gerar a ideia — exibindo o texto padrão.");
+          }
+        } catch {
+          if (!alive) return;
+          setText(idea.originalText);
+          setError("Não foi possível gerar a ideia — exibindo o texto padrão.");
+        } finally {
+          if (alive) setGeneratingIdea(false);
+        }
+        return;
+      }
+      setText(idea.originalText);
     })();
     return () => {
       alive = false;
     };
-  }, [sourceType, sourceId, idea.originalText]);
+  }, [sourceType, sourceId, idea.originalText, idea.generatedIdea]);
 
   // PUT parcial dos campos de texto/flag.
   const put = async (patch: Record<string, unknown>) => {
@@ -325,9 +364,13 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
               </div>
             ) : null}
 
-            <label className="ds-label">Texto gerado {textEdited ? "(editado)" : ""}</label>
+            <label className="ds-label">
+              Texto gerado {generatingIdea ? "(gerando…)" : textEdited ? "(editado)" : ""}
+            </label>
             <textarea
               value={text}
+              disabled={generatingIdea}
+              placeholder={generatingIdea ? "Gerando a ideia a partir da dor e do contexto…" : undefined}
               onChange={(e) => {
                 setText(e.target.value);
                 setTextEdited(true);

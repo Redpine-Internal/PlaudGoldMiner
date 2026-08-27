@@ -63,6 +63,9 @@ export const opportunities = pgTable('app_opportunities', {
   score: real('score').notNull(),
   type: text('type').notNull(),
   subtype: text('subtype'), // subtipo livre sugerido pela IA, ex. "Treinamento NR-35" (D8)
+  // Ideia/proposta redigida pela IA a partir de pain+context, gerada sob
+  // demanda na primeira abertura do modal de enriquecimento e cacheada aqui.
+  generatedIdea: text('generated_idea'),
   status: text('status').notNull().default('nova'),
   notes: text('notes'),
   tags: text('tags'),

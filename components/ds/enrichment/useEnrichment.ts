@@ -11,6 +11,11 @@ export interface IdeaData {
   pain?: string | null;
   /** Contexto do que foi levantado na conversa (apenas oportunidades). */
   context?: string | null;
+  /**
+   * Ideia já redigida pela IA (apenas oportunidades). Quando ausente e sem
+   * textOverride, o modal dispara a geração on-demand via /api/opportunities/idea.
+   */
+  generatedIdea?: string | null;
 }
 
 export interface EnrichmentContextValue {

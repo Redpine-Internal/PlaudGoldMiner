@@ -39,6 +39,8 @@ export interface OpportunityCardProps {
   onSelect?: React.MouseEventHandler<HTMLDivElement>;
   sourceId?: string;
   enrichText?: string;
+  /** Ideia redigida pela IA (cache); ausente dispara geração ao abrir o modal. */
+  generatedIdea?: string | null;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
   action?: React.ReactNode;
   style?: React.CSSProperties;
@@ -60,6 +62,7 @@ export function OpportunityCard({
   onSelect,
   sourceId,
   enrichText,
+  generatedIdea,
   action,
   style,
   className = "",
@@ -75,6 +78,7 @@ export function OpportunityCard({
         originalText: enrichText ?? buildEnrichText({ type, subtype, pain, context, conversationTitle }),
         pain,
         context,
+        generatedIdea,
       });
     }
     onSelect?.(e);
