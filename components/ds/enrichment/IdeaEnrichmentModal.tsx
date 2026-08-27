@@ -308,6 +308,23 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
           <p style={{ color: "var(--color-muted-foreground)" }}>Carregando…</p>
         ) : (
           <>
+            {sourceType === "opportunity" && (idea.pain || idea.context) ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {idea.pain ? (
+                  <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))", borderRadius: 8, flexShrink: 0 }}>
+                    <span className="ds-label" style={{ display: "block", marginBottom: 4 }}>Dor identificada</span>
+                    <p style={{ margin: 0, font: "400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>{idea.pain}</p>
+                  </div>
+                ) : null}
+                {idea.context ? (
+                  <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))", borderRadius: 8, flexShrink: 0 }}>
+                    <span className="ds-label" style={{ display: "block", marginBottom: 4 }}>O que foi levantado na conversa</span>
+                    <p style={{ margin: 0, font: "400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>{idea.context}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <label className="ds-label">Texto gerado {textEdited ? "(editado)" : ""}</label>
             <textarea
               value={text}
@@ -316,8 +333,8 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
                 setTextEdited(true);
                 scheduleSave({ textOverride: e.target.value });
               }}
-              rows={6}
-              style={{ width: "100%", resize: "vertical", padding: 8, borderRadius: 8, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
+              rows={8}
+              style={{ width: "100%", resize: "vertical", flexShrink: 0, boxSizing: "border-box", padding: 8, borderRadius: 8, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
             />
 
             <label className="ds-label">Observações</label>
@@ -329,7 +346,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
               }}
               rows={4}
               placeholder="Suas anotações sobre esta ideia…"
-              style={{ width: "100%", resize: "vertical", padding: 8, borderRadius: 8, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
+              style={{ width: "100%", resize: "vertical", flexShrink: 0, boxSizing: "border-box", padding: 8, borderRadius: 8, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
             />
 
             <label className="ds-label">Fontes / Referências</label>

@@ -7,6 +7,10 @@ export type EnrichmentSourceType = "opportunity" | "insight" | "content";
 export interface IdeaData {
   title: string;
   originalText: string;
+  /** Dor identificada (apenas oportunidades) — exibida como bloco fixo no modal. */
+  pain?: string | null;
+  /** Contexto do que foi levantado na conversa (apenas oportunidades). */
+  context?: string | null;
 }
 
 export interface EnrichmentContextValue {

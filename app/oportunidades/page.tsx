@@ -241,6 +241,7 @@ const OportunidadesPage = () => {
                   key={o.id}
                   title={o.title}
                   pain={o.pain}
+                  context={o.context}
                   type={o.type}
                   subtype={o.subtype}
                   status={o.status}
@@ -248,7 +249,6 @@ const OportunidadesPage = () => {
                   conversationTitle={o.conversationTitle || undefined}
                   createdAt={o.createdAt}
                   sourceId={o.id}
-                  enrichText={o.pain}
                   selected={selectedOpportunityId === o.id}
                   onSelect={() => setSelectedOpportunityId(o.id)}
                   action={

@@ -5,9 +5,30 @@ import { useEnrichment } from "./enrichment/useEnrichment";
 const STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
 const TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto", servico: "Serviço" };
 
+/** Compõe o texto padrão do enriquecimento a partir dos campos da oportunidade. */
+function buildEnrichText(opts: {
+  type?: string;
+  subtype?: string | null;
+  pain?: string;
+  context?: string | null;
+  conversationTitle?: string;
+}): string {
+  const label = TYPES[opts.type ?? ""] || opts.type || "";
+  const head =
+    `Oportunidade de ${label.toLowerCase()}` +
+    (opts.subtype ? ` — ${opts.subtype}` : "") +
+    (opts.conversationTitle ? `, identificada na conversa "${opts.conversationTitle}"` : "") +
+    ".";
+  const parts = [head];
+  if (opts.pain) parts.push(`Dor identificada: ${opts.pain}`);
+  if (opts.context) parts.push(`Contexto: ${opts.context}`);
+  return parts.join("\n\n");
+}
+
 export interface OpportunityCardProps {
   title?: string;
   pain?: string;
+  context?: string | null;
   type?: string;
   subtype?: string | null;
   status?: string;
@@ -28,6 +49,7 @@ export interface OpportunityCardProps {
 export function OpportunityCard({
   title,
   pain,
+  context,
   type = "produto",
   subtype,
   status = "nova",
@@ -48,7 +70,12 @@ export function OpportunityCard({
   const interesting = enrichment && sourceId ? enrichment.isInteresting("opportunity", sourceId) : false;
   const handleCardClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
     if (enrichment && sourceId) {
-      enrichment.openEnrichment("opportunity", sourceId, { title: title ?? "", originalText: enrichText ?? pain ?? "" });
+      enrichment.openEnrichment("opportunity", sourceId, {
+        title: title ?? "",
+        originalText: enrichText ?? buildEnrichText({ type, subtype, pain, context, conversationTitle }),
+        pain,
+        context,
+      });
     }
     onSelect?.(e);
   };
