@@ -47,7 +47,7 @@ const h4: React.CSSProperties = { font: "500 14px/20px var(--font-sans)", margin
 const chip: React.CSSProperties = {
   padding: "4px 8px",
   font: "400 12px/16px var(--font-sans)",
-  borderRadius: "var(--radius)",
+  borderRadius: 5,
   background: "var(--color-muted)",
   color: "var(--color-muted-foreground)",
 };

@@ -1,0 +1,231 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Liquid Glass (macOS 27) — camada de redesign "Plaud Gold Miner".
+   Carregada DEPOIS de styles.css (skin Mística + aliases + components): em
+   especificidade igual, tudo aqui vence a cascata — restiliza as classes DS e
+   remapeia as variáveis legadas sem tocar nos componentes TSX.
+   Fonte canônica: design-handoff/prototipo (Liquid Glass .dc.html + fig-tokens).
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── 1. Tokens do protótipo (verbatim) + complementos explícitos ── */
+:root{
+  color-scheme:light;
+  --color-brand:#001639;--color-brand-hover:#0A2A5C;
+  --color-primary:#001639;--color-primary-foreground:#fff;
+  --color-info-600:rgb(0,136,255);--color-info-700:rgb(0,120,240);--color-info-100:rgba(0,136,255,0.15);--color-info-50:rgba(0,136,255,0.08);
+  --color-success-600:rgb(52,199,89);--color-warning-600:rgb(255,141,40);--color-danger-600:rgb(255,56,60);
+  --color-neutral-400:rgb(142,142,147);--color-neutral-300:#C7C7CC;--color-neutral-100:#F2F2F7;--color-neutral-50:rgb(246,246,246);
+  --color-foreground:rgba(0,0,0,0.85);--color-muted-foreground:rgba(0,0,0,0.5);
+  --lg-edge:rgb(208,208,208);--lg-ring:rgb(232,232,232);
+  --bar-material:rgba(246,246,246,0.48);--modal-material:rgba(246,246,246,0.84);
+  --color-ring:rgba(0,22,57,0.45);--color-border:rgba(0,0,0,0.1);--color-input:rgba(0,0,0,0.16);
+  --color-muted:rgba(120,120,128,0.12);--color-accent:rgba(0,0,0,0.045);
+  /* o protótipo herda estes do DS legado no modo claro; aqui são explícitos */
+  --color-background:rgb(246,246,246);--color-card:#FFFFFF;
+  --seg-thumb:#FFFFFF;
+  /* sidebar (source list) */
+  --sb-bg:var(--bar-material);--sb-fg:#1D1D1F;--sb-fg-dim:#6E6E73;
+  --sb-active-bg:var(--color-brand);--sb-active-fg:#FFFFFF;--sb-hover:rgba(0,0,0,0.06);
+  --sb-border:color-mix(in srgb,var(--color-border) 55%,transparent);
+  --sb-title:#1D1D1F;--sb-icon:var(--color-brand);
+}
+.dark{
+  color-scheme:dark;
+  --color-neutral-50:rgb(30,30,30);--color-neutral-100:#1C1C1E;
+  --color-card:rgb(40,40,40);--color-background:rgb(30,30,30);
+  --color-brand:#3B6FB5;--color-brand-hover:#5585C9;--color-primary:#3B6FB5;
+  --color-info-600:rgb(0,145,255);--color-info-700:rgb(10,153,255);
+  --color-success-600:rgb(48,209,88);--color-warning-600:rgb(255,146,48);--color-danger-600:rgb(255,66,69);
+  --color-neutral-400:rgb(152,152,159);
+  --color-foreground:rgba(255,255,255,0.85);--color-muted-foreground:rgba(255,255,255,0.55);
+  --lg-edge:rgb(90,90,90);--lg-ring:rgb(72,72,72);
+  --bar-material:rgba(40,40,40,0.5);--modal-material:rgba(40,40,40,0.8);
+  --color-border:rgba(255,255,255,0.14);--color-input:rgba(255,255,255,0.2);
+  --color-muted:rgba(120,120,128,0.26);--color-accent:rgba(255,255,255,0.07);
+  --seg-thumb:rgb(99,99,102);
+  --sb-fg:#E5E5EA;--sb-fg-dim:#98989D;
+  --sb-active-bg:#3B6FB5;--sb-active-fg:#FFFFFF;--sb-hover:rgba(255,255,255,0.07);
+  --sb-title:#F5F5F7;--sb-icon:#5585C9;
+}
+.dark aside{box-shadow:inset -1px 0 0 rgba(255,255,255,0.08)}
+
+/* ── 2. Ponte para as variáveis Mística legadas.
+       Referências via var(): o .dark redefine os tokens acima e todo o app
+       (inclusive cantos ainda não migrados) flui junto. ── */
+:root{
+  --fontFamily:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --background:var(--color-background);
+  --backgroundAlternative:var(--color-neutral-50);
+  --backgroundContainer:var(--color-card);
+  --backgroundContainerHover:color-mix(in srgb,var(--color-card) 94%,var(--color-foreground));
+  --backgroundContainerPressed:color-mix(in srgb,var(--color-card) 90%,var(--color-foreground));
+  --backgroundBrand:var(--color-brand);--backgroundBrandSecondary:var(--color-brand);
+  --backgroundSkeleton:var(--color-muted);
+  --backgroundOverlay:rgba(10,16,30,0.32);
+  --textPrimary:var(--color-foreground);--textSecondary:var(--color-muted-foreground);
+  --border:var(--color-border);--divider:color-mix(in srgb,var(--color-border) 45%,transparent);
+  --inputBorder:var(--color-input);
+  --brand:var(--color-brand);--brandHigh:var(--color-brand);--brandLow:color-mix(in srgb,var(--color-brand) 10%,transparent);
+  --buttonPrimaryBackground:var(--color-brand);--buttonPrimaryBackgroundHover:var(--color-brand-hover);--buttonPrimaryBackgroundPressed:var(--color-brand-hover);
+  --textButtonPrimary:#FFFFFF;
+  --textButtonSecondary:var(--color-foreground);--textButtonSecondaryPressed:var(--color-foreground);
+  --buttonSecondaryBackgroundHover:rgba(120,120,128,0.2);--buttonSecondaryBackgroundPressed:rgba(120,120,128,0.24);
+  --buttonLinkBackgroundPressed:var(--color-accent);
+  --buttonDangerBackground:var(--color-danger-600);--buttonDangerBackgroundHover:color-mix(in srgb,var(--color-danger-600) 85%,black);--buttonDangerBackgroundPressed:color-mix(in srgb,var(--color-danger-600) 70%,black);
+  --textLink:var(--color-brand);--textActivated:var(--color-brand);--controlActivated:var(--color-brand);--borderSelected:var(--color-brand);
+  --textLinkNeutral:var(--color-muted-foreground);
+  --neutralLow:var(--color-muted);--neutralMedium:var(--color-neutral-300);--neutralHigh:var(--color-muted-foreground);
+  --error:var(--color-danger-600);--success:var(--color-success-600);--successHigh:var(--color-success-600);--warning:var(--color-warning-600);--promo:var(--color-brand);
+  --tagTextInfo:var(--color-info-600);--tagTextSuccess:var(--badge-green);--tagTextPromo:var(--color-brand);--tagTextWarning:var(--badge-orange);--tagTextError:var(--badge-red);--tagTextActive:var(--color-info-600);
+  /* geometria macOS nos raios Mística */
+  --radius-control:5px;--radius-button:var(--radius-control);--radius-input:var(--radius-control);--radius-chip:var(--radius-control);--radius-tag:var(--radius-control);--radius-container:16px;--radius-popup:16px;
+}
+
+/* ── 3. Badges: cápsula neutra + rótulo em cor semântica escurecida
+       (nunca fundo colorido sólido, nunca texto colorido sobre tint da mesma cor) ── */
+:root{
+  --badge-bg:var(--color-muted);
+  --badge-green:#248A3D;--badge-orange:#B25000;--badge-red:#D70015;--badge-navy:#001639;--badge-gray:var(--color-muted-foreground);
+}
+.dark{
+  --badge-green:rgb(48,209,88);--badge-orange:rgb(255,146,48);--badge-red:rgb(255,66,69);--badge-navy:#7FA8DE;
+}
+:root{
+  --accent-info:var(--color-info-600);--accent-success:var(--color-success-600);--accent-warning:var(--color-warning-600);--accent-error:var(--color-danger-600);--accent-promo:var(--color-brand);--accent-active:var(--color-info-600);--accent-inactive:var(--color-neutral-400);
+  --type-reuniao-bg:var(--badge-bg);--type-reuniao-fg:var(--badge-navy);
+  --type-treinamento-bg:var(--badge-bg);--type-treinamento-fg:var(--badge-green);
+  --type-informal-bg:var(--badge-bg);--type-informal-fg:var(--badge-orange);
+  --type-outro-bg:var(--badge-bg);--type-outro-fg:var(--badge-gray);
+  --status-processado-bg:var(--badge-bg);--status-processado-fg:var(--badge-green);
+  --status-pendente-bg:var(--badge-bg);--status-pendente-fg:var(--badge-orange);
+  --status-erro-bg:var(--badge-bg);--status-erro-fg:var(--badge-red);
+  --platform-youtube-bg:var(--badge-bg);--platform-youtube-fg:var(--badge-red);--platform-youtube-icon:var(--badge-red);
+  --platform-linkedin-bg:var(--badge-bg);--platform-linkedin-fg:var(--badge-navy);--platform-linkedin-icon:var(--badge-navy);
+  --platform-blog-bg:var(--badge-bg);--platform-blog-fg:var(--badge-navy);--platform-blog-icon:var(--badge-navy);
+  --platform-artigo-bg:var(--badge-bg);--platform-artigo-fg:var(--badge-navy);--platform-artigo-icon:var(--badge-navy);
+  --opp-nova-bg:var(--badge-bg);--opp-nova-fg:var(--badge-green);
+  --opp-analise-bg:var(--badge-bg);--opp-analise-fg:var(--badge-navy);
+  --opp-qualificada-bg:var(--badge-bg);--opp-qualificada-fg:var(--badge-navy);
+  --opp-descartada-bg:var(--badge-bg);--opp-descartada-fg:var(--badge-gray);
+  --opp-produto-bg:var(--badge-bg);--opp-produto-fg:var(--badge-orange);
+  --opp-sistema-bg:var(--badge-bg);--opp-sistema-fg:var(--badge-navy);
+  --opp-consultoria-bg:var(--badge-bg);--opp-consultoria-fg:var(--badge-navy);
+  --opp-servico-bg:var(--badge-bg);--opp-servico-fg:var(--badge-navy);
+  --opp-treinamento-bg:var(--badge-bg);--opp-treinamento-fg:var(--badge-orange);
+  --content-sugerido-bg:var(--badge-bg);--content-sugerido-fg:var(--badge-orange);
+  --content-producao-bg:var(--badge-bg);--content-producao-fg:var(--badge-navy);
+  --content-rascunho-bg:var(--badge-bg);--content-rascunho-fg:var(--badge-navy);
+  --content-em_revisao-bg:var(--badge-bg);--content-em_revisao-fg:var(--badge-navy);
+  --content-publicado-bg:var(--badge-bg);--content-publicado-fg:var(--badge-green);
+  --content-aprovado-bg:var(--badge-bg);--content-aprovado-fg:var(--badge-green);
+  --content-descartado-bg:var(--badge-bg);--content-descartado-fg:var(--badge-gray);
+  --score-bg:var(--badge-bg);--score-fg:var(--badge-green);
+  --insight-pattern:var(--color-info-600);--insight-opportunity:var(--color-success-600);--insight-suggestion:var(--color-brand);--insight-trend:var(--color-warning-600);--insight-connection:var(--color-danger-600);
+}
+
+/* ── 4. Base: tipografia SF 13px, links navy, scrollbars invisíveis ── */
+html{-webkit-font-smoothing:antialiased}
+body{background:var(--color-background);color:var(--color-foreground);font-family:var(--fontFamily);font-size:13px;line-height:1.45;letter-spacing:-0.022em}
+a{color:var(--color-brand)}
+a:hover{color:var(--color-brand-hover)}
+h1,h2,h3,h4,h5,h6{letter-spacing:-0.022em}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+
+/* ── 5. Botões: cápsulas ── */
+.ds-btn{min-width:0;gap:6px;padding:5px 14px;border:none;border-radius:var(--radius-control);font:500 13px/20px var(--fontFamily);letter-spacing:-0.01em}
+.ds-btn:focus-visible{outline:2px solid var(--color-ring);outline-offset:2px}
+.ds-btn--primary{background:linear-gradient(180deg,color-mix(in srgb,var(--color-brand) 84%,#FFFFFF) 0%,var(--color-brand) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.35);color:#FFFFFF}
+.ds-btn--primary:hover{background:linear-gradient(180deg,color-mix(in srgb,var(--color-brand-hover) 84%,#FFFFFF) 0%,var(--color-brand-hover) 100%)}
+.ds-btn--primary:active{background:var(--color-brand-hover)}
+.ds-btn--secondary,.ds-btn--outline{background:rgba(120,120,128,0.16);color:var(--color-foreground)}
+.ds-btn--secondary:hover,.ds-btn--outline:hover{background:rgba(120,120,128,0.2);color:var(--color-foreground)}
+.ds-btn--secondary:active,.ds-btn--outline:active{background:rgba(120,120,128,0.24)}
+.ds-btn--danger{background:rgba(120,120,128,0.16);color:var(--color-danger-600)}
+.ds-btn--danger:hover{background:rgba(120,120,128,0.22)}
+.ds-btn--danger:active{background:rgba(120,120,128,0.26)}
+.ds-btn--success{background:var(--color-success-600);color:#FFFFFF;box-shadow:inset 0 1px 0 rgba(255,255,255,0.3)}
+.ds-btn--success:hover{background:color-mix(in srgb,var(--color-success-600) 88%,black)}
+.ds-btn--link{color:var(--color-brand)}
+.ds-btn--link:hover{background:var(--color-accent)}
+.ds-btn--ghost{background:transparent;color:var(--color-muted-foreground)}
+.ds-btn--ghost:hover{background:var(--color-accent);color:var(--color-foreground)}
+.ds-btn--sm{min-width:0;padding:3px 10px;font-size:12px;line-height:16px}
+.ds-btn--icononly{min-width:0;padding:5px}
+.ds-btn--sm.ds-btn--icononly{padding:3px}
+.ds-btn--ghost.ds-btn--icononly{border-radius:var(--radius-control)}
+
+/* ── 6. Inputs: radius 6, focus ring 2px ── */
+.ds-label{font:500 12px/16px var(--fontFamily);color:var(--color-muted-foreground)}
+.ds-input{padding:7px 10px;border:1px solid var(--color-input);border-radius:var(--radius-control);background:var(--color-card);font:400 13px/20px var(--fontFamily);color:var(--color-foreground)}
+.ds-input::placeholder{color:var(--color-muted-foreground)}
+.ds-input:focus{outline:none;border-color:var(--color-brand);box-shadow:0 0 0 2px color-mix(in srgb,var(--color-brand) 30%,transparent)}
+main .ds-input{border-color:var(--color-input)}
+main .ds-input:focus{border-color:var(--color-brand)}
+.ds-search .ds-input{padding:5px 30px 5px 30px;font-size:13px;line-height:20px;background:var(--color-muted);border-color:transparent;border-radius:var(--radius-control)}
+main .ds-search .ds-input{border-color:transparent}
+.ds-search .ds-input:focus{background:var(--color-card)}
+.ds-search>.ds-icon{left:8px;color:var(--color-muted-foreground)}
+.ds-search-clear{right:6px;color:var(--color-muted-foreground)}
+
+/* ── 7. Chips e segmented control ── */
+.ds-chip{min-height:26px;padding:0 12px;border-radius:var(--radius-control);background:var(--color-muted);color:var(--color-foreground);font:500 12px/16px var(--fontFamily)}
+.ds-chip:hover{background:rgba(120,120,128,0.2);color:var(--color-foreground)}
+.ds-chip:active{background:rgba(120,120,128,0.24);color:var(--color-foreground)}
+.ds-chip--active,.ds-chip--active:hover{background:var(--color-brand);color:#FFFFFF;border-color:transparent}
+.ds-chip .ds-chip-count{background:color-mix(in srgb,currentColor 14%,transparent);color:inherit;border-radius:var(--radius-control)}
+.ds-tabs{display:inline-flex;align-items:center;gap:2px;border-bottom:none;background:var(--color-muted);border-radius:var(--radius-control);padding:2px}
+.ds-tab{min-height:0;padding:4px 12px;font:500 12px/16px var(--fontFamily);border-bottom:none;margin-bottom:0;border-radius:var(--radius-control);color:var(--color-muted-foreground)}
+.ds-tab:hover{color:var(--color-foreground)}
+.ds-tab--active,.ds-tab--active:hover{color:var(--color-foreground);background:var(--seg-thumb);box-shadow:0 1px 2.5px rgba(0,0,0,0.18),0 0 0 0.5px rgba(0,0,0,0.04)}
+.ds-tabs--stretch{display:flex}
+
+/* ── 8. Badges e score ── */
+.ds-badge{min-width:0;font-size:11px;line-height:16px;font-weight:600;padding:2px 8px;border-radius:var(--radius-control)}
+.ds-badge--compact{min-width:0;padding:1px 7px;border-radius:var(--radius-control)}
+.ds-score{font-weight:600}
+
+/* ── 9. Cards: vidro (sem borda 1px; aresta via sombra) ── */
+.ds-card,.ds-insight,.ds-empty,.mini-card{
+  background:color-mix(in srgb,var(--color-card) 76%,transparent);
+  -webkit-backdrop-filter:blur(60px);backdrop-filter:blur(60px);
+  border:none;border-radius:16px;
+  box-shadow:1.25px 0 0 -0.75px var(--lg-edge),-1.25px 0 0 -0.75px var(--lg-edge),0 0 0 0.5px var(--lg-ring),0 8px 15px rgba(0,0,0,0.02),inset 0 40px 30px -40px rgba(230,230,230,0.35);
+}
+.ds-card{padding:14px 16px}
+.ds-card--clickable:hover{background:color-mix(in srgb,var(--color-card) 86%,transparent)}
+.ds-card--clickable:active{background:color-mix(in srgb,var(--color-card) 92%,transparent)}
+.ds-card--selected,.ds-card--selected:hover{border:none;background:color-mix(in srgb,var(--color-card) 92%,transparent);box-shadow:0 0 0 2px var(--color-ring),1.25px 0 0 -0.75px var(--lg-edge),-1.25px 0 0 -0.75px var(--lg-edge),0 8px 15px rgba(0,0,0,0.02)}
+.mini-card{border-radius:12px}
+.mini-card:hover{background:color-mix(in srgb,var(--color-card) 86%,transparent)}
+.ds-empty h3{font:600 17px/22px var(--fontFamily)}
+.ds-empty p{font:400 13px/20px var(--fontFamily);color:var(--color-muted-foreground)}
+.ds-skeleton{background:var(--color-muted)}
+
+/* ── 10. Modais e menus: material ultra-thick ── */
+.ds-modal-backdrop{background:rgba(10,16,30,0.32);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.ds-modal{background:var(--modal-material);-webkit-backdrop-filter:blur(60px);backdrop-filter:blur(60px);border-radius:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.4),0 0 0 0.5px var(--lg-ring),0 24px 70px rgba(0,6,20,0.35);padding:20px}
+/* Largura mínima de 60% da viewport no desktop; no mobile ocupa a largura disponível. */
+@media (min-width:768px){.ds-modal{min-width:60vw}}
+.menu{background:var(--modal-material);-webkit-backdrop-filter:blur(60px);backdrop-filter:blur(60px);border:none;border-radius:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.4),0 0 0 0.5px var(--lg-ring),0 18px 50px rgba(0,6,20,0.28);padding:5px}
+.menu a{gap:10px;padding:6px 10px;font:400 13px/20px var(--fontFamily);border-radius:var(--radius-control);color:var(--color-foreground)}
+.menu a:hover{background:var(--color-brand);color:#FFFFFF}
+.menu .mdiv{margin:5px 4px;background:var(--divider)}
+.menu .mail{padding:4px 10px 8px;font:400 11px/14px var(--fontFamily)}
+
+/* ── 11. Shell: avatar, botões de ícone, itens de navegação ── */
+.avatar{width:28px;height:28px;font:600 12px/1 var(--fontFamily);background:var(--color-brand);color:#FFFFFF}
+.avatar-btn{padding:2px;border-radius:1000px}
+.avatar-btn:hover{background:var(--color-accent)}
+.collapse-btn{width:26px;height:26px;border-radius:var(--radius-control);background:transparent;color:var(--color-muted-foreground)}
+.collapse-btn:hover{background:var(--color-accent);color:var(--color-foreground)}
+.icon-btn{width:28px;height:28px;align-items:center;justify-content:center;border-radius:var(--radius-control)}
+.brandmark{font:600 15px/20px var(--fontFamily);letter-spacing:-0.01em}
+.nav-item{gap:8px;min-height:32px;padding:5px 8px;border-radius:5px;font:400 13px/20px var(--fontFamily);color:var(--sb-fg)}
+.nav-item:hover{background:var(--sb-hover);color:var(--sb-fg)}
+.nav-item--active,.nav-item--active:hover{background:var(--sb-active-bg);color:var(--sb-active-fg);font-weight:500}
+
+/* ── 12. Utilitárias Liquid Glass p/ os novos componentes do shell ── */
+.lg-bar{background:var(--bar-material);-webkit-backdrop-filter:blur(60px);backdrop-filter:blur(60px)}
+.lg-hairline-b{box-shadow:inset 0 -1px 0 var(--sb-border)}
+.lg-hairline-t{box-shadow:inset 0 1px 0 var(--sb-border)}
+@keyframes pgmspin{from{transform:rotate(0)}to{transform:rotate(360deg)}}

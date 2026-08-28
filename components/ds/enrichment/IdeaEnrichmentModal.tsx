@@ -293,11 +293,11 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
 
   return (
     <div
+      className="ds-modal-backdrop"
       onClick={handleClose}
       style={{
         position: "fixed",
         inset: 0,
-        background: "var(--overlay)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -306,14 +306,12 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
       }}
     >
       <div
+        className="ds-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "var(--backgroundContainer)",
-          borderRadius: 12,
-          width: "min(720px, 100%)",
+          width: "min(max(60vw, 720px), 100%)",
           maxHeight: "90vh",
           overflowY: "auto",
-          padding: 24,
           display: "flex",
           flexDirection: "column",
           gap: 16,
@@ -377,7 +375,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
                 scheduleSave({ textOverride: e.target.value });
               }}
               rows={8}
-              style={{ width: "100%", resize: "vertical", flexShrink: 0, boxSizing: "border-box", padding: 8, borderRadius: 8, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
+              style={{ width: "100%", resize: "vertical", flexShrink: 0, boxSizing: "border-box", padding: 8, borderRadius: 5, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
             />
 
             <label className="ds-label">Observações</label>
@@ -389,7 +387,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
               }}
               rows={4}
               placeholder="Suas anotações sobre esta ideia…"
-              style={{ width: "100%", resize: "vertical", flexShrink: 0, boxSizing: "border-box", padding: 8, borderRadius: 8, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
+              style={{ width: "100%", resize: "vertical", flexShrink: 0, boxSizing: "border-box", padding: 8, borderRadius: 5, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
             />
 
             <label className="ds-label">Fontes / Referências</label>
@@ -406,8 +404,8 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
                 </div>
               ))}
               <div style={{ display: "flex", gap: 8 }}>
-                <input value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} placeholder="Título (opcional)" style={{ width: 180, padding: 6, borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--background)", color: "var(--textPrimary)" }} />
-                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" style={{ flex: 1, padding: 6, borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--background)", color: "var(--textPrimary)" }} />
+                <input value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} placeholder="Título (opcional)" style={{ width: 180, padding: 6, borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--background)", color: "var(--textPrimary)" }} />
+                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" style={{ flex: 1, padding: 6, borderRadius: 5, border: "1px solid var(--color-border)", background: "var(--background)", color: "var(--textPrimary)" }} />
                 <Button size="sm" variant="outline" icon="add-more" onClick={addLink} disabled={busy || !linkUrl.trim()}>Adicionar</Button>
               </div>
             </div>

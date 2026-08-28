@@ -1,9 +1,12 @@
 "use client";
-import type React from "react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type CSSProperties } from "react";
 import useSWR from "swr";
+import { SlidersHorizontal } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { Button, SearchInput, FilterChip, OpportunityCard, EmptyState, Pagination, StartProjectButton, useEnrichment } from "@/components/ds";
+import { FilterRail } from "@/components/lg/FilterRail";
+import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const PAGE_SIZE = 20;
 
@@ -34,14 +37,22 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const OPP_STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
 const OPP_TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto", servico: "Serviço" };
 
+type OppFilters = {
+  status: string;
+  types: string[];
+  minScore: string;
+  railOpen: boolean;
+};
+
+const INITIAL_FILTERS: OppFilters = { status: "", types: [], minScore: "0", railOpen: true };
+
 const OportunidadesPage = () => {
   const { selectedOpportunityId, setSelectedOpportunityId } = useAppStore();
   const enrichment = useEnrichment();
+  const isMobile = useIsMobile();
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<string[]>([]);
-  const [types, setTypes] = useState<string[]>([]);
+  const [f, setF] = usePersistedFilters<OppFilters>("oportunidades", INITIAL_FILTERS);
   const [onlyInteresting, setOnlyInteresting] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -54,16 +65,19 @@ const OportunidadesPage = () => {
 
   const opps = data?.data || [];
 
+  const minScore = Number(f.minScore) || 0;
+
   const list = useMemo(
     () =>
       opps.filter(
         (o) =>
           (!q || o.title.toLowerCase().includes(q.toLowerCase()) || o.pain.toLowerCase().includes(q.toLowerCase())) &&
-          (!status.length || status.includes(o.status)) &&
-          (!types.length || types.includes(o.type)) &&
+          (!f.status || o.status === f.status) &&
+          (!f.types.length || f.types.includes(o.type)) &&
+          o.score >= minScore &&
           (!onlyInteresting || (enrichment?.isInteresting("opportunity", o.id) ?? false))
       ),
-    [opps, q, status, types, onlyInteresting, enrichment]
+    [opps, q, f.status, f.types, minScore, onlyInteresting, enrichment]
   );
 
   const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -71,7 +85,7 @@ const OportunidadesPage = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [q, status, types, onlyInteresting]);
+  }, [q, f.status, f.types, minScore, onlyInteresting]);
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
@@ -82,10 +96,13 @@ const OportunidadesPage = () => {
     return c;
   }, [opps]);
 
-  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, v: string) =>
-    setter((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
+  const hasFilters = Boolean(q || f.status || f.types.length || f.minScore !== "0");
+  const activeCount = (f.status ? 1 : 0) + f.types.length + (f.minScore !== "0" ? 1 : 0);
 
-  const hasFilters = q || status.length || types.length;
+  const clearAll = () => {
+    setQ("");
+    setF({ status: "", types: [], minScore: "0" });
+  };
 
   const generate = async () => {
     setGenerating(true);
@@ -106,18 +123,51 @@ const OportunidadesPage = () => {
     }
   };
 
-  return (
-    <div>
-      <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", rowGap: 8 }}>
-        <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: 0 }}>Oportunidades</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={generate} disabled={generating}>
-            {generating ? "Detectando..." : "Detectar Oportunidades"}
-          </Button>
-          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
-        </div>
-      </div>
+  const rail = (
+    <FilterRail
+      open={f.railOpen}
+      onClear={hasFilters ? clearAll : undefined}
+      sections={[
+        {
+          kind: "status",
+          title: "Status",
+          value: f.status,
+          onChange: (v) => setF({ status: v }),
+          options: [
+            { value: "", label: "Todas", count: opps.length },
+            ...Object.entries(OPP_STATUS).map(([value, label]) => ({ value, label, count: counts[value] || 0 })),
+          ],
+        },
+        {
+          kind: "checks",
+          title: "Tipo",
+          values: f.types,
+          onChange: (vs) => setF({ types: vs }),
+          options: Object.entries(OPP_TYPES).map(([value, label]) => ({ value, label })),
+        },
+        {
+          kind: "segmented",
+          title: "Score mínimo",
+          value: f.minScore,
+          onChange: (v) => setF({ minScore: v }),
+          options: [
+            { value: "0", label: "Todas" },
+            { value: "70", label: "70+" },
+            { value: "85", label: "85+" },
+          ],
+        },
+      ]}
+    />
+  );
 
+  const grid: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))",
+    gap: 16,
+  };
+
+  return (
+    <div style={{ maxWidth: 1280, margin: "0 auto" }}>
       {genError ? (
         <div
           role="alert"
@@ -128,153 +178,113 @@ const OportunidadesPage = () => {
             color: "var(--alert-error-fg)",
             border: "1px solid var(--alert-error-border)",
             borderRadius: "var(--radius-lg)",
-            font: "400 13px/18px var(--font-sans)",
+            font: "400 13px/18px var(--fontFamily)",
           }}
         >
           {genError}
         </div>
       ) : null}
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
-        {Object.entries(counts).map(([s, n]) => (
-          <div
-            key={s}
-            style={{
-              padding: "6px 12px",
-              borderRadius: "var(--radius-lg)",
-              background: `var(--opp-${s}-bg)`,
-              color: `var(--opp-${s}-fg)`,
-              font: "400 14px/20px var(--font-sans)",
-              boxShadow: status.includes(s) ? "0 0 0 2px var(--color-background), 0 0 0 4px var(--color-primary)" : "none",
-              cursor: "pointer",
-            }}
-            onClick={() => toggle(setStatus, s)}
-          >
-            <span style={{ fontWeight: 500 }}>{n}</span> <span>{OPP_STATUS[s]}</span>
-          </div>
-        ))}
-      </div>
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+        {isMobile ? null : rail}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8 }}>
-          <SearchInput value={q} onChange={setQ} placeholder="Buscar oportunidades..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
-          <FilterChip active={showFilters || !!hasFilters} onClick={() => setShowFilters(!showFilters)}>
-            Filtros
-          </FilterChip>
-          <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
-            Só interessantes
-          </FilterChip>
-          {hasFilters ? (
-            <button
-              className="ds-btn ds-btn--link"
-              style={{ color: "var(--color-muted-foreground)" }}
-              onClick={() => {
-                setQ("");
-                setStatus([]);
-                setTypes([]);
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8, marginBottom: 16 }}>
+            <SearchInput value={q} onChange={setQ} placeholder="Buscar oportunidades..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
+            {isMobile ? null : (
+              <button
+                type="button"
+                className="ds-btn ds-btn--secondary"
+                aria-pressed={f.railOpen}
+                onClick={() => setF({ railOpen: !f.railOpen })}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  background: f.railOpen ? "rgba(120,120,128,0.24)" : undefined,
+                }}
+              >
+                <SlidersHorizontal size={16} strokeWidth={1.75} />
+                Filtros{activeCount ? ` · ${activeCount}` : ""}
+              </button>
+            )}
+            <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
+              Só interessantes
+            </FilterChip>
+            <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={generate} disabled={generating}>
+              {generating ? "Detectando..." : "Detectar Oportunidades"}
+            </Button>
+            <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+            <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)" }}>
+              {list.length} oportunidade{list.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {isMobile ? <div style={{ marginBottom: 12 }}>{rail}</div> : null}
+
+          {error ? (
+            <div
+              style={{
+                padding: 16,
+                marginBottom: 16,
+                background: "var(--alert-error-bg)",
+                color: "var(--alert-error-fg)",
+                border: "1px solid var(--alert-error-border)",
+                borderRadius: "var(--radius-lg)",
               }}
             >
-              Limpar filtros
-            </button>
+              Erro ao carregar oportunidades. Por favor, tente novamente.
+            </div>
           ) : null}
-          <span style={{ marginLeft: "auto", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
-            {list.length} oportunidade{list.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-        {showFilters ? (
-          <div
-            style={{
-              padding: 16,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-lg)",
-              background: "var(--color-sidebar)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
-          >
-            <div>
-              <label className="ds-label" style={{ marginBottom: 8 }}>
-                Status
-              </label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {Object.entries(OPP_STATUS).map(([v, l]) => (
-                  <FilterChip key={v} active={status.includes(v)} onClick={() => toggle(setStatus, v)}>
-                    {l}
-                  </FilterChip>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="ds-label" style={{ marginBottom: 8 }}>
-                Tipo
-              </label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {Object.entries(OPP_TYPES).map(([v, l]) => (
-                  <FilterChip key={v} active={types.includes(v)} onClick={() => toggle(setTypes, v)}>
-                    {l}
-                  </FilterChip>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
 
-      {error ? (
-        <div style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: "var(--radius-lg)" }}>
-          Erro ao carregar oportunidades. Por favor, tente novamente.
-        </div>
-      ) : null}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {isLoading ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="ds-card" style={{ height: 160 }} />
-            ))}
-          </div>
-        ) : list.length ? (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
-              {paged.map((o) => (
-                <OpportunityCard
-                  key={o.id}
-                  title={o.title}
-                  pain={o.pain}
-                  context={o.context}
-                  type={o.type}
-                  subtype={o.subtype}
-                  generatedIdea={o.generatedIdea}
-                  status={o.status}
-                  score={o.score}
-                  conversationTitle={o.conversationTitle || undefined}
-                  createdAt={o.createdAt}
-                  sourceId={o.id}
-                  selected={selectedOpportunityId === o.id}
-                  onSelect={() => setSelectedOpportunityId(o.id)}
-                  action={
-                    <StartProjectButton
-                      sourceType="opportunity"
-                      sourceId={o.id}
-                      title={o.title}
-                      description={o.pain}
-                    />
-                  }
-                />
+          {isLoading ? (
+            <div style={grid}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="ds-card" style={{ height: 160 }} />
               ))}
             </div>
-            <Pagination page={page} pageCount={pageCount} onChange={setPage} />
-          </>
-        ) : opps.length ? (
-          <EmptyState icon="lightbulb" title="Nenhuma oportunidade encontrada" message="Nenhuma oportunidade corresponde aos filtros selecionados." />
-        ) : (
-          <EmptyState
-            icon="lightbulb"
-            title="Nenhuma oportunidade detectada"
-            message="Oportunidades de negócio serão detectadas automaticamente quando você processar suas conversas."
-          />
-        )}
+          ) : list.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={grid}>
+                {paged.map((o) => (
+                  <OpportunityCard
+                    key={o.id}
+                    title={o.title}
+                    pain={o.pain}
+                    context={o.context}
+                    type={o.type}
+                    subtype={o.subtype}
+                    generatedIdea={o.generatedIdea}
+                    status={o.status}
+                    score={o.score}
+                    conversationTitle={o.conversationTitle || undefined}
+                    createdAt={o.createdAt}
+                    sourceId={o.id}
+                    selected={selectedOpportunityId === o.id}
+                    onSelect={() => setSelectedOpportunityId(o.id)}
+                    action={
+                      <StartProjectButton
+                        sourceType="opportunity"
+                        sourceId={o.id}
+                        title={o.title}
+                        description={o.pain}
+                      />
+                    }
+                  />
+                ))}
+              </div>
+              <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+            </div>
+          ) : opps.length ? (
+            <EmptyState icon="lightbulb" title="Nenhuma oportunidade encontrada" message="Nenhuma oportunidade corresponde aos filtros selecionados." />
+          ) : (
+            <EmptyState
+              icon="lightbulb"
+              title="Nenhuma oportunidade detectada"
+              message="Oportunidades de negócio serão detectadas automaticamente quando você processar suas conversas."
+            />
+          )}
+        </div>
       </div>
     </div>
   );

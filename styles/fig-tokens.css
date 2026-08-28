@@ -1,0 +1,533 @@
+/* Generated from Figma Variables. First mode = :root default.
+   FLOAT tokens are unitless — multiply by 1px in calc() where a length is needed. */
+
+:root {
+  --accents-blue-2: rgb(0,136,255); /* @kind color */
+  --accents-blue: rgb(0,136,255); /* @kind color */
+  --accents-brown: rgb(172,127,94); /* @kind color */
+  --accents-cyan: rgb(0,192,232); /* @kind color */
+  --accents-green: rgb(52,199,89); /* @kind color */
+  --accents-indigo: rgb(97,85,245); /* @kind color */
+  --accents-mint: rgb(0,200,179); /* @kind color */
+  --accents-orange: rgb(255,141,40); /* @kind color */
+  --accents-pink: rgb(255,45,85); /* @kind color */
+  --accents-purple: rgb(203,48,224); /* @kind color */
+  --accents-red: rgb(255,56,60); /* @kind color */
+  --accents-teal: rgb(0,195,208); /* @kind color */
+  --accents-vibrant-blue: rgb(0,120,240); /* @kind color */
+  --accents-vibrant-brown: rgb(158,115,84); /* @kind color */
+  --accents-vibrant-cyan: rgb(0,171,207); /* @kind color */
+  --accents-vibrant-green: rgb(38,191,77); /* @kind color */
+  --accents-vibrant-indigo: rgb(92,80,230); /* @kind color */
+  --accents-vibrant-mint: rgb(0,189,169); /* @kind color */
+  --accents-vibrant-orange: rgb(245,134,37); /* @kind color */
+  --accents-vibrant-pink: rgb(245,35,75); /* @kind color */
+  --accents-vibrant-purple: rgb(183,43,201); /* @kind color */
+  --accents-vibrant-red: rgb(245,47,50); /* @kind color */
+  --accents-vibrant-teal: rgb(0,179,191); /* @kind color */
+  --accents-vibrant-yellow: rgb(245,194,0); /* @kind color */
+  --accents-yellow: rgb(255,204,0); /* @kind color */
+  --arrow-button-font-size: 11;
+  --button-padding-horizontal: 7;
+  --button-radius: var(--global-radius);
+  --button-vertical-padding: 2;
+  --checkbox-checkbox-disabled: rgb(255,153,0); /* @kind color */
+  --checkboxes-height-checkmark: 7.55;
+  --checkboxes-radius: 3.5;
+  --checkboxes-width-checkmark: 7.78;
+  --checkboxes-width: var(--radio-button-width);
+  --color-well-height: 16;
+  --color-well-width: 32;
+  --combo-button-font-size-chevron: 9;
+  --combo-button-inset: 2;
+  --combo-button-radius-button: 2.5;
+  --combo-button-text-inset-right: 20;
+  --combo-button-width-button: 16;
+  --component-fill: rgba(0,0,0,0.1); /* @kind color */
+  --component-stroke: rgb(195,153,255); /* @kind color */
+  --controls-tint: rgb(255,0,170); /* @kind color */
+  --cursor-height: 14;
+  --dial-height-knob: 4;
+  --dial-inset-knob: 2;
+  --disclosure-font-size: 10;
+  --disclosure-height-symbol: 16;
+  --disclosure-radius: 4;
+  --fields-font-size-search-glyph: 11;
+  --fields-inset-left: 6;
+  --fields-inset-right: 6;
+  --fields-leading-search-glyph: 13;
+  --fills-opaque-primary: rgba(0,0,0,0.1); /* @kind color */
+  --fills-opaque-quaternary: rgba(0,0,0,0.03); /* @kind color */
+  --fills-opaque-quinary: rgba(0,0,0,0.02); /* @kind color */
+  --fills-opaque-secondary: rgba(0,0,0,0.08); /* @kind color */
+  --fills-opaque-tertiary: rgba(0,0,0,0.05); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-primary: rgb(217,217,217); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-quaternary: rgb(247,247,247); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-quinary: rgb(251,251,251); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-secondary: rgb(230,230,230); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-tertiary: rgb(242,242,242); /* @kind color */
+  --global-font-size: 10;
+  --global-height: 16;
+  --global-radius: 4;
+  --glyphs-primary-disabled: rgba(255,255,255,0.5); /* @kind color */
+  --glyphs-primary-idle: rgb(255,255,255); /* @kind color */
+  --grays-black: rgb(0,0,0); /* @kind color */
+  --grays-gray: rgb(142,142,147); /* @kind color */
+  --grays-white: rgb(255,255,255); /* @kind color */
+  --labels-primary: rgba(0,0,0,0.85); /* @kind color */
+  --labels-quaternary: rgba(0,0,0,0.1); /* @kind color */
+  --labels-quinary: rgba(0,0,0,0.05); /* @kind color */
+  --labels-secondary: rgba(0,0,0,0.5); /* @kind color */
+  --labels-seximal: rgba(0,0,0,0.03); /* @kind color */
+  --labels-tertiary: rgba(0,0,0,0.25); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-primary: rgb(26,26,26); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-quaternary: rgb(217,217,217); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-quinary: rgb(230,230,230); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-secondary: rgb(114,114,114); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-tertiary: rgb(191,191,191); /* @kind color */
+  --labels-white: rgb(255,255,255); /* @kind color */
+  --link: rgb(152,204,255); /* @kind color */
+  --liquid-glass-depth-medium-and-large: 30;
+  --liquid-glass-depth-regular: 30;
+  --liquid-glass-dispersion: 20;
+  --liquid-glass-frost-large: 16;
+  --liquid-glass-frost-medium: 16;
+  --liquid-glass-frost-regular: 6;
+  --liquid-glass-light-angle-2: 0;
+  --liquid-glass-light-angle: 0;
+  --liquid-glass-opacity: 25;
+  --liquid-glass-refraction: 70;
+  --liquid-glass-splay-medium-and-large: 20;
+  --liquid-glass-splay-regular: 20;
+  --material-thin: rgba(246,246,246,0.48); /* @kind color */
+  --material-ultra-thick: rgba(246,246,246,0.84); /* @kind color */
+  --menu-font-size-symbol: 11;
+  --menu-font-size: 10;
+  --menu-height: 19;
+  --menu-inset-bottom-header: 2;
+  --menu-inset-left-header: 14;
+  --menu-inset-top-header: 3;
+  --menu-width-symbol: 6;
+  --miscellaneous-alerts-overlay: rgba(171,171,171,0.6); /* @kind color */
+  --miscellaneous-arrow-button-background-disabled: rgb(255,0,0); /* @kind color */
+  --miscellaneous-arrow-button-background-enabled: rgb(255,0,0); /* @kind color */
+  --miscellaneous-progress-bars-track-stroke: rgba(0,0,0,0.07); /* @kind color */
+  --miscellaneous-scrollbar: rgba(0,0,0,0.5); /* @kind color */
+  --miscellaneous-sidebar-label-inactive: rgb(135,135,135); /* @kind color */
+  --miscellaneous-tables-alternating-row-color: rgba(0,0,0,0.05); /* @kind color */
+  --miscellaneous-tables-bg-selected-active: rgb(1,101,226); /* @kind color */
+  --miscellaneous-tables-bg-selected-inactive: rgba(0,0,0,0.14); /* @kind color */
+  --miscellaneous-tables-column-separator: rgba(0,0,0,0.1); /* @kind color */
+  --miscellaneous-tooltips-inner-stroke: rgba(255,255,255,0); /* @kind color */
+  --miscellaneous-tooltips-sidebar-bg-active: rgb(218,230,242); /* @kind color */
+  --miscellaneous-tooltips-sidebar-bg-inactive: rgb(237,244,250); /* @kind color */
+  --mode-2: "Content Area";
+  --mode-3: "Mini";
+  --mode: "Light";
+  --popup-font-size-chevron: 10;
+  --popup-inset-left: 7;
+  --radio-button-height-dash: 1.7;
+  --radio-button-spacing: 3;
+  --radio-button-width-dash: 5.5;
+  --radio-button-width-dot: 4;
+  --radio-button-width: 12;
+  --section-fill: rgba(0,0,0,0.1); /* @kind color */
+  --section-stroke: rgba(0,0,0,0.4); /* @kind color */
+  --segmented-control-height-separator: 10;
+  --segmented-control-margins: 6;
+  --slider-knob-non-ticked-slider-height-clicked: 15;
+  --slider-knob-non-ticked-slider-height: 12;
+  --slider-knob-non-ticked-slider-inset: 2;
+  --slider-knob-non-ticked-slider-width-clicked: 20;
+  --slider-knob-non-ticked-slider-width: 16;
+  --slider-knob-ticked-slider-height-clicked: 20;
+  --slider-knob-ticked-slider-height: 16;
+  --slider-knob-ticked-slider-width-clicked: 10;
+  --slider-knob-ticked-slider-width: 8;
+  --slider-track-inset-horizontal: 1;
+  --slider-track-inset-vertical: 1;
+  --slider-track-tick-spacing: 2;
+  --stepper-font-size: 8;
+  --stepper-radius: 4;
+  --stepper-width-separator: 9;
+  --stepper-width: 13;
+  --string: "String value";
+  --subcomponent-fill: rgba(0,0,0,0.1); /* @kind color */
+  --subcomponent-stroke: rgba(0,0,0,0.4); /* @kind color */
+  --toggle-switch-knob-clicked-height: 20;
+  --toggle-switch-knob-clicked-width: 33;
+  --toggle-switch-knob-height: 13;
+  --toggle-switch-knob-inset: 1.5;
+  --toggle-switch-knob-width: 21;
+  --toggle-switch-track-height: var(--global-height);
+  --toggle-switch-track-width: 36;
+  --window-background: rgb(255,255,255); /* @kind color */
+}
+
+:root[data-theme="dark"], .dark {
+  --accents-blue-2: rgb(0,145,255); /* @kind color */
+  --accents-blue-2: rgb(92,184,255); /* @kind color */
+  --accents-blue: rgb(0,145,255); /* @kind color */
+  --accents-brown: rgb(183,138,102); /* @kind color */
+  --accents-cyan: rgb(60,211,254); /* @kind color */
+  --accents-green: rgb(48,209,88); /* @kind color */
+  --accents-indigo: rgb(109,124,255); /* @kind color */
+  --accents-mint: rgb(0,218,195); /* @kind color */
+  --accents-orange: rgb(255,146,48); /* @kind color */
+  --accents-pink: rgb(255,55,95); /* @kind color */
+  --accents-purple: rgb(219,52,242); /* @kind color */
+  --accents-red: rgb(255,66,69); /* @kind color */
+  --accents-teal: rgb(0,210,224); /* @kind color */
+  --accents-vibrant-blue: rgb(10,153,255); /* @kind color */
+  --accents-vibrant-brown: rgb(194,150,114); /* @kind color */
+  --accents-vibrant-cyan: rgb(71,216,252); /* @kind color */
+  --accents-vibrant-green: rgb(59,219,99); /* @kind color */
+  --accents-vibrant-indigo: rgb(113,99,255); /* @kind color */
+  --accents-vibrant-mint: rgb(45,224,205); /* @kind color */
+  --accents-vibrant-orange: rgb(255,158,51); /* @kind color */
+  --accents-vibrant-pink: rgb(255,65,105); /* @kind color */
+  --accents-vibrant-purple: rgb(230,71,252); /* @kind color */
+  --accents-vibrant-red: rgb(255,71,71); /* @kind color */
+  --accents-vibrant-teal: rgb(45,215,224); /* @kind color */
+  --accents-vibrant-yellow: rgb(255,224,20); /* @kind color */
+  --accents-yellow: rgb(255,214,0); /* @kind color */
+  --checkbox-checkbox-disabled: rgb(255,153,0); /* @kind color */
+  --controls-tint: rgb(255,0,170); /* @kind color */
+  --fills-opaque-primary: rgba(255,255,255,0.1); /* @kind color */
+  --fills-opaque-quaternary: rgba(255,255,255,0.03); /* @kind color */
+  --fills-opaque-quinary: rgba(255,255,255,0.02); /* @kind color */
+  --fills-opaque-secondary: rgba(255,255,255,0.08); /* @kind color */
+  --fills-opaque-tertiary: rgba(255,255,255,0.05); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-primary: rgb(36,36,36); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-quaternary: rgb(9,9,9); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-quinary: rgb(7,7,7); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-secondary: rgb(20,20,20); /* @kind color */
+  --fills-vibrant-use-plus-lighter-darker-tertiary: rgb(13,13,13); /* @kind color */
+  --glyphs-primary-disabled: rgba(255,255,255,0.5); /* @kind color */
+  --glyphs-primary-idle: rgb(255,255,255); /* @kind color */
+  --grays-black: rgb(0,0,0); /* @kind color */
+  --grays-gray: rgb(152,152,159); /* @kind color */
+  --grays-white: rgb(255,255,255); /* @kind color */
+  --labels-primary: rgba(255,255,255,0.85); /* @kind color */
+  --labels-quaternary: rgba(255,255,255,0.1); /* @kind color */
+  --labels-quinary: rgba(255,255,255,0.05); /* @kind color */
+  --labels-secondary: rgba(255,255,255,0.55); /* @kind color */
+  --labels-seximal: rgba(255,255,255,0.03); /* @kind color */
+  --labels-tertiary: rgba(255,255,255,0.25); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-primary: rgb(245,245,245); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-quaternary: rgb(38,38,38); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-quinary: rgb(17,17,17); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-secondary: rgb(138,138,138); /* @kind color */
+  --labels-vibrant-use-plus-lighter-darker-tertiary: rgb(64,64,64); /* @kind color */
+  --labels-white: rgb(255,255,255); /* @kind color */
+  --material-thin: rgba(40,40,40,0.5); /* @kind color */
+  --material-ultra-thick: rgba(40,40,40,0.8); /* @kind color */
+  --miscellaneous-alerts-overlay: rgba(23,23,23,0.62); /* @kind color */
+  --miscellaneous-arrow-button-background-disabled: rgb(255,0,0); /* @kind color */
+  --miscellaneous-arrow-button-background-enabled: rgb(255,0,0); /* @kind color */
+  --miscellaneous-progress-bars-track-stroke: rgba(255,255,255,0.04); /* @kind color */
+  --miscellaneous-scrollbar: rgba(255,255,255,0.55); /* @kind color */
+  --miscellaneous-sidebar-label-inactive: rgb(102,102,102); /* @kind color */
+  --miscellaneous-tables-alternating-row-color: rgba(255,255,255,0.05); /* @kind color */
+  --miscellaneous-tables-bg-selected-active: rgb(1,88,210); /* @kind color */
+  --miscellaneous-tables-bg-selected-inactive: rgba(255,255,255,0.18); /* @kind color */
+  --miscellaneous-tables-column-separator: rgba(255,255,255,0.1); /* @kind color */
+  --miscellaneous-tooltips-inner-stroke: rgba(255,255,255,0.15); /* @kind color */
+  --miscellaneous-tooltips-sidebar-bg-active: rgb(20,21,23); /* @kind color */
+  --miscellaneous-tooltips-sidebar-bg-inactive: rgb(19,20,20); /* @kind color */
+  --mode: "Dark";
+  --string: "String value";
+  --window-background: rgb(30,30,30); /* @kind color */
+}
+
+:root[data-theme="light"], .light {
+  --accents-blue-2: rgb(30,110,244); /* @kind color */
+}
+
+:root[data-mode="small"] {
+  --arrow-button-font-size: 13;
+  --button-padding-horizontal: 10;
+  --button-radius: var(--global-radius);
+  --button-vertical-padding: 3;
+  --checkboxes-height-checkmark: 8.93;
+  --checkboxes-radius: 4.5;
+  --checkboxes-width-checkmark: 9.31;
+  --checkboxes-width: var(--radio-button-width);
+  --color-well-height: 20;
+  --color-well-width: 40;
+  --combo-button-font-size-chevron: 10;
+  --combo-button-inset: 2;
+  --combo-button-radius-button: 3.5;
+  --combo-button-text-inset-right: 24;
+  --combo-button-width-button: 20;
+  --cursor-height: 16;
+  --dial-height-knob: 5;
+  --dial-inset-knob: 2.5;
+  --disclosure-font-size: 10;
+  --disclosure-height-symbol: 21;
+  --disclosure-radius: 5;
+  --fields-font-size-search-glyph: 13;
+  --fields-inset-left: 6;
+  --fields-inset-right: 6;
+  --fields-leading-search-glyph: 15;
+  --global-font-size: 11;
+  --global-height: 20;
+  --global-radius: 5;
+  --menu-font-size-symbol: 11;
+  --menu-font-size: 11;
+  --menu-height: 22;
+  --menu-inset-bottom-header: 3;
+  --menu-inset-left-header: 18;
+  --menu-inset-top-header: 4;
+  --menu-width-symbol: 10;
+  --mode-3: "Small";
+  --popup-font-size-chevron: 11;
+  --popup-inset-left: 10;
+  --radio-button-height-dash: 2;
+  --radio-button-spacing: 3;
+  --radio-button-width-dash: 6.5;
+  --radio-button-width-dot: 4.8;
+  --radio-button-width: 14;
+  --segmented-control-height-separator: 12;
+  --segmented-control-margins: 8;
+  --slider-knob-non-ticked-slider-height-clicked: 18;
+  --slider-knob-non-ticked-slider-height: 14;
+  --slider-knob-non-ticked-slider-inset: 1;
+  --slider-knob-non-ticked-slider-width-clicked: 23;
+  --slider-knob-non-ticked-slider-width: 18;
+  --slider-knob-ticked-slider-height-clicked: 23;
+  --slider-knob-ticked-slider-height: 18;
+  --slider-knob-ticked-slider-width-clicked: 13;
+  --slider-knob-ticked-slider-width: 10;
+  --slider-track-inset-horizontal: 1;
+  --slider-track-inset-vertical: 1;
+  --slider-track-tick-spacing: 2;
+  --stepper-font-size: 9;
+  --stepper-radius: 5;
+  --stepper-width-separator: 11;
+  --stepper-width: 17;
+  --toggle-switch-knob-clicked-height: 26;
+  --toggle-switch-knob-clicked-width: 40;
+  --toggle-switch-knob-height: 16;
+  --toggle-switch-knob-inset: 2;
+  --toggle-switch-knob-width: 26;
+  --toggle-switch-track-height: var(--global-height);
+  --toggle-switch-track-width: 44;
+}
+
+:root[data-mode="medium"] {
+  --arrow-button-font-size: 13;
+  --button-padding-horizontal: 16;
+  --button-radius: var(--global-radius);
+  --button-vertical-padding: 4;
+  --checkboxes-height-checkmark: 8.93;
+  --checkboxes-radius: 5.5;
+  --checkboxes-width-checkmark: 9.31;
+  --checkboxes-width: var(--radio-button-width);
+  --color-well-height: 24;
+  --color-well-width: 48;
+  --combo-button-font-size-chevron: 11;
+  --combo-button-inset: 2;
+  --combo-button-radius-button: 4.5;
+  --combo-button-text-inset-right: 28;
+  --combo-button-width-button: 24;
+  --cursor-height: 18;
+  --dial-height-knob: 6;
+  --dial-inset-knob: 3;
+  --disclosure-font-size: 13;
+  --disclosure-height-symbol: 25;
+  --disclosure-radius: 6;
+  --fields-font-size-search-glyph: 13;
+  --fields-inset-left: 8;
+  --fields-inset-right: 8;
+  --fields-leading-search-glyph: 15;
+  --global-font-size: 13;
+  --global-height: 24;
+  --global-radius: 6;
+  --menu-font-size-symbol: 13;
+  --menu-font-size: 13;
+  --menu-height: 24;
+  --menu-inset-bottom-header: 4;
+  --menu-inset-left-header: 20;
+  --menu-inset-top-header: 5;
+  --menu-width-symbol: 12;
+  --mode-3: "Medium";
+  --popup-font-size-chevron: 11;
+  --popup-inset-left: 12;
+  --radio-button-height-dash: 2;
+  --radio-button-spacing: 3;
+  --radio-button-width-dash: 6.5;
+  --radio-button-width-dot: 4.8;
+  --radio-button-width: 16;
+  --segmented-control-height-separator: 14;
+  --segmented-control-margins: 10;
+  --slider-knob-non-ticked-slider-height-clicked: 20;
+  --slider-knob-non-ticked-slider-height: 16;
+  --slider-knob-non-ticked-slider-inset: 0;
+  --slider-knob-non-ticked-slider-width-clicked: 25;
+  --slider-knob-non-ticked-slider-width: 20;
+  --slider-knob-ticked-slider-height-clicked: 20;
+  --slider-knob-ticked-slider-height: 16;
+  --slider-knob-ticked-slider-width-clicked: 25;
+  --slider-knob-ticked-slider-width: 20;
+  --slider-track-inset-horizontal: 1;
+  --slider-track-inset-vertical: 1;
+  --slider-track-tick-spacing: 2;
+  --stepper-font-size: 12;
+  --stepper-radius: 6;
+  --stepper-width-separator: 14;
+  --stepper-width: 20;
+  --toggle-switch-knob-clicked-height: 31;
+  --toggle-switch-knob-clicked-width: 50;
+  --toggle-switch-knob-height: 20;
+  --toggle-switch-knob-inset: 2;
+  --toggle-switch-knob-width: 32;
+  --toggle-switch-track-height: var(--global-height);
+  --toggle-switch-track-width: 54;
+}
+
+:root[data-mode="large"] {
+  --arrow-button-font-size: 13;
+  --button-padding-horizontal: 16;
+  --button-radius: 1000;
+  --button-vertical-padding: 6;
+  --checkboxes-height-checkmark: 11.3;
+  --checkboxes-radius: 6.5;
+  --checkboxes-width-checkmark: 11.72;
+  --checkboxes-width: var(--radio-button-width);
+  --color-well-height: 28;
+  --color-well-width: 56;
+  --combo-button-font-size-chevron: 12.5;
+  --combo-button-inset: 2;
+  --combo-button-radius-button: 5.5;
+  --combo-button-text-inset-right: 28;
+  --combo-button-width-button: 24;
+  --cursor-height: 18;
+  --dial-height-knob: 6;
+  --dial-inset-knob: 3;
+  --disclosure-font-size: 13;
+  --disclosure-height-symbol: 29;
+  --disclosure-radius: 1000;
+  --fields-font-size-search-glyph: 13;
+  --fields-inset-left: 8;
+  --fields-inset-right: 8;
+  --fields-leading-search-glyph: 15;
+  --global-font-size: 13;
+  --global-height: 28;
+  --global-radius: 7;
+  --menu-font-size-symbol: 13;
+  --menu-font-size: 13;
+  --menu-height: 24;
+  --menu-inset-bottom-header: 4;
+  --menu-inset-left-header: 20;
+  --menu-inset-top-header: 5;
+  --menu-width-symbol: 12;
+  --mode-3: "Large";
+  --popup-font-size-chevron: 13;
+  --popup-inset-left: 14;
+  --radio-button-height-dash: 2;
+  --radio-button-spacing: 5;
+  --radio-button-width-dash: 8;
+  --radio-button-width-dot: 5;
+  --radio-button-width: 18;
+  --segmented-control-height-separator: 18;
+  --segmented-control-margins: 12;
+  --slider-knob-non-ticked-slider-height-clicked: 25;
+  --slider-knob-non-ticked-slider-height: 20;
+  --slider-knob-non-ticked-slider-inset: -2;
+  --slider-knob-non-ticked-slider-width-clicked: 30;
+  --slider-knob-non-ticked-slider-width: 24;
+  --slider-knob-ticked-slider-height-clicked: 25;
+  --slider-knob-ticked-slider-height: 20;
+  --slider-knob-ticked-slider-width-clicked: 30;
+  --slider-knob-ticked-slider-width: 24;
+  --slider-track-inset-horizontal: 0;
+  --slider-track-inset-vertical: 0;
+  --slider-track-tick-spacing: 3;
+  --stepper-font-size: 12;
+  --stepper-radius: 7;
+  --stepper-width-separator: 15;
+  --stepper-width: 23;
+  --toggle-switch-knob-clicked-height: 37;
+  --toggle-switch-knob-clicked-width: 59;
+  --toggle-switch-knob-height: 24;
+  --toggle-switch-knob-inset: 2;
+  --toggle-switch-knob-width: 38;
+  --toggle-switch-track-height: var(--global-height);
+  --toggle-switch-track-width: 64;
+}
+
+:root[data-mode="xl"] {
+  --arrow-button-font-size: 13;
+  --button-padding-horizontal: 16;
+  --button-radius: 1000;
+  --button-vertical-padding: 10;
+  --checkboxes-height-checkmark: 11.3;
+  --checkboxes-radius: 6.5;
+  --checkboxes-width-checkmark: 11.72;
+  --checkboxes-width: var(--radio-button-width);
+  --color-well-height: 36;
+  --color-well-width: 72;
+  --combo-button-font-size-chevron: 13;
+  --combo-button-inset: 3;
+  --combo-button-radius-button: 6.5;
+  --combo-button-text-inset-right: 34;
+  --combo-button-width-button: 30;
+  --cursor-height: 18;
+  --dial-height-knob: 7;
+  --dial-inset-knob: 3;
+  --disclosure-font-size: 13;
+  --disclosure-height-symbol: 38;
+  --disclosure-radius: 1000;
+  --fields-font-size-search-glyph: 13;
+  --fields-inset-left: 10;
+  --fields-inset-right: 10;
+  --fields-leading-search-glyph: 15;
+  --global-font-size: 13;
+  --global-height: 36;
+  --global-radius: 9;
+  --menu-font-size-symbol: 13;
+  --menu-font-size: 13;
+  --menu-height: 24;
+  --menu-inset-bottom-header: 4;
+  --menu-inset-left-header: 20;
+  --menu-inset-top-header: 5;
+  --menu-width-symbol: 12;
+  --mode-3: "XL";
+  --popup-font-size-chevron: 13;
+  --popup-inset-left: 18;
+  --radio-button-height-dash: 2;
+  --radio-button-spacing: 7;
+  --radio-button-width-dash: 8;
+  --radio-button-width-dot: 5;
+  --radio-button-width: 18;
+  --segmented-control-height-separator: 20;
+  --segmented-control-margins: 14;
+  --slider-knob-non-ticked-slider-height-clicked: 25;
+  --slider-knob-non-ticked-slider-height: 20;
+  --slider-knob-non-ticked-slider-inset: -2;
+  --slider-knob-non-ticked-slider-width-clicked: 30;
+  --slider-knob-non-ticked-slider-width: 24;
+  --slider-knob-ticked-slider-height-clicked: 25;
+  --slider-knob-ticked-slider-height: 20;
+  --slider-knob-ticked-slider-width-clicked: 30;
+  --slider-knob-ticked-slider-width: 24;
+  --slider-track-inset-horizontal: 0;
+  --slider-track-inset-vertical: 0;
+  --slider-track-tick-spacing: 3;
+  --stepper-font-size: 12;
+  --stepper-radius: 9;
+  --stepper-width-separator: 20;
+  --stepper-width: 30;
+  --toggle-switch-knob-clicked-height: 46;
+  --toggle-switch-knob-clicked-width: 73;
+  --toggle-switch-knob-height: 30;
+  --toggle-switch-knob-inset: 3;
+  --toggle-switch-knob-width: 47;
+  --toggle-switch-track-height: var(--global-height);
+  --toggle-switch-track-width: 80;
+}
+
+:root[data-mode="over-glass"] {
+  --mode-2: "Over-glass";
+}

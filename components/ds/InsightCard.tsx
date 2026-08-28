@@ -69,7 +69,7 @@ export function InsightCard({
     padding: 4,
     cursor: "pointer",
     display: "inline-flex",
-    borderRadius: "var(--radius)",
+    borderRadius: 5,
   };
   return (
     <div
@@ -95,7 +95,7 @@ export function InsightCard({
                 font: "400 10px/14px var(--font-sans)",
                 background: "var(--color-primary)",
                 color: "var(--color-primary-foreground)",
-                borderRadius: "var(--radius)",
+                borderRadius: 5,
               }}
             >
               NOVO

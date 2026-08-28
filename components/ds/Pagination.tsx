@@ -36,7 +36,7 @@ export function Pagination({ page, pageCount, onChange, style, className = "" }:
     alignItems: "center",
     justifyContent: "center",
     border: "1px solid var(--color-border)",
-    borderRadius: "var(--radius)",
+    borderRadius: 5,
     background: "var(--color-background)",
     color: "var(--color-foreground)",
     font: "400 14px/20px var(--font-sans)",

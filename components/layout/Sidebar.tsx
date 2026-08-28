@@ -1,23 +1,80 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Icon, SearchInput } from "@/components/ds";
+import {
+  Home,
+  MessageCircle,
+  Target,
+  FileText,
+  TrendingUp,
+  ClipboardList,
+  BookOpen,
+  Sparkles,
+  Settings,
+  ChevronLeft,
+  Plus,
+  type LucideIcon,
+} from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
-import { createClient } from "@/lib/supabase/client";
 
-const ITEMS = [
-  { icon: "apps", label: "Dashboard", path: "/" },
-  { icon: "chat", label: "Conversas", path: "/conversas" },
-  { icon: "lightbulb", label: "Oportunidades", path: "/oportunidades" },
-  { icon: "sparkles", label: "IA Insights", path: "/insights" },
-  { icon: "document-other", label: "Conteúdos", path: "/conteudos" },
-  { icon: "star", label: "Assuntos de Interesse", path: "/assuntos-interesse" },
-  { icon: "layout-dashboard", label: "Projetos", path: "/projetos" },
-  { icon: "brain", label: "Clone", path: "/clone" },
-  { icon: "settings", label: "Configurações", path: "/configuracoes" },
+type NavDef = { icon: LucideIcon; label: string; path: string };
+
+const GROUPS: { label: string; items: NavDef[] }[] = [
+  {
+    label: "Principal",
+    items: [
+      { icon: Home, label: "Dashboard", path: "/" },
+      { icon: MessageCircle, label: "Conversas", path: "/conversas" },
+      { icon: Target, label: "Oportunidades", path: "/oportunidades" },
+      { icon: FileText, label: "Conteúdos", path: "/conteudos" },
+    ],
+  },
+  {
+    label: "Inteligência",
+    items: [
+      { icon: TrendingUp, label: "IA Insights", path: "/insights" },
+      { icon: ClipboardList, label: "Projetos", path: "/projetos" },
+      { icon: BookOpen, label: "Assuntos de Interesse", path: "/assuntos-interesse" },
+      { icon: Sparkles, label: "Clone", path: "/clone" },
+    ],
+  },
 ];
+
+const NavLink = ({ def, active, collapsed }: { def: NavDef; active: boolean; collapsed: boolean }) => {
+  const IconCmp = def.icon;
+  return (
+    <Link
+      href={def.path}
+      title={def.label}
+      className={"nav-item" + (active ? " nav-item--active" : "")}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        width: "100%",
+        boxShadow: active ? "0 1px 3px rgba(0,6,20,0.25)" : "none",
+        justifyContent: collapsed ? "center" : undefined,
+      }}
+    >
+      <span
+        style={{
+          width: 20,
+          height: 20,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          color: active ? "var(--sb-active-fg)" : "var(--sb-icon)",
+        }}
+      >
+        <IconCmp size={18} strokeWidth={1.75} />
+      </span>
+      {collapsed ? null : (
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{def.label}</span>
+      )}
+    </Link>
+  );
+};
 
 const Sidebar = () => {
   const router = useRouter();
@@ -29,32 +86,8 @@ const Sidebar = () => {
   const selectChat = useAppStore((s) => s.selectChat);
   const newChat = useAppStore((s) => s.newChat);
 
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? "");
-    });
-  }, []);
-
-  const handleSignOut = async () => {
-    await fetch("/auth/signout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(false);
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [open]);
-
   const isActive = (path: string) => (path === "/" ? pathname === "/" : pathname.startsWith(path));
-  const inClone = pathname.startsWith("/clone");
+  const cloneNav = pathname.startsWith("/clone") && !collapsed;
 
   const handleNewChat = () => {
     newChat();
@@ -70,173 +103,173 @@ const Sidebar = () => {
       style={{
         width: collapsed ? 64 : 240,
         flexShrink: 0,
-        background: "var(--backgroundContainer)",
-        margin: "10px",
-        borderRadius: 8,
         display: "flex",
         flexDirection: "column",
-        transition: "width 100ms ease-in-out",
-        overflow: "visible",
-        position: "relative",
+        background: "var(--sb-bg)",
+        backdropFilter: "blur(28px) saturate(1.6)",
+        borderRight: "1px solid var(--sb-border)",
+        transition: "width 300ms ease-in-out",
+        overflow: "hidden",
       }}
     >
       <div
         style={{
-          padding: collapsed ? "12px 0" : "12px 16px",
+          height: 52,
           display: "flex",
           alignItems: "center",
-          justifyContent: collapsed ? "center" : "space-between",
-          gap: 8,
+          flexShrink: 0,
+          borderBottom: "1px solid var(--sb-border)",
+          padding: collapsed ? "0 12px" : "0 16px",
+          boxSizing: "border-box",
+          gap: 14,
         }}
       >
         {collapsed ? null : (
-          <Link href="/" className="brandmark" title="Andreza AI">
-            <Icon name="brain" size={20} color="var(--brand)" />
-            <span style={{ font: "400 15px/20px var(--fontFamily)" }}>Andreza AI</span>
-          </Link>
+          <>
+            <Link
+              href="/"
+              title="Plaud Gold Miner"
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+                color: "var(--sb-title)",
+                flexShrink: 0,
+                textDecoration: "none",
+              }}
+            >
+              PGM
+            </Link>
+            <span style={{ height: 34, width: 1, background: "var(--sb-border)", flexShrink: 0 }} />
+            <span style={{ color: "var(--sb-fg-dim)", fontSize: 12, lineHeight: 1.35, flex: 1, minWidth: 0 }}>
+              Plaud Gold Miner
+            </span>
+          </>
         )}
-        <button type="button" className="collapse-btn" title={collapsed ? "Expandir menu" : "Recolher menu"} onClick={toggle}>
-          <Icon name={collapsed ? "chevron-right" : "chevron-left"} size={12} />
+        <button
+          type="button"
+          className="collapse-btn"
+          title={collapsed ? "Expandir menu" : "Recolher menu"}
+          onClick={toggle}
+          style={{ marginLeft: "auto", marginRight: collapsed ? "auto" : 0 }}
+        >
+          {collapsed ? "›" : "‹"}
         </button>
       </div>
 
-      {collapsed ? null : (
-        <div style={{ padding: "0 16px 12px" }}>
-          <SearchInput value={q} onChange={setQ} placeholder="Buscar... (⌘K)" />
-        </div>
-      )}
-
-      <nav style={{ flex: 1, padding: collapsed ? "4px 12px" : "0 16px", overflowY: "auto" }}>
-        {inClone && !collapsed ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <Link href="/" className="nav-item">
-              <Icon name="chevron-left" size={16} color="var(--textSecondary)" />
-              <span>Menu</span>
-            </Link>
-            <button
-              type="button"
-              className="nav-item"
-              style={{ border: "none", background: "transparent", width: "100%", cursor: "pointer", font: "inherit", textAlign: "left" }}
-              onClick={handleNewChat}
-            >
-              <Icon name="add-more" size={18} color="var(--brand)" />
-              <span style={{ color: "var(--textPrimary)" }}>Novo chat</span>
-            </button>
-            <div
-              style={{
-                font: "500 11px/16px var(--fontFamily)",
-                color: "var(--textSecondary)",
-                textTransform: "uppercase",
-                letterSpacing: ".04em",
-                padding: "10px 12px 4px",
-              }}
-            >
-              Histórico
-            </div>
-            {chats.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={"nav-item" + (c.id === activeChatId ? " nav-item--active" : "")}
-                style={{
-                  border: "none",
-                  background: c.id === activeChatId ? undefined : "transparent",
-                  width: "100%",
-                  cursor: "pointer",
-                  font: "inherit",
-                  textAlign: "left",
-                }}
-                onClick={() => handleSelectChat(c.id)}
-                title={c.title}
-              >
-                <Icon name="chat" size={16} color={c.id === activeChatId ? "var(--brand)" : "var(--textSecondary)"} />
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{c.title}</span>
-              </button>
-            ))}
+      {cloneNav ? (
+        <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", padding: 8 }}>
+          <Link href="/" className="nav-item" style={{ display: "flex", alignItems: "center", width: "100%" }}>
+            <ChevronLeft size={16} strokeWidth={1.75} />
+            <span>Menu</span>
+          </Link>
+          <button
+            type="button"
+            className="nav-item"
+            style={{
+              border: "none",
+              background: "transparent",
+              width: "100%",
+              cursor: "pointer",
+              font: "inherit",
+              textAlign: "left",
+              display: "flex",
+              alignItems: "center",
+            }}
+            onClick={handleNewChat}
+          >
+            <span style={{ color: "var(--sb-icon)", display: "inline-flex" }}>
+              <Plus size={18} strokeWidth={1.75} />
+            </span>
+            <span style={{ fontWeight: 500 }}>Novo chat</span>
+          </button>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--sb-fg-dim)",
+              padding: "12px 12px 4px",
+            }}
+          >
+            Histórico
           </div>
-        ) : (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-            {ITEMS.map((it) => {
-              const active = isActive(it.path);
-              return (
-                <li key={it.path}>
-                  <Link
-                    href={it.path}
-                    title={it.label}
-                    className={"nav-item" + (active ? " nav-item--active" : "")}
-                    style={collapsed ? { justifyContent: "center", padding: 8 } : undefined}
-                  >
-                    <Icon name={it.icon} size={20} color={active ? "var(--brand)" : "var(--textSecondary)"} />
-                    {collapsed ? null : <span>{it.label}</span>}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </nav>
+          {chats.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={"nav-item" + (c.id === activeChatId ? " nav-item--active" : "")}
+              style={{
+                border: "none",
+                background: c.id === activeChatId ? undefined : "transparent",
+                width: "100%",
+                cursor: "pointer",
+                font: "inherit",
+                textAlign: "left",
+                display: "flex",
+                alignItems: "center",
+              }}
+              onClick={() => handleSelectChat(c.id)}
+              title={c.title}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                {c.title}
+              </span>
+            </button>
+          ))}
+        </nav>
+      ) : (
+        <nav
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            overflowY: "auto",
+            padding: collapsed ? "10px 8px 8px" : "10px 14px 8px",
+          }}
+        >
+          {GROUPS.map((g, gi) => (
+            <div key={g.label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {collapsed ? (
+                gi > 0 ? (
+                  <div style={{ height: 1, background: "var(--sb-border)", margin: "8px 4px" }} />
+                ) : null
+              ) : (
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "var(--sb-fg-dim)",
+                    padding: `${gi === 0 ? 2 : 14}px 10px 4px`,
+                  }}
+                >
+                  {g.label}
+                </div>
+              )}
+              {g.items.map((def) => (
+                <NavLink key={def.path} def={def} active={isActive(def.path)} collapsed={collapsed} />
+              ))}
+            </div>
+          ))}
+        </nav>
+      )}
 
       <div
         style={{
-          padding: collapsed ? "12px 0" : "12px 16px",
-          borderTop: "1px solid var(--divider)",
           display: "flex",
-          justifyContent: collapsed ? "center" : "flex-start",
-          position: "relative",
+          flexDirection: "column",
+          padding: collapsed ? "12px 8px" : "12px 10px",
+          gap: 4,
+          borderTop: "1px solid var(--sb-border)",
         }}
       >
-        <button
-          type="button"
-          className="avatar-btn"
-          style={{ margin: 0, width: collapsed ? "auto" : "100%", justifyContent: "flex-start" }}
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpen(!open);
-          }}
-        >
-          <span className="avatar">A</span>
-          {collapsed ? null : (
-            <span style={{ textAlign: "left", minWidth: 0 }}>
-              <span style={{ display: "block", font: "500 14px/20px var(--fontFamily)", color: "var(--textPrimary)" }}>Andreza</span>
-              <span
-                style={{
-                  display: "block",
-                  font: "400 12px/16px var(--fontFamily)",
-                  color: "var(--textSecondary)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {userEmail || "—"}
-              </span>
-            </span>
-          )}
-        </button>
-        {open ? (
-          <div className="menu" style={{ top: "auto", bottom: 64, left: collapsed ? 56 : 16, right: "auto" }} onClick={(e) => e.stopPropagation()}>
-            <Link href="/perfil" onClick={() => setOpen(false)}>
-              <Icon name="user-account" size={20} />
-              Perfil
-            </Link>
-            <Link href="/configuracoes" onClick={() => setOpen(false)}>
-              <Icon name="settings" size={20} />
-              Configurações
-            </Link>
-            <div className="mdiv"></div>
-            <a
-              href="#sair"
-              onClick={(e) => {
-                e.preventDefault();
-                setOpen(false);
-                void handleSignOut();
-              }}
-            >
-              <Icon name="logout" size={20} />
-              Sair
-            </a>
-          </div>
-        ) : null}
+        <NavLink
+          def={{ icon: Settings, label: "Configurações", path: "/configuracoes" }}
+          active={isActive("/configuracoes")}
+          collapsed={collapsed}
+        />
       </div>
     </aside>
   );

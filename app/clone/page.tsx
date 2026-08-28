@@ -38,7 +38,7 @@ const iconBtn: React.CSSProperties = {
   cursor: "pointer",
   color: "var(--textSecondary)",
   display: "inline-flex",
-  borderRadius: 4,
+  borderRadius: 5,
 };
 
 const suggestions = ["O que aprendi essa semana?", "Quais oportunidades priorizar?", "Ideias de conteúdo sobre delegação"];

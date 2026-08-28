@@ -245,7 +245,7 @@ const ConfiguracoesPage = () => {
                     alignItems: "center",
                     gap: 12,
                     padding: "10px 12px",
-                    borderRadius: 8,
+                    borderRadius: 5,
                     border: "none",
                     cursor: "pointer",
                     background: aux === k ? "var(--backgroundContainerHover)" : "transparent",
@@ -292,7 +292,7 @@ const ConfiguracoesPage = () => {
                 style={{
                   width: 56,
                   height: 36,
-                  borderRadius: 8,
+                  borderRadius: 5,
                   background: b.hex,
                   cursor: "pointer",
                   border: "none",

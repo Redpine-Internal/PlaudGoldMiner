@@ -1,11 +1,14 @@
 "use client";
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useMemo, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { UploadModal } from "@/components/upload";
 import { DriveImportModal } from "@/components/drive";
 import { SyncPlaudButton } from "@/components/SyncPlaudButton";
-import { Button, SearchInput, FilterChip, ConversationCard, EmptyState, ConversationCardSkeleton, Icon, Pagination } from "@/components/ds";
+import { Button, SearchInput, FilterChip, EmptyState, Icon, Pagination, Skeleton, TypeBadge, StatusBadge } from "@/components/ds";
+import { GlassList, GlassListRow, GlassListSection } from "@/components/lg/GlassList";
+import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const PAGE_SIZE = 20;
 
@@ -79,6 +82,11 @@ const CONTENT: [keyof ContentFlags, string][] = [
   ["hasInsights", "Insights"],
 ];
 
+// Busca insensível a acentos: "seguranca" deve casar com "Segurança".
+function fold(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function getDateRange(period: string) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -100,14 +108,50 @@ function getDateRange(period: string) {
   }
 }
 
-const ConversasPage = () => {
+const parseDate = (s: string) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T12:00:00" : s);
+const fmtDate = (s: string) => parseDate(s).toLocaleDateString("pt-BR");
+
+// Agrupamento por data, fiel ao protótipo: Hoje / Esta Semana / Este Mês / Anteriores.
+const GROUP_LABELS = ["Hoje", "Esta Semana", "Este Mês", "Anteriores"] as const;
+function groupIndex(dateStr: string, now: Date): number {
+  const diff = (now.getTime() - parseDate(dateStr).getTime()) / 86400000;
+  return diff < 1 ? 0 : diff <= 7 ? 1 : diff <= 31 ? 2 : 3;
+}
+
+// Filtros de UI persistidos (a busca `q` segue a URL, não o storage).
+type ConvFilters = {
+  types: string[];
+  period: string;
+  content: (keyof ContentFlags)[];
+};
+const INITIAL_FILTERS: ConvFilters = { types: [], period: "all", content: [] };
+
+const filterLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: "var(--color-muted-foreground)",
+  marginBottom: 8,
+};
+
+const ConversasView = () => {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const searchParams = useSearchParams();
+  const urlQ = searchParams.get("q") ?? "";
+
   const [uploadOpen, setUploadOpen] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [types, setTypes] = useState<string[]>([]);
-  const [period, setPeriod] = useState("all");
-  const [content, setContent] = useState<(keyof ContentFlags)[]>([]);
+  // Busca global: a toolbar navega para /conversas?q=... — o ?q= é o valor
+  // inicial E reativo do filtro de busca; edição local não altera a URL.
+  const [q, setQ] = useState(urlQ);
+  useEffect(() => {
+    setQ(urlQ);
+  }, [urlQ]);
+
+  const [f, setF] = usePersistedFilters<ConvFilters>("conversas", INITIAL_FILTERS);
+  const { types, period, content } = f;
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   // Content flags per card id, filled in progressively as each row fetches its status.
@@ -132,12 +176,12 @@ const ConversasPage = () => {
     const { from, to } = getDateRange(period);
     return conversations.filter((c) => {
       if (q) {
-        const s = q.toLowerCase();
-        if (!c.title.toLowerCase().includes(s) && !(c.summary || "").toLowerCase().includes(s)) return false;
+        const s = fold(q);
+        if (!fold(c.title).includes(s) && !fold(c.summary || "").includes(s)) return false;
       }
       if (types.length && !types.includes(c.type)) return false;
       if (from || to) {
-        const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(c.date) ? c.date + "T12:00:00" : c.date);
+        const d = parseDate(c.date);
         if (from && d < from) return false;
         if (to && d > to) return false;
       }
@@ -159,6 +203,14 @@ const ConversasPage = () => {
 
   const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
+
+  // Grupos de data da página atual (grupos vazios somem).
+  const groups = useMemo(() => {
+    const now = new Date();
+    const buckets: ApiConversation[][] = [[], [], [], []];
+    paged.forEach((c) => buckets[groupIndex(c.date, now)].push(c));
+    return GROUP_LABELS.map((label, i) => ({ label, rows: buckets[i] })).filter((g) => g.rows.length > 0);
+  }, [paged]);
 
   useEffect(() => {
     setPage(1);
@@ -206,24 +258,27 @@ const ConversasPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentActive, baseList]);
 
-  const toggleType = (t: string) => setTypes((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
-  const toggleContent = (k: keyof ContentFlags) => setContent((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
-  const hasFilters = q || types.length || period !== "all" || content.length;
+  const toggleType = (t: string) => setF({ types: types.includes(t) ? types.filter((x) => x !== t) : [...types, t] });
+  const toggleContent = (k: keyof ContentFlags) =>
+    setF({ content: content.includes(k) ? content.filter((x) => x !== k) : [...content, k] });
+  const hasFilters = Boolean(q || types.length || period !== "all" || content.length);
+  const clearFilters = () => {
+    setQ("");
+    setF(INITIAL_FILTERS);
+  };
 
   return (
-    <div>
-      <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", rowGap: 8 }}>
-        <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: 0 }}>Conversas</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
-          <SyncPlaudButton onDone={() => mutate()} />
-          <Button variant="outline" icon="hard-drive" onClick={() => setDriveOpen(true)}>
-            Importar do Drive
-          </Button>
-          <Button icon="plus" onClick={() => setUploadOpen(true)}>
-            Nova Conversa
-          </Button>
-        </div>
+    <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+      {/* Ações — o título "Conversas" já vive na toolbar do shell */}
+      <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, flexWrap: "wrap", rowGap: 8 }}>
+        <Button variant="secondary" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+        <SyncPlaudButton onDone={() => mutate()} />
+        <Button variant="secondary" icon="hard-drive" onClick={() => setDriveOpen(true)}>
+          Importar do Drive
+        </Button>
+        <Button icon="plus" onClick={() => setUploadOpen(true)}>
+          Nova Conversa
+        </Button>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
@@ -234,19 +289,15 @@ const ConversasPage = () => {
           </FilterChip>
           {hasFilters ? (
             <button
+              type="button"
+              onClick={clearFilters}
               className="ds-btn ds-btn--link"
               style={{ color: "var(--color-muted-foreground)" }}
-              onClick={() => {
-                setQ("");
-                setTypes([]);
-                setPeriod("all");
-                setContent([]);
-              }}
             >
               Limpar filtros
             </button>
           ) : null}
-          <span style={{ marginLeft: "auto", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+          <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)" }}>
             {list.length} conversa{list.length !== 1 ? "s" : ""}
             {pendingCount ? ` · verificando ${pendingCount}…` : ""}
           </span>
@@ -256,17 +307,15 @@ const ConversasPage = () => {
             style={{
               padding: 16,
               border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-lg)",
-              background: "var(--color-sidebar)",
+              borderRadius: 12,
+              background: "var(--color-card)",
               display: "flex",
               flexDirection: "column",
               gap: 16,
             }}
           >
             <div>
-              <label className="ds-label" style={{ marginBottom: 8 }}>
-                Tipo de Conversa
-              </label>
+              <div style={filterLabelStyle}>Tipo de Conversa</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {TYPES.map(([v, l]) => (
                   <FilterChip key={v} active={types.includes(v)} onClick={() => toggleType(v)}>
@@ -276,21 +325,17 @@ const ConversasPage = () => {
               </div>
             </div>
             <div>
-              <label className="ds-label" style={{ marginBottom: 8 }}>
-                Período
-              </label>
+              <div style={filterLabelStyle}>Período</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {PERIODS.map(([v, l]) => (
-                  <FilterChip key={v} active={period === v} onClick={() => setPeriod(v)}>
+                  <FilterChip key={v} active={period === v} onClick={() => setF({ period: v })}>
                     {l}
                   </FilterChip>
                 ))}
               </div>
             </div>
             <div>
-              <label className="ds-label" style={{ marginBottom: 8 }}>
-                Conteúdo
-              </label>
+              <div style={filterLabelStyle}>Conteúdo</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {CONTENT.map(([k, l]) => (
                   <FilterChip key={k} active={content.includes(k)} onClick={() => toggleContent(k)}>
@@ -309,33 +354,51 @@ const ConversasPage = () => {
         </div>
       ) : null}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => <ConversationCardSkeleton key={i} />)
-        ) : list.length ? (
-          <>
-            {paged.map((c) => (
-              <ConversationRow
-                key={c.id}
-                conversation={c}
-                status={statusById[c.id]}
-                onSelect={() => router.push(`/conversas/${c.id}`)}
-              />
+      {isLoading ? (
+        <GlassList>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <GlassListRow key={i}>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                <Skeleton style={{ height: 14, width: "45%", borderRadius: 6 }} />
+                <Skeleton style={{ height: 12, width: "70%", borderRadius: 6 }} />
+              </div>
+              <Skeleton style={{ height: 12, width: 64, borderRadius: 6, flexShrink: 0 }} />
+            </GlassListRow>
+          ))}
+        </GlassList>
+      ) : list.length ? (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {groups.map((g) => (
+              <div key={g.label} style={{ minWidth: 0 }}>
+                <GlassListSection>{g.label}</GlassListSection>
+                <GlassList>
+                  {g.rows.map((c) => (
+                    <ConversationRow
+                      key={c.id}
+                      conversation={c}
+                      status={statusById[c.id]}
+                      isMobile={isMobile}
+                      onSelect={() => router.push(`/conversas/${c.id}`)}
+                    />
+                  ))}
+                </GlassList>
+              </div>
             ))}
-            <Pagination page={page} pageCount={pageCount} onChange={setPage} />
-          </>
-        ) : (
-          <EmptyState
-            icon="message-square"
-            title="Nenhuma conversa encontrada"
-            message={
-              conversations.length
-                ? "Nenhuma conversa corresponde aos filtros selecionados. Tente ajustar os filtros."
-                : "Parece que você ainda não tem nenhuma conversa processada. Faça upload de uma transcrição ou importe do Google Drive para começar."
-            }
-          />
-        )}
-      </div>
+          </div>
+          <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+        </>
+      ) : (
+        <EmptyState
+          icon="message-square"
+          title="Nenhuma conversa encontrada"
+          message={
+            conversations.length
+              ? "Nenhuma conversa corresponde aos filtros selecionados. Tente ajustar os filtros."
+              : "Parece que você ainda não tem nenhuma conversa processada. Faça upload de uma transcrição ou importe do Google Drive para começar."
+          }
+        />
+      )}
 
       <UploadModal isOpen={uploadOpen} onClose={() => setUploadOpen(false)} onSuccess={() => mutate()} />
       <DriveImportModal isOpen={driveOpen} onClose={() => setDriveOpen(false)} onSuccess={() => mutate()} />
@@ -344,45 +407,87 @@ const ConversasPage = () => {
 };
 
 /**
- * A single conversation row. Purely presentational: it receives its already-
- * fetched content-status from the page (fetched centrally, rate-limited, only
- * while a content filter is active) and renders the resumo/transcrição/insights
- * indicator badges. When no status is present (no filter active) it shows no
- * badges, keeping the default list clean and fast.
+ * Linha da lista de conversas dentro do vidro único (GlassListRow).
+ * Título 13px 600 + badges de tipo/status; resumo em 1 linha; data/duração na
+ * coluna direita no desktop e inline no mobile (sem colunas extras). Os badges
+ * de conteúdo (resumo/transcrição/insights) aparecem só com filtro de conteúdo
+ * ativo, alimentados pelo fetch central rate-limited da página.
  */
 function ConversationRow({
   conversation: c,
   status,
+  isMobile,
   onSelect,
 }: {
   conversation: ApiConversation;
   status: CardStatus | undefined;
+  isMobile: boolean;
   onSelect: () => void;
 }) {
   const flags = status && status !== "loading" ? status : null;
-  const badges = status ? (
-    <>
-      <IndicatorBadge icon="file-text" label="Resumo" on={flags?.hasSummary} loading={!flags} />
-      <IndicatorBadge icon="documents" label="Transcrição" on={flags?.hasTranscription} loading={!flags} />
-      <IndicatorBadge icon="lightbulb" label="Insights" on={flags?.hasInsights} loading={!flags} />
-    </>
-  ) : null;
+  const dateFmt = fmtDate(c.date);
+  const displayStatus = c.status === "processando" ? "pendente" : c.status;
 
   return (
-    <ConversationCard
-      title={c.title}
-      date={c.date}
-      duration={c.duration || undefined}
-      type={c.type}
-      status={c.status === "processando" ? "pendente" : c.status}
-      summary={c.summary || undefined}
-      onSelect={onSelect}
-      badges={badges}
-    />
+    <GlassListRow onClick={onSelect} aria-label={c.title}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: isMobile ? "wrap" : "nowrap" }}>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {c.title}
+          </span>
+          <TypeBadge type={c.type} style={{ flexShrink: 0 }} />
+          <StatusBadge status={displayStatus} style={{ flexShrink: 0 }} />
+        </div>
+        {c.summary ? (
+          <span
+            style={{
+              fontSize: 13,
+              color: "var(--color-muted-foreground)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {c.summary}
+          </span>
+        ) : null}
+        {isMobile ? (
+          <span style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>
+            {dateFmt}
+            {c.duration ? ` · ${c.duration}` : ""}
+          </span>
+        ) : null}
+        {status ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
+            <IndicatorBadge icon="file-text" label="Resumo" on={flags?.hasSummary} loading={!flags} />
+            <IndicatorBadge icon="documents" label="Transcrição" on={flags?.hasTranscription} loading={!flags} />
+            <IndicatorBadge icon="lightbulb" label="Insights" on={flags?.hasInsights} loading={!flags} />
+          </div>
+        ) : null}
+      </div>
+      {!isMobile ? (
+        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+          <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>{dateFmt}</span>
+          {c.duration ? (
+            <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>{c.duration}</span>
+          ) : null}
+        </div>
+      ) : null}
+    </GlassListRow>
   );
 }
 
-/** Small pill showing whether a piece of content is present (green) or absent (muted). */
+/** Cápsula neutra indicando se um conteúdo existe (texto verde semântico) ou não (muted). */
 function IndicatorBadge({ icon, label, on, loading }: { icon: string; label: string; on?: boolean; loading?: boolean }) {
   const active = Boolean(on) && !loading;
   return (
@@ -393,10 +498,13 @@ function IndicatorBadge({ icon, label, on, loading }: { icon: string; label: str
         alignItems: "center",
         gap: 4,
         padding: "2px 8px",
-        borderRadius: 999,
-        font: "500 11px/16px var(--font-sans)",
-        background: active ? "var(--type-treinamento-bg, var(--color-muted))" : "var(--color-muted)",
-        color: active ? "var(--type-treinamento-fg, var(--color-foreground))" : "var(--color-muted-foreground)",
+        borderRadius: 5,
+        fontFamily: "inherit",
+        fontSize: 11,
+        fontWeight: 600,
+        lineHeight: "16px",
+        background: "var(--badge-bg, var(--color-muted))",
+        color: active ? "var(--badge-green, #248A3D)" : "var(--color-muted-foreground)",
         opacity: loading ? 0.5 : 1,
       }}
     >
@@ -405,5 +513,13 @@ function IndicatorBadge({ icon, label, on, loading }: { icon: string; label: str
     </span>
   );
 }
+
+// Next 16: useSearchParams em client component exige um boundary de <Suspense>
+// no prerender — o miolo (ConversasView) é quem lê a URL.
+const ConversasPage = () => (
+  <Suspense fallback={null}>
+    <ConversasView />
+  </Suspense>
+);
 
 export default ConversasPage;

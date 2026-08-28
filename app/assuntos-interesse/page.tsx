@@ -1,6 +1,8 @@
 "use client";
 import useSWR from "swr";
-import { useEnrichment, EmptyState, Icon } from "@/components/ds";
+import { Star, StickyNote } from "lucide-react";
+import { useEnrichment, EmptyState } from "@/components/ds";
+import { GlassList, GlassListRow } from "@/components/lg/GlassList";
 
 interface InterestingItem {
   enrichmentId: string;
@@ -22,6 +24,12 @@ const TYPE_LABEL: Record<string, string> = {
   content: "Conteúdo",
 };
 
+const TYPE_FG: Record<string, string> = {
+  opportunity: "var(--badge-navy)",
+  insight: "var(--badge-orange)",
+  content: "var(--badge-green)",
+};
+
 export default function AssuntosInteressePage() {
   const enrichment = useEnrichment();
   const { data, isLoading } = useSWR<{ data: InterestingItem[] }>(
@@ -34,25 +42,46 @@ export default function AssuntosInteressePage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: 0 }}>Assuntos de Interesse</h1>
-        <p style={{ color: "var(--color-muted-foreground)", margin: "4px 0 0", font: "400 14px/20px var(--font-sans)" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12, minWidth: 0 }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 22,
+              fontWeight: 700,
+              lineHeight: 1.25,
+              letterSpacing: "-0.022em",
+            }}
+          >
+            Assuntos de Interesse
+          </h1>
+          {!isLoading && items.length > 0 ? (
+            <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>
+              {items.length} {items.length === 1 ? "assunto" : "assuntos"}
+            </span>
+          ) : null}
+        </div>
+        <p style={{ margin: "4px 0 0", fontSize: 13, lineHeight: "20px", color: "var(--color-muted-foreground)" }}>
           Ideias marcadas como interessantes, de todas as áreas.
         </p>
       </div>
 
       {isLoading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+        <GlassList>
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="ds-card" style={{ height: 140 }} />
+            <GlassListRow key={i}>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8, padding: "4px 0" }}>
+                <div className="ds-skeleton" style={{ height: 12, width: "38%", borderRadius: 6 }} />
+                <div className="ds-skeleton" style={{ height: 10, width: "64%", borderRadius: 6 }} />
+              </div>
+            </GlassListRow>
           ))}
-        </div>
+        </GlassList>
       ) : items.length ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+        <GlassList>
           {items.map((it) => (
-            <div
+            <GlassListRow
               key={it.enrichmentId}
-              className="ds-card ds-card--clickable"
-              style={{ display: "flex", flexDirection: "column", gap: 8, cursor: "pointer" }}
+              aria-label={it.title || "(sem título)"}
               onClick={() =>
                 enrichment?.openEnrichment(it.sourceType, it.sourceId, {
                   title: it.title ?? "Ideia",
@@ -60,23 +89,74 @@ export default function AssuntosInteressePage() {
                 })
               }
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Icon name="star" size={16} color="var(--brand)" />
-                <span className="ds-badge ds-badge--compact">{TYPE_LABEL[it.sourceType] || it.sourceType}</span>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <Star
+                    size={16}
+                    strokeWidth={1.75}
+                    aria-hidden
+                    style={{ color: "var(--brand)", flexShrink: 0 }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      letterSpacing: "-0.01em",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {it.title || "(sem título)"}
+                  </span>
+                  <span
+                    className="ds-badge ds-badge--compact"
+                    style={{
+                      background: "var(--badge-bg)",
+                      color: TYPE_FG[it.sourceType] || "var(--badge-gray)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {TYPE_LABEL[it.sourceType] || it.sourceType}
+                  </span>
+                </div>
+                {it.subtitle ? (
+                  <span
+                    style={{
+                      fontSize: 13,
+                      color: "var(--color-muted-foreground)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {it.subtitle}
+                  </span>
+                ) : null}
+                {it.notes ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: 12,
+                      color: "var(--color-muted-foreground)",
+                      minWidth: 0,
+                    }}
+                  >
+                    <StickyNote size={13} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.notes}</span>
+                  </span>
+                ) : null}
               </div>
-              <h3 style={{ font: "400 16px/24px var(--fontFamily)", margin: 0 }}>{it.title || "(sem título)"}</h3>
-              {it.subtitle ? (
-                <p style={{ margin: 0, font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{it.subtitle}</p>
-              ) : null}
-              {it.notes ? (
-                <p style={{ margin: 0, font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>📝 {it.notes}</p>
-              ) : null}
-              <span style={{ marginTop: "auto", font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
-                {it.refCount} referência{it.refCount !== 1 ? "s" : ""}
-              </span>
-            </div>
+              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>
+                  {it.refCount} referência{it.refCount !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </GlassListRow>
           ))}
-        </div>
+        </GlassList>
       ) : (
         <EmptyState icon="star" title="Nenhum assunto de interesse" message="Marque ideias como interessantes nos cards para vê-las aqui." />
       )}

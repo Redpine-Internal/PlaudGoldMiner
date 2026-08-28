@@ -3,213 +3,420 @@ import type React from "react";
 import { useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import { StatCard, InsightCard, Button, Icon, ScoreBadge } from "@/components/ds";
+import { MessagesSquare, Target, FileText, Sparkles } from "lucide-react";
+import { Button, useEnrichment } from "@/components/ds";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
-interface Conversation {
-  id: string;
-  title: string;
-  date: string;
-  type: string;
-  status: string;
-}
-
-interface Opportunity {
-  id: string;
-  title: string;
-  pain: string;
-  score: number;
-  type: string;
-  status: string;
-}
-
-interface CrossInsight {
+interface DashboardHero {
   id: string;
   title: string;
   description: string;
   insightType: string;
-  confidence: number;
   actionSuggestion: string | null;
-  status: string;
-  createdAt: string;
+}
+
+interface DashboardData {
+  greetingName: string;
+  kpis: { conversations: number; opportunities: number; contents: number; insightsNew: number };
+  queue: { pendingConversations: number; newInsights: number; suggestedContents: number };
+  hero: DashboardHero | null;
+  recentConversations: { id: string; title: string; date: string }[];
+  pipeline: { id: string; title: string; status: string; score: number }[];
+  themes: { name: string; count: number; delta: number }[];
+  lastProject: { id: string; title: string; description: string | null } | null;
+  weekSummary: string | null;
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const secTitle: React.CSSProperties = { font: "400 20px/24px var(--fontFamily)" };
+const KIND_LABEL: Record<string, string> = {
+  pattern: "Padrão",
+  connection: "Conexão",
+  trend: "Tendência",
+  suggestion: "Sugestão",
+  opportunity: "Oportunidade real",
+};
 
-const DashboardPage = () => {
+const OPP_STATUS_LABEL: Record<string, string> = {
+  nova: "Nova",
+  analise: "Em análise",
+  qualificada: "Qualificada",
+  descartada: "Descartada",
+};
+
+const capsStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  color: "var(--color-muted-foreground)",
+};
+
+const cardTitleStyle: React.CSSProperties = {
+  fontSize: 15,
+  fontWeight: 600,
+  letterSpacing: "-0.01em",
+  margin: "0 0 8px",
+};
+
+const hairline = "1px solid color-mix(in srgb, var(--color-border) 55%, transparent)";
+
+const seeAllStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 500,
+  color: "var(--color-brand)",
+  background: "none",
+  border: "none",
+  padding: 0,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+
+const mutedText: React.CSSProperties = { fontSize: 13, color: "var(--color-muted-foreground)", margin: 0 };
+
+const formatConvDate = (date: string) => {
+  if (!date) return "—";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+};
+
+const scoreColor = (score: number) =>
+  score >= 80 ? "var(--badge-green, #248A3D)" : score >= 50 ? "var(--badge-orange, #B25000)" : "var(--color-muted-foreground)";
+
+const ResumoPage = () => {
   const router = useRouter();
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const enrichment = useEnrichment();
+  const isMobile = useIsMobile();
+  const [creating, setCreating] = useState(false);
 
-  const { data: conversationsData } = useSWR<{ data: Conversation[]; total: number }>(
-    "/api/conversations?limit=5",
-    fetcher
-  );
-  const { data: opportunitiesData } = useSWR<{ data: Opportunity[]; total: number }>(
-    "/api/opportunities?limit=5",
-    fetcher
-  );
-  const { data: contentsData } = useSWR<{ data: unknown[]; total: number }>("/api/contents?limit=1", fetcher);
-  const { data: insightsData, mutate: mutateInsights } = useSWR<{ data: CrossInsight[] }>(
-    "/api/insights?limit=3&status=new",
-    fetcher
-  );
+  const { data: resp, isLoading } = useSWR<{ data: DashboardData }>("/api/dashboard", fetcher, {
+    revalidateOnFocus: false,
+  });
+  const data = resp?.data;
 
-  const conversations = conversationsData?.data || [];
-  const opportunities = opportunitiesData?.data || [];
-  const insights = insightsData?.data || [];
+  const now = new Date();
+  const dashDate = now
+    .toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })
+    .toUpperCase();
+  const hour = now.getHours();
+  const salutation = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const greeting =
+    salutation +
+    (data?.greetingName ? ", " + data.greetingName : "") +
+    " — aqui está o que suas conversas revelaram.";
 
-  const stats = {
-    conversations: conversationsData?.total || 0,
-    opportunities: opportunitiesData?.total || 0,
-    contents: contentsData?.total || 0,
-    insights: insights.length,
+  const openHero = () => {
+    if (!data?.hero) return;
+    enrichment?.openEnrichment("insight", data.hero.id, {
+      title: data.hero.title,
+      originalText: data.hero.description,
+    });
   };
 
-  const handleAnalyze = async () => {
-    setAnalyzing(true);
-    setAnalyzeError(null);
+  const handleCreateProject = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const hero = data?.hero;
+    if (!hero || creating) return;
+    setCreating(true);
     try {
-      const res = await fetch("/api/insights/analyze", { method: "POST" });
-      if (!res.ok) {
-        // Surface the backend's reason instead of silently doing nothing
-        // (e.g. "Need at least 2 processed conversations", rate limit).
-        const body = await res.json().catch(() => null);
-        setAnalyzeError(body?.error || `Falha ao gerar insights (HTTP ${res.status}).`);
-        return;
+      const existing = await fetch(
+        `/api/projects?sourceType=insight&sourceId=${encodeURIComponent(hero.id)}&limit=1`
+      );
+      if (existing.ok) {
+        const ex = await existing.json();
+        const found = ex?.data?.[0];
+        if (found?.id) {
+          router.push("/projetos/" + found.id);
+          return;
+        }
       }
-      await mutateInsights();
-    } catch (error) {
-      console.error("Failed to analyze insights:", error);
-      setAnalyzeError("Não foi possível gerar insights. Verifique a conexão e tente novamente.");
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const patchInsight = async (id: string, status: string) => {
-    try {
-      await fetch(`/api/insights/${id}`, {
-        method: "PATCH",
+      const res = await fetch("/api/projects", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+          title: hero.title,
+          description: hero.description,
+          sourceType: "insight",
+          sourceId: hero.id,
+        }),
       });
-      mutateInsights();
-    } catch (error) {
-      console.error("Failed to update insight:", error);
+      const body = await res.json();
+      const id = body?.data?.id;
+      if (id) router.push("/projetos/" + id);
+    } catch (err) {
+      console.error("Failed to create project from hero insight:", err);
+    } finally {
+      setCreating(false);
     }
   };
 
-  const linkAll = (path: string) => (
-    <a
-      href={"/" + path}
-      onClick={(e) => {
-        e.preventDefault();
-        router.push("/" + path);
-      }}
-      style={{ font: "400 14px/20px var(--font-sans)", display: "inline-flex", alignItems: "center", gap: 4, color: "var(--textLink)" }}
-    >
-      Ver todas <Icon name="chevron-right" size={16} />
-    </a>
+  const kpiCards = [
+    { label: "Conversas Processadas", value: data?.kpis.conversations ?? 0, Icon: MessagesSquare, href: "/conversas" },
+    { label: "Oportunidades", value: data?.kpis.opportunities ?? 0, Icon: Target, href: "/oportunidades" },
+    { label: "Conteúdos Sugeridos", value: data?.kpis.contents ?? 0, Icon: FileText, href: "/conteudos" },
+    { label: "Insights Cruzados", value: data?.kpis.insightsNew ?? 0, Icon: Sparkles, href: "/ia-insights" },
+  ];
+
+  const queueItems = data
+    ? [
+        {
+          key: "conversas",
+          count: data.queue.pendingConversations,
+          label:
+            data.queue.pendingConversations === 1
+              ? "1 conversa aguardando processamento"
+              : `${data.queue.pendingConversations} conversas aguardando processamento`,
+          cta: "Processar",
+          href: "/conversas",
+        },
+        {
+          key: "insights",
+          count: data.queue.newInsights,
+          label:
+            data.queue.newInsights === 1
+              ? "1 insight novo não lido"
+              : `${data.queue.newInsights} insights novos não lidos`,
+          cta: "Revisar",
+          href: "/ia-insights",
+        },
+        {
+          key: "conteudos",
+          count: data.queue.suggestedContents,
+          label:
+            data.queue.suggestedContents === 1
+              ? "1 conteúdo aguardando aprovação"
+              : `${data.queue.suggestedContents} conteúdos aguardando aprovação`,
+          cta: "Aprovar",
+          href: "/conteudos",
+        },
+      ].filter((item) => item.count > 0)
+    : [];
+
+  const kpiGridStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+    gap: isMobile ? 10 : 16,
+    marginBottom: 32,
+  };
+
+  const mainGridStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr)",
+    gap: isMobile ? 16 : 24,
+    alignItems: "start",
+  };
+
+  const columnStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: isMobile ? 16 : 24,
+  };
+
+  const header = (
+    <div style={{ marginBottom: 24 }}>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          color: "var(--color-muted-foreground)",
+          marginBottom: 2,
+        }}
+      >
+        {dashDate}
+      </div>
+      <h1 style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.2, letterSpacing: "-0.022em", margin: 0 }}>
+        Resumo
+      </h1>
+      <p style={{ fontSize: 13, color: "var(--color-muted-foreground)", marginTop: 4, marginBottom: 0 }}>
+        {greeting}
+      </p>
+    </div>
   );
+
+  if (isLoading) {
+    return (
+      <div>
+        {header}
+        <div style={kpiGridStyle}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="ds-card" style={{ padding: 20 }}>
+              <div className="ds-skeleton" style={{ height: 12, width: "60%", borderRadius: 6, marginBottom: 14 }} />
+              <div className="ds-skeleton" style={{ height: 24, width: "36%", borderRadius: 6 }} />
+            </div>
+          ))}
+        </div>
+        <div style={mainGridStyle}>
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="ds-card" style={{ padding: 20 }}>
+              <div className="ds-skeleton" style={{ height: 14, width: "42%", borderRadius: 6, marginBottom: 16 }} />
+              <div className="ds-skeleton" style={{ height: 11, width: "88%", borderRadius: 6, marginBottom: 10 }} />
+              <div className="ds-skeleton" style={{ height: 11, width: "76%", borderRadius: 6, marginBottom: 10 }} />
+              <div className="ds-skeleton" style={{ height: 11, width: "82%", borderRadius: 6 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: "0 0 20px" }}>Dashboard</h1>
+      {header}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 24, marginBottom: 32 }}>
-        <StatCard title="Conversas Processadas" value={stats.conversations} icon="message-square" onClick={() => router.push("/conversas")} />
-        <StatCard title="Oportunidades" value={stats.opportunities} icon="lightbulb" onClick={() => router.push("/oportunidades")} />
-        <StatCard title="Conteúdos Sugeridos" value={stats.contents} icon="file-text" onClick={() => router.push("/conteudos")} />
-        <StatCard title="Insights Cruzados" value={stats.insights} icon="sparkles" onClick={() => {}} />
-      </div>
-
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Icon name="sparkles" size={20} color="var(--color-primary)" />
-            <h2 style={secTitle}>Você Sabia?</h2>
-          </div>
-          <Button variant="outline" size="sm" icon="refresh-cw" iconSpin={analyzing} onClick={handleAnalyze} disabled={analyzing || stats.conversations < 2}>
-            {analyzing ? "Analisando..." : "Gerar Insights"}
-          </Button>
-        </div>
-        {analyzeError ? (
-          <div
-            role="alert"
-            style={{
-              marginBottom: 16,
-              padding: "10px 14px",
-              background: "var(--color-destructive-subtle, #fef2f2)",
-              border: "1px solid var(--color-destructive, #f5b5b5)",
-              borderRadius: "var(--radius-md)",
-              color: "var(--color-destructive-foreground, #b91c1c)",
-              font: "400 13px/18px var(--font-sans)",
-            }}
-          >
-            {analyzeError}
-          </div>
-        ) : null}
-        {insights.length ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 16 }}>
-            {insights.map((i) => (
-              <InsightCard
-                key={i.id}
-                title={i.title}
-                description={i.description}
-                insightType={i.insightType}
-                actionSuggestion={i.actionSuggestion || undefined}
-                isNew={i.status === "new"}
-                sourceId={i.id}
-                enrichText={i.description}
-                onDismiss={() => patchInsight(i.id, "ignored")}
-                onMarkUseful={() => patchInsight(i.id, "useful")}
-              />
-            ))}
-          </div>
-        ) : (
-          <div
-            style={{
-              padding: 32,
-              background: "var(--color-sidebar)",
-              border: "2px dashed var(--color-border)",
-              borderRadius: "var(--radius-lg)",
-              textAlign: "center",
-            }}
-          >
-            <Icon name="sparkles" size={32} color="var(--color-muted-foreground)" />
-            <p style={{ margin: "8px 0 0", color: "var(--color-muted-foreground)" }}>
-              {stats.conversations < 2
-                ? "Adicione mais conversas para gerar insights cruzados."
-                : 'Clique em "Gerar Insights" para descobrir conexões entre suas conversas!'}
+      {data?.hero ? (
+        <div
+          className="ds-card"
+          onClick={openHero}
+          style={{
+            padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            cursor: "pointer",
+            marginBottom: 24,
+          }}
+        >
+          <span style={capsStyle}>
+            Destaque do dia · {KIND_LABEL[data.hero.insightType] || "Insight"}
+          </span>
+          <h2 style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.022em", margin: 0 }}>
+            {data.hero.title}
+          </h2>
+          {data.hero.description ? (
+            <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--color-muted-foreground)", maxWidth: 720, margin: 0 }}>
+              {data.hero.description}
             </p>
+          ) : null}
+          {data.hero.actionSuggestion ? (
+            <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-brand)", margin: 0 }}>
+              Ação sugerida: {data.hero.actionSuggestion}
+            </p>
+          ) : null}
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <Button
+              variant="primary"
+              disabled={creating}
+              onClick={handleCreateProject}
+              style={{ height: 36, padding: "0 18px", fontSize: 13, fontWeight: 600 }}
+            >
+              {creating ? "Criando…" : "Criar Projeto"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={(e) => {
+                e.stopPropagation();
+                openHero();
+              }}
+              style={{ height: 36, padding: "0 18px", fontSize: 13, fontWeight: 600 }}
+            >
+              Ver insight
+            </Button>
           </div>
-        )}
+        </div>
+      ) : null}
+
+      <div style={kpiGridStyle}>
+        {kpiCards.map(({ label, value, Icon, href }) => (
+          <div
+            key={href}
+            className="ds-card"
+            onClick={() => router.push(href)}
+            style={{ padding: 20, cursor: "pointer" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 13, color: "var(--color-muted-foreground)" }}>{label}</span>
+              <Icon size={17} strokeWidth={1.75} aria-hidden style={{ opacity: 0.6 }} />
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.022em", color: "var(--color-brand)" }}>
+              {value}
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 32 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <h2 style={secTitle}>Conversas Recentes</h2>
-            {linkAll("conversas")}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {conversations.length ? (
-              conversations.slice(0, 4).map((c) => (
-                <a
-                  key={c.id}
-                  href="/conversas"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    router.push("/conversas");
+      <div style={mainGridStyle}>
+        {/* Coluna esquerda */}
+        <div style={columnStyle}>
+          <div className="ds-card" style={{ padding: 20 }}>
+            <h2 style={cardTitleStyle}>Fila de trabalho</h2>
+            {queueItems.length ? (
+              queueItems.map((item, i) => (
+                <div
+                  key={item.key}
+                  onClick={() => router.push(item.href)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 0",
+                    borderBottom: i < queueItems.length - 1 ? hairline : "none",
+                    cursor: "pointer",
                   }}
-                  className="mini-card"
                 >
                   <span
                     style={{
-                      font: "500 14px/20px var(--font-sans)",
-                      color: "var(--color-foreground)",
+                      minWidth: 26,
+                      height: 26,
+                      borderRadius: 999,
+                      background: "rgba(120,120,128,0.14)",
+                      color: "var(--color-brand)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {item.count}
+                  </span>
+                  <span style={{ fontSize: 13, flex: 1 }}>{item.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--color-brand)", whiteSpace: "nowrap" }}>
+                    {item.cta} ›
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p style={mutedText}>Tudo em dia — nenhuma pendência.</p>
+            )}
+          </div>
+
+          {data?.weekSummary ? (
+            <div className="ds-card" style={{ padding: 20 }}>
+              <h2 style={cardTitleStyle}>Resumo da semana</h2>
+              <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--color-foreground)", margin: 0 }}>
+                {data.weekSummary}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="ds-card" style={{ padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h2 style={{ ...cardTitleStyle, margin: 0 }}>Conversas recentes</h2>
+              <button type="button" style={seeAllStyle} onClick={() => router.push("/conversas")}>
+                Ver Todas ›
+              </button>
+            </div>
+            {data?.recentConversations.length ? (
+              data.recentConversations.map((c, i) => (
+                <div
+                  key={c.id}
+                  onClick={() => router.push("/conversas")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "9px 0",
+                    borderBottom: i < data.recentConversations.length - 1 ? hairline : "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      flex: 1,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -217,82 +424,133 @@ const DashboardPage = () => {
                   >
                     {c.title}
                   </span>
-                  <span style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>
-                    {new Date(/^\d{4}-\d{2}-\d{2}$/.test(c.date) ? c.date + "T12:00:00" : c.date).toLocaleDateString("pt-BR")}
+                  <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>
+                    {formatConvDate(c.date)}
                   </span>
-                </a>
+                </div>
               ))
             ) : (
-              <div
-                style={{
-                  padding: 32,
-                  background: "var(--color-sidebar)",
-                  border: "2px dashed var(--color-border)",
-                  borderRadius: "var(--radius-lg)",
-                  textAlign: "center",
-                }}
-              >
-                <Icon name="message-square" size={32} color="var(--color-muted-foreground)" />
-                <p style={{ margin: "8px 0 0", color: "var(--color-muted-foreground)" }}>Nenhuma conversa ainda.</p>
-              </div>
+              <p style={{ ...mutedText, marginTop: 8 }}>Nenhuma conversa ainda.</p>
             )}
           </div>
         </div>
 
-        <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <h2 style={secTitle}>Oportunidades em Destaque</h2>
-            {linkAll("oportunidades")}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {opportunities.length ? (
-              opportunities.slice(0, 3).map((o) => (
-                <a
-                  key={o.id}
-                  href="/oportunidades"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    router.push("/oportunidades");
-                  }}
-                  className="mini-card"
-                  style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}
-                >
-                  <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ font: "500 14px/20px var(--font-sans)", color: "var(--color-foreground)" }}>{o.title}</span>
-                    <ScoreBadge score={o.score} />
-                  </span>
+        {/* Coluna direita */}
+        <div style={columnStyle}>
+          {data?.themes.length ? (
+            <div className="ds-card" style={{ padding: 20 }}>
+              <h2 style={cardTitleStyle}>Temas em ascensão</h2>
+              {data.themes.map((t) => (
+                <div key={t.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
                   <span
                     style={{
-                      font: "400 14px/20px var(--font-sans)",
-                      color: "var(--color-muted-foreground)",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      flex: 1,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {o.pain}
+                    {t.name}
                   </span>
-                </a>
+                  {t.delta > 0 ? (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--badge-green, #248A3D)" }}>
+                      ↑ {t.delta} {t.delta === 1 ? "menção" : "menções"}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-muted-foreground)" }}>
+                      — estável
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="ds-card" style={{ padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h2 style={{ ...cardTitleStyle, margin: 0 }}>Pipeline de oportunidades</h2>
+              <button type="button" style={seeAllStyle} onClick={() => router.push("/oportunidades")}>
+                Ver Todas ›
+              </button>
+            </div>
+            {data?.pipeline.length ? (
+              data.pipeline.map((o, i) => (
+                <div
+                  key={o.id}
+                  onClick={() => router.push("/oportunidades")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "9px 0",
+                    borderBottom: i < data.pipeline.length - 1 ? hairline : "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {o.title}
+                  </span>
+                  <span
+                    className="ds-badge ds-badge--compact"
+                    style={{
+                      background: `var(--opp-${o.status}-bg, var(--badge-bg))`,
+                      color: `var(--opp-${o.status}-fg, var(--badge-gray))`,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {OPP_STATUS_LABEL[o.status] || o.status}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: scoreColor(o.score), whiteSpace: "nowrap" }}>
+                    {Math.round(o.score)}
+                  </span>
+                </div>
               ))
             ) : (
-              <div
-                style={{
-                  padding: 32,
-                  background: "var(--color-sidebar)",
-                  border: "2px dashed var(--color-border)",
-                  borderRadius: "var(--radius-lg)",
-                  textAlign: "center",
-                }}
-              >
-                <Icon name="lightbulb" size={32} color="var(--color-muted-foreground)" />
-                <p style={{ margin: "8px 0 0", color: "var(--color-muted-foreground)" }}>Nenhuma oportunidade detectada.</p>
-              </div>
+              <p style={{ ...mutedText, marginTop: 8 }}>Nenhuma oportunidade no pipeline.</p>
             )}
           </div>
+
+          {data?.lastProject ? (
+            <div
+              className="ds-card"
+              onClick={() => router.push("/projetos/" + data.lastProject!.id)}
+              style={{ padding: 20, cursor: "pointer", display: "flex", flexDirection: "column", gap: 6 }}
+            >
+              <span style={capsStyle}>Continuar</span>
+              <h2 style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em", margin: 0 }}>
+                {data.lastProject.title}
+              </h2>
+              {data.lastProject.description ? (
+                <span
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-muted-foreground)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {data.lastProject.description}
+                </span>
+              ) : null}
+              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--color-brand)" }}>Abrir kanban ›</span>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
   );
 };
 
-export default DashboardPage;
+export default ResumoPage;

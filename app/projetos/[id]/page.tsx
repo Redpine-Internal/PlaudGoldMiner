@@ -12,7 +12,7 @@ type Column = { id: string; projectId: string; name: string; position: number; c
 type Board = { project: { id: string; title: string; description: string | null; status: string; sourceType: string; sourceId: string; createdAt: string }; columns: Column[]; tasks: Task[] };
 type ApiResponse = { data: Board };
 
-const fieldStyle = { width: "100%", boxSizing: "border-box" as const, padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", background: "var(--color-background)", color: "var(--color-foreground)", font: "400 14px/20px var(--font-sans)" };
+const fieldStyle = { width: "100%", boxSizing: "border-box" as const, padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-background)", color: "var(--color-foreground)", font: "400 14px/20px var(--font-sans)" };
 
 export default function ProjetoPage() {
   const params = useParams<{ id: string }>();
@@ -82,7 +82,7 @@ export default function ProjetoPage() {
         {editing ? <textarea aria-label="Descrição do projeto" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} style={{ ...fieldStyle, marginTop: 4, resize: "vertical" }} /> : board.project.description ? <p style={{ margin: 0, color: "var(--color-muted-foreground)", font: "400 14px/20px var(--font-sans)" }}>{board.project.description}</p> : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ padding: "6px 10px", borderRadius: "var(--radius-lg)", background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 13px/18px var(--font-sans)" }}>{board.project.status}</span>
+        <span style={{ padding: "6px 10px", borderRadius: 5, background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 13px/18px var(--font-sans)" }}>{board.project.status}</span>
         {editing ? <Button variant="primary" onClick={saveProject}>Salvar</Button> : <Button variant="outline" icon="square-pen" onClick={() => { setTitle(board.project.title); setDescription(board.project.description || ""); setEditing(true); }}>Editar</Button>}
       </div>
     </div>
@@ -114,7 +114,7 @@ export default function ProjetoPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 32 }}>
             {tasks.map((task) => <div key={task.id} draggable onDragStart={(event) => { setDraggingId(task.id); event.dataTransfer.setData("text/plain", task.id); }} style={{ padding: 12, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", cursor: "grab" }}>
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><strong style={{ flex: 1, font: "500 14px/20px var(--font-sans)" }}>{task.title}</strong><Button variant="link" icon="trash-can" title="Excluir tarefa" onClick={async () => { try { await request(`/api/tasks/${task.id}`, "DELETE"); await mutate(); } catch (err) { setMessage(err instanceof Error ? err.message : "Não foi possível excluir a tarefa."); } }} /></div>
-              {task.kind.startsWith("ai:") ? <span style={{ display: "inline-block", marginTop: 8, padding: "2px 6px", borderRadius: 99, background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 11px/16px var(--font-sans)" }}>{task.kind.slice(3)}</span> : null}
+              {task.kind.startsWith("ai:") ? <span style={{ display: "inline-block", marginTop: 8, padding: "2px 6px", borderRadius: 5, background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 11px/16px var(--font-sans)" }}>{task.kind.slice(3)}</span> : null}
               {task.detail ? <Markdown style={{ maxHeight: 70, overflow: "hidden", marginTop: 8 }}>{task.detail.slice(0, 240) + (task.detail.length > 240 ? "..." : "")}</Markdown> : null}
             </div>)}
           </div>

@@ -30,7 +30,7 @@ export function SyncPlaudButton({ onDone }: { onDone?: () => void }) {
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <Button onClick={run} disabled={busy}>
+      <Button variant="secondary" onClick={run} disabled={busy}>
         {busy ? "Sincronizando…" : "Sincronizar com Plaud"}
       </Button>
       {msg ? (

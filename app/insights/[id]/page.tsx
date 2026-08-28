@@ -135,7 +135,7 @@ export default function InsightDetailPage({ params }: { params: Promise<{ id: st
           onChange={(e) => setNotesDraft(e.target.value)}
           placeholder="Anote decisões, contexto ou próximos passos deste insight..."
           rows={4}
-          style={{ width: "100%", boxSizing: "border-box", font: "400 14px/20px var(--font-sans)", background: "transparent", color: "inherit", border: "1px solid var(--color-border)", borderRadius: 6, padding: 8, resize: "vertical" }}
+          style={{ width: "100%", boxSizing: "border-box", font: "400 14px/20px var(--font-sans)", background: "transparent", color: "inherit", border: "1px solid var(--color-border)", borderRadius: 5, padding: 8, resize: "vertical" }}
         />
         <Button
           variant="outline"
