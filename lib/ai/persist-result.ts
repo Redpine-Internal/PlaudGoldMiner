@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { conversations, opportunities, opportunitySources } from '@/lib/db/schema';
+import { marcarProcedencia } from '@/lib/ai/excerpt-provenance';
 import { eq } from 'drizzle-orm';
 import type { TranscriptionResult } from './prompts/process-transcription';
 
@@ -59,7 +60,8 @@ export async function persistTranscriptionResult(
         id: crypto.randomUUID(),
         opportunityId: created.id,
         conversationId,
-        excerpt: opp.excerpt?.trim() ? opp.excerpt.trim() : null,
+        // Este caminho analisa a transcrição inteira, então o trecho é fala.
+        excerpt: marcarProcedencia(opp.excerpt?.trim() ? opp.excerpt.trim() : null, true),
       })
       .onConflictDoNothing();
   }

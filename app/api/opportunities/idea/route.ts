@@ -6,6 +6,7 @@ import {
   OPPORTUNITY_IDEA_SYSTEM_PROMPT,
   createIdeaPrompt,
 } from '@/lib/ai/prompts/opportunity-idea';
+import { detectarTextoCorrompido } from '@/lib/ai/text-integrity';
 
 interface IdeaRow {
   id: string;
@@ -44,21 +45,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'IA não configurada no servidor.' }, { status: 503 });
     }
 
-    const { text } = await generateText({
-      model: anthropic(DEFAULT_MODEL),
-      system: OPPORTUNITY_IDEA_SYSTEM_PROMPT,
-      prompt: createIdeaPrompt({
-        title: opp.title,
-        pain: opp.pain,
-        context: opp.context,
-        type: opp.type,
-        subtype: opp.subtype,
-        conversationTitle: opp.conversation_title,
-      }),
-      maxRetries: 1,
+    const prompt = createIdeaPrompt({
+      title: opp.title,
+      pain: opp.pain,
+      context: opp.context,
+      type: opp.type,
+      subtype: opp.subtype,
+      conversationTitle: opp.conversation_title,
     });
-    const idea = text.trim();
-    if (!idea) return NextResponse.json({ error: 'A IA retornou resposta vazia.' }, { status: 502 });
+
+    // O modelo às vezes corrompe um token no meio de uma palavra. O texto sai
+    // bem-formado, então só uma checagem explícita pega — e como o defeito é
+    // esporádico, uma segunda geração costuma resolver.
+    let idea = '';
+    let problema: ReturnType<typeof detectarTextoCorrompido> = null;
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
+      const { text } = await generateText({
+        model: anthropic(DEFAULT_MODEL),
+        system: OPPORTUNITY_IDEA_SYSTEM_PROMPT,
+        prompt,
+        maxRetries: 1,
+      });
+      idea = text.trim();
+      if (!idea) continue;
+
+      problema = detectarTextoCorrompido(idea);
+      if (!problema) break;
+
+      console.warn(
+        `[idea] texto corrompido na tentativa ${tentativa} (${problema.motivo}): …${problema.trecho}…`
+      );
+      idea = '';
+    }
+
+    if (!idea) {
+      // Ou veio vazio nas duas, ou as duas vieram corrompidas. Persistir seria
+      // pior: o texto ruim entraria no cache e nunca mais seria regerado.
+      const erro = problema
+        ? 'A IA devolveu texto corrompido. Tente gerar novamente.'
+        : 'A IA retornou resposta vazia.';
+      return NextResponse.json({ error: erro }, { status: 502 });
+    }
 
     // COALESCE protege contra corrida: se outra requisição persistiu primeiro,
     // a dela vence e devolvemos o que ficou gravado.

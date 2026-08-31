@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, pool } from '@/lib/db';
 import { opportunities, opportunitySources } from '@/lib/db/schema';
+import { marcarProcedencia } from '@/lib/ai/excerpt-provenance';
 import {
   analyzeOpportunityBatch,
   type BatchConversation,
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
             id: crypto.randomUUID(),
             opportunityId: id,
             conversationId: src.conversationId,
-            excerpt: src.excerpt,
+            excerpt: marcarProcedencia(src.excerpt, src.fromTranscription),
           })
           .onConflictDoNothing();
       }

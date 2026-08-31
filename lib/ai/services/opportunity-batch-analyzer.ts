@@ -40,7 +40,20 @@ export interface BatchOpportunity {
   type: string;
   subtype: string | null;
   score: number;
-  sources: { conversationId: string; excerpt: string | null }[];
+  sources: BatchSource[];
+}
+
+export interface BatchSource {
+  conversationId: string;
+  excerpt: string | null;
+  /**
+   * `true` só quando o trecho foi localizado na transcrição e é, portanto, fala
+   * de alguém na reunião. `false` quando é texto do resumo — paráfrase da IA.
+   * A distinção existe porque o modal apresenta um como citação e o outro não:
+   * exibir paráfrase entre aspas faz o usuário defender numa reunião comercial
+   * uma frase que ninguém disse.
+   */
+  fromTranscription: boolean;
 }
 
 export type BatchAnalyzeResponse =
@@ -125,13 +138,20 @@ export async function analyzeOpportunityBatch(
           // pela passagem correspondente da transcrição, que é o que o usuário
           // quer ver no modal.
           const source = conversationId ? byId.get(conversationId) : undefined;
-          const excerpt =
-            form === 'resumo' && raw && source
-              ? findInTranscription(source.transcription, raw) ?? raw
-              : raw;
-          return { conversationId, excerpt };
+
+          if (form !== 'resumo') {
+            // Modo transcrição: o modelo leu a fala, então o excerpt já é fala.
+            return { conversationId, excerpt: raw, fromTranscription: !!raw };
+          }
+
+          const ancorado = raw && source ? findInTranscription(source.transcription, raw) : null;
+          return {
+            conversationId,
+            excerpt: ancorado ?? raw,
+            fromTranscription: !!ancorado,
+          };
         })
-        .filter((s): s is { conversationId: string; excerpt: string | null } => !!s.conversationId);
+        .filter((s): s is BatchSource & { conversationId: string } => !!s.conversationId);
 
       // Sem fonte válida a oportunidade não é rastreável — descarta.
       if (!sources.length) {

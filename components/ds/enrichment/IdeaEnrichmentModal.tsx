@@ -21,6 +21,8 @@ interface IdeaSource {
   conversationTitle: string | null;
   conversationDate: string | null;
   excerpt: string | null;
+  /** `true` só quando o trecho é fala transcrita — o que autoriza as aspas. */
+  fromTranscription?: boolean;
 }
 
 interface EnrichmentData {
@@ -525,16 +527,41 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
                       ) : null}
                     </div>
                     {s.excerpt ? (
+                      // Aspas só quando se confirmou que é fala transcrita. O
+                      // resto entra sem aspas e rotulado como não confirmado —
+                      // inclui os trechos gravados antes da marca de procedência,
+                      // que podem ser fala mas não dá para provar. O usuário leva
+                      // isso a uma reunião comercial: citar o que ninguém disse
+                      // queima a credibilidade do negócio inteiro.
                       <blockquote
                         style={{
                           margin: 0,
                           paddingLeft: 10,
                           borderLeft: "2px solid var(--color-border)",
                           font: "400 14px/20px var(--font-sans)",
-                          color: "var(--textPrimary)",
+                          color: s.fromTranscription ? "var(--textPrimary)" : "var(--color-muted-foreground)",
+                          fontStyle: s.fromTranscription ? undefined : "italic",
                         }}
                       >
-                        “{s.excerpt}”
+                        {s.fromTranscription ? (
+                          `“${s.excerpt}”`
+                        ) : (
+                          <>
+                            <span
+                              style={{
+                                display: "block",
+                                fontStyle: "normal",
+                                fontSize: 11,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.04em",
+                                marginBottom: 2,
+                              }}
+                            >
+                              Origem não confirmada — pode ser resumo, não fala
+                            </span>
+                            {s.excerpt}
+                          </>
+                        )}
                       </blockquote>
                     ) : (
                       // Análises antigas guardavam só a conversa, sem a passagem que
