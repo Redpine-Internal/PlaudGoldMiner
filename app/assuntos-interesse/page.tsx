@@ -19,7 +19,7 @@ interface InterestingItem {
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const TYPE_LABEL: Record<string, string> = {
-  opportunity: "Oportunidade",
+  opportunity: "Novo Negócio",
   insight: "Insight",
   content: "Conteúdo",
 };

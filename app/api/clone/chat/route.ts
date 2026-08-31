@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { streamText } from 'ai';
 import { anthropic, DEFAULT_MODEL, isAiConfigured, checkTokenBudget, estimateTokens } from '@/lib/ai/client';
 import { db } from '@/lib/db';
-import { conversations, opportunities, contents, crossInsights, userProfile } from '@/lib/db/schema';
+import { conversations, opportunities, contents, userProfile } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
 
 const chatRequestSchema = z.object({
@@ -36,15 +36,14 @@ function parseList(raw: string | null): string[] {
 
 /**
  * Build the Clone's knowledge context from the real DB. The Clone is grounded
- * in the user's own conversations/opportunities/insights — it must not invent
+ * in the user's own conversations/opportunities/contents — it must not invent
  * data, only reason over what's here.
  */
 async function buildContext(): Promise<string> {
-  const [convs, opps, cts, insights, profile] = await Promise.all([
+  const [convs, opps, cts, profile] = await Promise.all([
     db.select().from(conversations).orderBy(desc(conversations.date)).limit(40),
     db.select().from(opportunities).orderBy(desc(opportunities.score)).limit(30),
     db.select().from(contents).orderBy(desc(contents.mentionCount)).limit(20),
-    db.select().from(crossInsights).orderBy(desc(crossInsights.confidence)).limit(15),
     db.select().from(userProfile).where(eq(userProfile.id, 'default')).limit(1),
   ]);
 
@@ -90,18 +89,6 @@ async function buildContext(): Promise<string> {
     );
   }
 
-  if (insights.length) {
-    parts.push(
-      `INSIGHTS CRUZADOS (${insights.length}):\n` +
-        insights
-          .map(
-            (i) =>
-              `- ${i.title}: ${i.description}${i.actionSuggestion ? ` → ${i.actionSuggestion}` : ''}`
-          )
-          .join('\n')
-    );
-  }
-
   const context = parts.join('\n\n');
 
   // Hard cap: if the assembled context still exceeds the budget (many long
@@ -114,12 +101,12 @@ async function buildContext(): Promise<string> {
   return context;
 }
 
-const SYSTEM_PROMPT = `Você é o "Clone" — um assistente pessoal que aprendeu com as conversas, oportunidades, conteúdos e insights do usuário.
+const SYSTEM_PROMPT = `Você é o "Clone" — um assistente pessoal que aprendeu com as conversas, oportunidades e conteúdos do usuário.
 
 Regras:
 - Responda SEMPRE em português do Brasil, de forma direta e útil.
 - Baseie-se APENAS no CONTEXTO fornecido abaixo. Não invente conversas, oportunidades ou números que não estejam ali.
-- Quando citar uma oportunidade, conteúdo ou insight, use o título real que está no contexto.
+- Quando citar uma oportunidade ou conteúdo, use o título real que está no contexto.
 - Ao procurar uma PESSOA, considere variações e erros de grafia do nome (ex.: "Andreza" ≈ "Andresa" ≈ "Andressa"). Se encontrar um nome parecido na lista de Participantes, trate como a mesma pessoa e diga em quais conversas ela aparece.
 - Se o contexto não tiver a informação pedida, diga isso honestamente e sugira o que processar/gerar para obtê-la.
 - Seja conciso: 1 a 3 parágrafos curtos. Ofereça um próximo passo quando fizer sentido.`;

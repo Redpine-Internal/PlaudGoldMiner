@@ -9,9 +9,8 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 
 const TITLES: [string, string][] = [
   ["/conversas", "Conversas"],
-  ["/oportunidades", "Oportunidades"],
+  ["/novos-negocios", "Novos Negócios"],
   ["/conteudos", "Conteúdos"],
-  ["/insights", "IA Insights"],
   ["/projetos", "Projetos"],
   ["/assuntos-interesse", "Assuntos de Interesse"],
   ["/clone", "Clone"],

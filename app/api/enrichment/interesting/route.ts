@@ -16,7 +16,7 @@ interface InterestingRow {
 /**
  * Agrega ideias marcadas como interessantes, já juntando o título/subtítulo da
  * ideia de origem (SELECT de leitura — permitido). LEFT JOIN por tipo: cada
- * enrichment casa com no máximo uma das três tabelas, pelo source_id.
+ * enrichment casa com no máximo uma das duas tabelas, pelo source_id.
  */
 export async function GET() {
   try {
@@ -29,11 +29,10 @@ export async function GET() {
          e.text_override AS "textOverride",
          e.updated_at    AS "updatedAt",
          COALESCE(rc.n, 0)::int AS "refCount",
-         COALESCE(o.title, i.title, c.title) AS "title",
-         COALESCE(o.pain, i.description, c.theme) AS "subtitle"
+         COALESCE(o.title, c.title) AS "title",
+         COALESCE(o.pain, c.theme) AS "subtitle"
        FROM app_idea_enrichment e
        LEFT JOIN app_opportunities o ON e.source_type = 'opportunity' AND o.id = e.source_id
-       LEFT JOIN app_cross_insights i ON e.source_type = 'insight' AND i.id = e.source_id
        LEFT JOIN app_contents c ON e.source_type = 'content' AND c.id = e.source_id
        LEFT JOIN (
          SELECT enrichment_id, COUNT(*) AS n

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { conversations, opportunities, contents, crossInsights } from '@/lib/db/schema';
+import { conversations, opportunities, contents } from '@/lib/db/schema';
 import { desc, gte, lte, and } from 'drizzle-orm';
 
 interface ExportRequest {
   includeConversations: boolean;
   includeOpportunities: boolean;
   includeContents: boolean;
-  includeInsights: boolean;
   includeSummaries: boolean;
   includeTranscriptions: boolean;
   startDate?: string;
@@ -22,7 +21,6 @@ export async function POST(request: NextRequest) {
       includeConversations,
       includeOpportunities,
       includeContents,
-      includeInsights,
       includeSummaries,
       includeTranscriptions,
       startDate,
@@ -108,26 +106,6 @@ export async function POST(request: NextRequest) {
       }));
     }
 
-    // Export cross insights
-    if (includeInsights) {
-      const insightResult = await db
-        .select()
-        .from(crossInsights)
-        .orderBy(desc(crossInsights.createdAt));
-
-      exportData.insights = insightResult.map((i) => ({
-        id: i.id,
-        title: i.title,
-        description: i.description,
-        pattern: i.pattern,
-        conversationIds: i.conversationIds ? JSON.parse(i.conversationIds) : [],
-        insightType: i.insightType,
-        confidence: i.confidence,
-        status: i.status,
-        actionSuggestion: i.actionSuggestion,
-      }));
-    }
-
     return NextResponse.json(exportData);
   } catch (error) {
     console.error('Error exporting data:', error);
@@ -154,14 +132,13 @@ export async function GET(request: NextRequest) {
       dateFilters.push(lte(conversations.date, new Date(endDate)));
     }
 
-    const [convResult, oppResult, contentResult, insightResult] = await Promise.all([
+    const [convResult, oppResult, contentResult] = await Promise.all([
       db
         .select()
         .from(conversations)
         .where(dateFilters.length > 0 ? and(...dateFilters) : undefined),
       db.select().from(opportunities),
       db.select().from(contents),
-      db.select().from(crossInsights),
     ]);
 
     return NextResponse.json({
@@ -169,7 +146,6 @@ export async function GET(request: NextRequest) {
         conversations: convResult.length,
         opportunities: oppResult.length,
         contents: contentResult.length,
-        insights: insightResult.length,
       },
     });
   } catch (error) {

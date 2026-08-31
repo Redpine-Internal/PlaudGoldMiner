@@ -15,20 +15,12 @@ interface Content {
   title: string;
   relevanceScore: number;
 }
-interface CrossInsight {
-  id: string;
-  title: string;
-  description: string;
-  actionSuggestion: string | null;
-}
-
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface CloneData {
   conversations: unknown[];
   opportunities: Opportunity[];
   contents: Content[];
-  insights: CrossInsight[];
 }
 
 const iconBtn: React.CSSProperties = {
@@ -41,7 +33,7 @@ const iconBtn: React.CSSProperties = {
   borderRadius: 5,
 };
 
-const suggestions = ["O que aprendi essa semana?", "Quais oportunidades priorizar?", "Ideias de conteúdo sobre delegação"];
+const suggestions = ["O que aprendi essa semana?", "Quais negócios priorizar?", "Ideias de conteúdo sobre delegação"];
 
 const ClonePage = () => {
   const { chats, activeChatId, saveChatMsgs } = useAppStore();
@@ -50,13 +42,11 @@ const ClonePage = () => {
   const { data: convData } = useSWR<{ data: unknown[]; total: number }>("/api/conversations?limit=100", fetcher);
   const { data: oppData } = useSWR<{ data: Opportunity[] }>("/api/opportunities?limit=100", fetcher);
   const { data: ctData } = useSWR<{ data: Content[] }>("/api/contents?limit=100", fetcher);
-  const { data: insData } = useSWR<{ data: CrossInsight[] }>("/api/insights?limit=10", fetcher);
 
   const data: CloneData = {
     conversations: convData?.data || [],
     opportunities: oppData?.data || [],
     contents: ctData?.data || [],
-    insights: insData?.data || [],
   };
 
   return <CloneChat key={chat.id} data={data} chat={chat} onMsgs={saveChatMsgs} />;
@@ -78,7 +68,7 @@ function CloneChat({
       data.conversations.length +
       " conversas, " +
       data.opportunities.length +
-      " oportunidades e " +
+      " novos negócios e " +
       data.contents.length +
       " sugestões de conteúdo. O que você quer explorar?",
   };
@@ -169,7 +159,7 @@ function CloneChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const consultarBase = () => send("Faça um panorama da minha base: quantas conversas, oportunidades e conteúdos tenho, e quais os temas mais fortes.");
+  const consultarBase = () => send("Faça um panorama da minha base: quantas conversas, novos negócios e conteúdos tenho, e quais os temas mais fortes.");
 
   const gerarInsights = () => send("Analise minhas conversas e me dê um insight cruzado relevante, com um próximo passo prático.");
 

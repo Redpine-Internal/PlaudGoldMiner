@@ -110,7 +110,7 @@ function N8nSection() {
           {(
             [
               ["Processar reunião (transcrição + resumo)", "Ativo"],
-              ["Gerar oportunidades de negócio", "Ativo"],
+              ["Detectar novos negócios", "Ativo"],
               ["Comparar embeddings da base do Clone", "Ativo"],
               ["Insights de artigos científicos", "Ativo"],
               ["Gerar conteúdo social", "Ativo"],

@@ -152,7 +152,7 @@ const OutputPanel = () => {
         tabs={[
           { id: "resumo", label: "Resumo" },
           { id: "transcricao", label: "Transcrição" },
-          { id: "insights", label: "Insights" },
+          { id: "insights", label: "Negócios" },
         ]}
         active={tab}
         onChange={(id) => setTab(id as Tab)}
@@ -220,7 +220,7 @@ const OutputPanel = () => {
               <div>
                 <h4 style={h4}>
                   <Icon name="lightbulb" size={16} />
-                  Oportunidades ({opps.length})
+                  Novos Negócios ({opps.length})
                 </h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {opps.slice(0, 3).map((o) => (
@@ -254,7 +254,7 @@ const OutputPanel = () => {
           )
         ) : opps.length ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h4 style={{ ...h4, marginBottom: 0 }}>Oportunidades Detectadas ({opps.length})</h4>
+            <h4 style={{ ...h4, marginBottom: 0 }}>Novos Negócios Detectados ({opps.length})</h4>
             {opps.map((o) => (
               <div
                 key={o.id}
@@ -278,7 +278,7 @@ const OutputPanel = () => {
             ))}
           </div>
         ) : (
-          <EmptyState icon="lightbulb" title="Nenhum insight disponível" message="Não foram detectadas oportunidades nesta conversa." />
+          <EmptyState icon="lightbulb" title="Nenhum negócio detectado" message="Não foram detectados novos negócios nesta conversa." />
         )}
       </div>
 

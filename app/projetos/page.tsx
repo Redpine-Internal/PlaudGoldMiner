@@ -179,7 +179,7 @@ export default function ProjetosPage() {
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
         </>
       ) : (
-        <EmptyState icon="layout-dashboard" title="Nenhum projeto ainda" message="Inicie um projeto a partir de uma Oportunidade, Insight ou Conteúdo." />
+        <EmptyState icon="layout-dashboard" title="Nenhum projeto ainda" message="Inicie um projeto a partir de um Novo Negócio ou de um Conteúdo." />
       )}
     </div>
   );
