@@ -4,14 +4,6 @@ import { pool } from '@/lib/db';
 // GET /api/dashboard - Agregado do Dashboard "Resumo".
 // "conversations" é uma VIEW; somente leitura aqui (nunca .returning()).
 
-interface HeroRow {
-  id: string;
-  title: string;
-  description: string | null;
-  insight_type: string;
-  action_suggestion: string | null;
-}
-
 interface ConversationRow {
   id: string;
   title: string;
@@ -36,8 +28,41 @@ interface ProjectRow {
   description: string | null;
 }
 
-const HERO_SELECT = `SELECT id, title, description, insight_type, action_suggestion
-                       FROM app_cross_insights`;
+// Demanda agregada por tipo de negócio. "conversations" aqui é o nº de conversas
+// distintas que sustentam aquele tipo — é o que mede demanda real, não a
+// quantidade de cards (uma oportunidade de 8 conversas pesa mais que 3 de duas).
+const DEMAND_LABEL: Record<string, string> = {
+  treinamento: 'Treinamento',
+  consultoria: 'Consultoria',
+  sistema: 'Sistema',
+  produto: 'Produto',
+};
+
+interface DemandRow {
+  type: string;
+  count: number;
+  conversations: number;
+  avg_score: number | null;
+  top_title: string | null;
+}
+
+// Volume de conversas por mês — a matéria-prima da análise ao longo do tempo.
+interface VolumeRow {
+  month: string;
+  total: number;
+}
+
+// Quantas conversas sustentam cada negócio. É a distribuição que prova que as
+// oportunidades passaram a nascer de um conjunto, não de uma reunião isolada.
+interface EvidenceRow {
+  sources: number;
+  opportunities: number;
+}
+
+const MONTH_ABBR = [
+  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+  'jul', 'ago', 'set', 'out', 'nov', 'dez',
+];
 
 export async function GET() {
   try {
@@ -45,16 +70,18 @@ export async function GET() {
       processedRes,
       opportunitiesRes,
       contentsRes,
-      insightsNewRes,
       pendingRes,
       suggestedRes,
       weekConversationsRes,
-      heroRes,
       recentRes,
       pipelineRes,
       themesSourceRes,
       lastProjectRes,
       profileRes,
+      demandRes,
+      volumeRes,
+      evidenceRes,
+      coverageRes,
     ] = await Promise.all([
       pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM conversations WHERE status = 'processado'`
@@ -66,9 +93,6 @@ export async function GET() {
         `SELECT COUNT(*)::int AS count FROM app_contents`
       ),
       pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM app_cross_insights WHERE status = 'new'`
-      ),
-      pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM conversations WHERE status = 'pendente'`
       ),
       pool.query<{ count: number }>(
@@ -77,12 +101,6 @@ export async function GET() {
       pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM conversations
           WHERE status = 'processado' AND date >= now() - interval '7 days'`
-      ),
-      pool.query<HeroRow>(
-        `${HERO_SELECT}
-          WHERE status = 'new'
-          ORDER BY (insight_type = 'opportunity') DESC, created_at DESC
-          LIMIT 1`
       ),
       pool.query<ConversationRow>(
         `SELECT id, title, date FROM conversations
@@ -108,25 +126,62 @@ export async function GET() {
       pool.query<{ name: string | null }>(
         `SELECT name FROM app_user_profile WHERE id = 'default'`
       ),
+      // Descartadas ficam de fora: a leitura é "onde há demanda", não "o que a
+      // IA já produziu". DISTINCT na conversa porque a mesma reunião costuma
+      // alimentar várias oportunidades do mesmo tipo.
+      pool.query<DemandRow>(
+        `SELECT o.type,
+                COUNT(DISTINCT o.id)::int AS count,
+                COUNT(DISTINCT s.conversation_id)::int AS conversations,
+                ROUND(AVG(o.score))::int AS avg_score,
+                (SELECT t.title FROM app_opportunities t
+                  WHERE t.type = o.type AND t.status IS DISTINCT FROM 'descartada'
+                  ORDER BY t.score DESC NULLS LAST LIMIT 1) AS top_title
+           FROM app_opportunities o
+           LEFT JOIN app_opportunity_sources s ON s.opportunity_id = o.id
+          WHERE o.status IS DISTINCT FROM 'descartada'
+          GROUP BY o.type
+          ORDER BY conversations DESC, count DESC`
+      ),
+      // generate_series garante os meses sem conversa: buracos na série temporal
+      // precisam aparecer como zero, não sumir e falsear a continuidade.
+      pool.query<VolumeRow>(
+        `WITH meses AS (
+           SELECT generate_series(
+             date_trunc('month', now()) - interval '11 months',
+             date_trunc('month', now()),
+             interval '1 month'
+           ) AS m
+         )
+         SELECT to_char(meses.m, 'YYYY-MM') AS month,
+                COUNT(c.id)::int AS total
+           FROM meses
+           LEFT JOIN conversations c
+             ON date_trunc('month', c.date) = meses.m
+            AND c.status = 'processado'
+          GROUP BY meses.m
+          ORDER BY meses.m`
+      ),
+      pool.query<EvidenceRow>(
+        `SELECT n_fontes AS sources, COUNT(*)::int AS opportunities
+           FROM (
+             SELECT o.id, COUNT(s.conversation_id)::int AS n_fontes
+               FROM app_opportunities o
+               LEFT JOIN app_opportunity_sources s ON s.opportunity_id = o.id
+              WHERE o.status IS DISTINCT FROM 'descartada'
+              GROUP BY o.id
+           ) t
+          GROUP BY n_fontes
+          ORDER BY n_fontes`
+      ),
+      // Cobertura: quanto do acervo processado já virou evidência de negócio.
+      pool.query<{ analyzed: number; total: number }>(
+        `SELECT (SELECT COUNT(DISTINCT conversation_id)::int
+                   FROM app_opportunity_sources) AS analyzed,
+                (SELECT COUNT(*)::int FROM conversations
+                  WHERE status = 'processado') AS total`
+      ),
     ]);
-
-    // hero: fallback para qualquer status; tabela vazia -> null
-    let heroRow: HeroRow | null = heroRes.rows[0] ?? null;
-    if (!heroRow) {
-      const fallback = await pool.query<HeroRow>(
-        `${HERO_SELECT} ORDER BY created_at DESC LIMIT 1`
-      );
-      heroRow = fallback.rows[0] ?? null;
-    }
-    const hero = heroRow
-      ? {
-          id: heroRow.id,
-          title: heroRow.title,
-          description: heroRow.description ?? '',
-          insightType: heroRow.insight_type,
-          actionSuggestion: heroRow.action_suggestion ?? null,
-        }
-      : null;
 
     const recentConversations = recentRes.rows.map((row) => ({
       id: row.id,
@@ -204,6 +259,62 @@ export async function GET() {
         }
       : null;
 
+    const demandTotal = demandRes.rows.reduce((acc, r) => acc + (r.conversations ?? 0), 0);
+    const demand = demandRes.rows.map((r) => ({
+      type: r.type,
+      count: r.count,
+      conversations: r.conversations,
+      avgScore: r.avg_score ?? 0,
+      topTitle: r.top_title ?? null,
+      // Participação sobre o total de conversas-evidência, para a barra da UI.
+      share: demandTotal > 0 ? Math.round((r.conversations / demandTotal) * 100) : 0,
+    }));
+
+    const volume = volumeRes.rows.map((r) => {
+      const [year, month] = r.month.split('-');
+      return {
+        month: r.month,
+        label: MONTH_ABBR[Number(month) - 1] ?? r.month,
+        year: Number(year),
+        total: r.total,
+      };
+    });
+    const volumeMax = volume.reduce((acc, v) => Math.max(acc, v.total), 0);
+    const volumeTotal = volume.reduce((acc, v) => acc + v.total, 0);
+
+    const evidenceTotal = evidenceRes.rows.reduce((acc, r) => acc + r.opportunities, 0);
+    // Média ponderada de conversas por negócio — o número que resume a virada
+    // de "uma reunião gerou um card" para "o conjunto gerou um card".
+    const evidenceWeighted = evidenceRes.rows.reduce(
+      (acc, r) => acc + r.sources * r.opportunities,
+      0
+    );
+    const evidence = {
+      buckets: evidenceRes.rows.map((r) => ({
+        sources: r.sources,
+        opportunities: r.opportunities,
+      })),
+      total: evidenceTotal,
+      max: evidenceRes.rows.reduce((acc, r) => Math.max(acc, r.opportunities), 0),
+      avgSources:
+        evidenceTotal > 0
+          ? Math.round((evidenceWeighted / evidenceTotal) * 10) / 10
+          : 0,
+      // Negócios apoiados numa única conversa: o padrão que o sistema abandonou.
+      single: evidenceRes.rows.find((r) => r.sources <= 1)?.opportunities ?? 0,
+    };
+
+    const coverageRow = coverageRes.rows[0];
+    const coverageTotal = coverageRow?.total ?? 0;
+    const coverage = {
+      analyzed: coverageRow?.analyzed ?? 0,
+      total: coverageTotal,
+      percent:
+        coverageTotal > 0
+          ? Math.round(((coverageRow?.analyzed ?? 0) / coverageTotal) * 100)
+          : 0,
+    };
+
     const greetingName =
       profileRes.rows[0]?.name?.trim().split(' ')[0] ?? '';
 
@@ -211,12 +322,10 @@ export async function GET() {
       conversations: processedRes.rows[0]?.count ?? 0,
       opportunities: opportunitiesRes.rows[0]?.count ?? 0,
       contents: contentsRes.rows[0]?.count ?? 0,
-      insightsNew: insightsNewRes.rows[0]?.count ?? 0,
     };
 
     const queue = {
       pendingConversations: pendingRes.rows[0]?.count ?? 0,
-      newInsights: kpis.insightsNew,
       suggestedContents: suggestedRes.rows[0]?.count ?? 0,
     };
 
@@ -232,9 +341,12 @@ export async function GET() {
     } else if (kpis.conversations > 0) {
       sentences.push('Nenhuma conversa nova foi processada nos últimos 7 dias.');
     }
-    if (pipeline[0]) {
+    // A demanda por tipo diz mais que o título do card mais bem pontuado — o
+    // sistema existe para ler o conjunto, não para destacar uma oportunidade.
+    if (demand[0] && demand[0].conversations > 0) {
+      const label = DEMAND_LABEL[demand[0].type] || demand[0].type;
       sentences.push(
-        `A oportunidade mais forte do pipeline é "${pipeline[0].title}" (score ${Math.round(pipeline[0].score)}).`
+        `A maior demanda é por ${label.toLowerCase()}: ${demand[0].conversations} ${demand[0].conversations === 1 ? 'conversa aponta' : 'conversas apontam'} nessa direção.`
       );
     }
     if (themes[0]) {
@@ -249,10 +361,15 @@ export async function GET() {
         greetingName,
         kpis,
         queue,
-        hero,
         recentConversations,
         pipeline,
         themes,
+        demand,
+        volume,
+        volumeMax,
+        volumeTotal,
+        evidence,
+        coverage,
         lastProject,
         weekSummary,
       },

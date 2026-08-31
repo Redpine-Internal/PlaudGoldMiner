@@ -1,47 +1,55 @@
 "use client";
 import type React from "react";
-import { useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import { MessagesSquare, Target, FileText, Sparkles } from "lucide-react";
-import { Button, useEnrichment } from "@/components/ds";
+import { MessagesSquare, Target, FileText } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
-
-interface DashboardHero {
-  id: string;
-  title: string;
-  description: string;
-  insightType: string;
-  actionSuggestion: string | null;
-}
+import { useContainerWidth } from "@/hooks/useContainerWidth";
 
 interface DashboardData {
   greetingName: string;
-  kpis: { conversations: number; opportunities: number; contents: number; insightsNew: number };
-  queue: { pendingConversations: number; newInsights: number; suggestedContents: number };
-  hero: DashboardHero | null;
+  kpis: { conversations: number; opportunities: number; contents: number };
+  queue: { pendingConversations: number; suggestedContents: number };
   recentConversations: { id: string; title: string; date: string }[];
   pipeline: { id: string; title: string; status: string; score: number }[];
   themes: { name: string; count: number; delta: number }[];
+  demand: {
+    type: string;
+    count: number;
+    conversations: number;
+    avgScore: number;
+    topTitle: string | null;
+    share: number;
+  }[];
+  volume: { month: string; label: string; year: number; total: number }[];
+  volumeMax: number;
+  volumeTotal: number;
+  evidence: {
+    buckets: { sources: number; opportunities: number }[];
+    total: number;
+    max: number;
+    avgSources: number;
+    single: number;
+  };
+  coverage: { analyzed: number; total: number; percent: number };
   lastProject: { id: string; title: string; description: string | null } | null;
   weekSummary: string | null;
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const KIND_LABEL: Record<string, string> = {
-  pattern: "Padrão",
-  connection: "Conexão",
-  trend: "Tendência",
-  suggestion: "Sugestão",
-  opportunity: "Oportunidade real",
-};
-
 const OPP_STATUS_LABEL: Record<string, string> = {
   nova: "Nova",
   analise: "Em análise",
   qualificada: "Qualificada",
   descartada: "Descartada",
+};
+
+const OPP_TYPE_LABEL: Record<string, string> = {
+  treinamento: "Treinamento",
+  consultoria: "Consultoria",
+  sistema: "Sistema",
+  produto: "Produto",
 };
 
 const capsStyle: React.CSSProperties = {
@@ -84,11 +92,27 @@ const formatConvDate = (date: string) => {
 const scoreColor = (score: number) =>
   score >= 80 ? "var(--badge-green, #248A3D)" : score >= 50 ? "var(--badge-orange, #B25000)" : "var(--color-muted-foreground)";
 
+// Largura máxima da coluna de leitura. Acima disso o conteúdo para de esticar e
+// passa a centralizar: num monitor de 1920px o card de 12 colunas viraria uma
+// faixa de ~1700px com barras de 24px perdidas em vãos enormes.
+const CONTENT_MAX = 1180;
+
+// Limiares medidos NO CONTAINER, não na janela. Abaixo de 720px de conteúdo as
+// duas colunas do grid principal ficam com ~340px e os títulos dos cards passam
+// a quebrar; abaixo de 480px nem os três KPIs lado a lado cabem.
+const TWO_COL_MIN = 720;
+const KPI_ROW_MIN = 480;
+
 const ResumoPage = () => {
   const router = useRouter();
-  const enrichment = useEnrichment();
   const isMobile = useIsMobile();
-  const [creating, setCreating] = useState(false);
+  const [contentRef, contentWidth] = useContainerWidth<HTMLDivElement>();
+
+  // 0 = ainda não medido (primeiro paint / SSR): assume estreito, que é o
+  // layout que nunca estoura. O ResizeObserver corrige no frame seguinte.
+  const measured = contentWidth > 0;
+  const twoCol = measured && contentWidth >= TWO_COL_MIN;
+  const kpiRow = !measured || contentWidth >= KPI_ROW_MIN;
 
   const { data: resp, isLoading } = useSWR<{ data: DashboardData }>("/api/dashboard", fetcher, {
     revalidateOnFocus: false,
@@ -106,56 +130,10 @@ const ResumoPage = () => {
     (data?.greetingName ? ", " + data.greetingName : "") +
     " — aqui está o que suas conversas revelaram.";
 
-  const openHero = () => {
-    if (!data?.hero) return;
-    enrichment?.openEnrichment("insight", data.hero.id, {
-      title: data.hero.title,
-      originalText: data.hero.description,
-    });
-  };
-
-  const handleCreateProject = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const hero = data?.hero;
-    if (!hero || creating) return;
-    setCreating(true);
-    try {
-      const existing = await fetch(
-        `/api/projects?sourceType=insight&sourceId=${encodeURIComponent(hero.id)}&limit=1`
-      );
-      if (existing.ok) {
-        const ex = await existing.json();
-        const found = ex?.data?.[0];
-        if (found?.id) {
-          router.push("/projetos/" + found.id);
-          return;
-        }
-      }
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: hero.title,
-          description: hero.description,
-          sourceType: "insight",
-          sourceId: hero.id,
-        }),
-      });
-      const body = await res.json();
-      const id = body?.data?.id;
-      if (id) router.push("/projetos/" + id);
-    } catch (err) {
-      console.error("Failed to create project from hero insight:", err);
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const kpiCards = [
     { label: "Conversas Processadas", value: data?.kpis.conversations ?? 0, Icon: MessagesSquare, href: "/conversas" },
-    { label: "Oportunidades", value: data?.kpis.opportunities ?? 0, Icon: Target, href: "/oportunidades" },
+    { label: "Novos Negócios", value: data?.kpis.opportunities ?? 0, Icon: Target, href: "/novos-negocios" },
     { label: "Conteúdos Sugeridos", value: data?.kpis.contents ?? 0, Icon: FileText, href: "/conteudos" },
-    { label: "Insights Cruzados", value: data?.kpis.insightsNew ?? 0, Icon: Sparkles, href: "/ia-insights" },
   ];
 
   const queueItems = data
@@ -171,16 +149,6 @@ const ResumoPage = () => {
           href: "/conversas",
         },
         {
-          key: "insights",
-          count: data.queue.newInsights,
-          label:
-            data.queue.newInsights === 1
-              ? "1 insight novo não lido"
-              : `${data.queue.newInsights} insights novos não lidos`,
-          cta: "Revisar",
-          href: "/ia-insights",
-        },
-        {
           key: "conteudos",
           count: data.queue.suggestedContents,
           label:
@@ -193,16 +161,19 @@ const ResumoPage = () => {
       ].filter((item) => item.count > 0)
     : [];
 
+  // Três KPIs numa linha só. O grid de 2 colunas do mobile antigo deixava o
+  // terceiro card órfão, com um buraco do lado — três colunas estreitas leem
+  // melhor que duas e meia.
   const kpiGridStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+    gridTemplateColumns: kpiRow ? "repeat(3, minmax(0, 1fr))" : "minmax(0, 1fr)",
     gap: isMobile ? 10 : 16,
     marginBottom: 32,
   };
 
   const mainGridStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr)",
+    gridTemplateColumns: twoCol ? "minmax(0, 1fr) minmax(0, 1fr)" : "minmax(0, 1fr)",
     gap: isMobile ? 16 : 24,
     alignItems: "start",
   };
@@ -235,15 +206,35 @@ const ResumoPage = () => {
     </div>
   );
 
+  // A <main> da AppShell não limita largura, então o conteúdo esticava até a
+  // borda da janela. O ref mede a largura REAL disponível — é ela, e não a da
+  // janela, que decide o número de colunas.
+  const shellStyle: React.CSSProperties = { maxWidth: CONTENT_MAX, margin: "0 auto" };
+
   if (isLoading) {
     return (
-      <div>
+      <div ref={contentRef} style={shellStyle}>
         {header}
         <div style={kpiGridStyle}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="ds-card" style={{ padding: 20 }}>
-              <div className="ds-skeleton" style={{ height: 12, width: "60%", borderRadius: 6, marginBottom: 14 }} />
-              <div className="ds-skeleton" style={{ height: 24, width: "36%", borderRadius: 6 }} />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="ds-card"
+              style={{
+                padding: kpiRow ? 20 : "14px 16px",
+                // Espelha o card real: em linha quando empilhado, para o
+                // esqueleto não ter altura diferente do que vai substituí-lo.
+                display: kpiRow ? "block" : "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div
+                className="ds-skeleton"
+                style={{ height: 12, width: kpiRow ? "60%" : 120, borderRadius: 6, marginBottom: kpiRow ? 14 : 0 }}
+              />
+              <div className="ds-skeleton" style={{ height: 24, width: kpiRow ? "36%" : 44, borderRadius: 6 }} />
             </div>
           ))}
         </div>
@@ -262,60 +253,8 @@ const ResumoPage = () => {
   }
 
   return (
-    <div>
+    <div ref={contentRef} style={shellStyle}>
       {header}
-
-      {data?.hero ? (
-        <div
-          className="ds-card"
-          onClick={openHero}
-          style={{
-            padding: 24,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            cursor: "pointer",
-            marginBottom: 24,
-          }}
-        >
-          <span style={capsStyle}>
-            Destaque do dia · {KIND_LABEL[data.hero.insightType] || "Insight"}
-          </span>
-          <h2 style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.022em", margin: 0 }}>
-            {data.hero.title}
-          </h2>
-          {data.hero.description ? (
-            <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--color-muted-foreground)", maxWidth: 720, margin: 0 }}>
-              {data.hero.description}
-            </p>
-          ) : null}
-          {data.hero.actionSuggestion ? (
-            <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-brand)", margin: 0 }}>
-              Ação sugerida: {data.hero.actionSuggestion}
-            </p>
-          ) : null}
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <Button
-              variant="primary"
-              disabled={creating}
-              onClick={handleCreateProject}
-              style={{ height: 36, padding: "0 18px", fontSize: 13, fontWeight: 600 }}
-            >
-              {creating ? "Criando…" : "Criar Projeto"}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={(e) => {
-                e.stopPropagation();
-                openHero();
-              }}
-              style={{ height: 36, padding: "0 18px", fontSize: 13, fontWeight: 600 }}
-            >
-              Ver insight
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       <div style={kpiGridStyle}>
         {kpiCards.map(({ label, value, Icon, href }) => (
@@ -323,18 +262,145 @@ const ResumoPage = () => {
             key={href}
             className="ds-card"
             onClick={() => router.push(href)}
-            style={{ padding: 20, cursor: "pointer" }}
+            style={{
+              padding: kpiRow ? 20 : "14px 16px",
+              cursor: "pointer",
+              // Empilhado (tela estreita) o card vira uma linha: rótulo à
+              // esquerda, número à direita. Em coluna, um card de 265px de
+              // altura para um número só empurrava o gráfico para fora da tela.
+              display: kpiRow ? "block" : "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={{ fontSize: 13, color: "var(--color-muted-foreground)" }}>{label}</span>
-              <Icon size={17} strokeWidth={1.75} aria-hidden style={{ opacity: 0.6 }} />
+            {/* Empilhado em linha o rótulo não precisa de altura reservada.
+                Em três colunas, "Conversas Processadas" quebra em duas linhas e
+                as outras não — sem o minHeight só esse número descia 19px. */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: kpiRow ? 12 : 0,
+                minHeight: kpiRow ? 36 : undefined,
+                minWidth: 0,
+              }}
+            >
+              <span style={{ fontSize: 13, lineHeight: 1.35, color: "var(--color-muted-foreground)" }}>{label}</span>
+              {kpiRow ? <Icon size={17} strokeWidth={1.75} aria-hidden style={{ opacity: 0.6, flexShrink: 0 }} /> : null}
             </div>
-            <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.022em", color: "var(--color-brand)" }}>
+            <div
+              style={{
+                fontSize: kpiRow ? 28 : 24,
+                fontWeight: 700,
+                lineHeight: 1.25,
+                letterSpacing: "-0.022em",
+                color: "var(--color-brand)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
               {value}
             </div>
           </div>
         ))}
       </div>
+
+      {/* Volume de conversas por mês — série temporal de uma série só, então
+          coluna com hue sequencial e nenhuma legenda: o título já diz o que é. */}
+      {data?.volume.length ? (
+        <div className="ds-card" style={{ padding: 20, marginBottom: isMobile ? 16 : 24 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+            <h2 style={{ ...cardTitleStyle, margin: 0 }}>Conversas por mês</h2>
+            <span style={{ ...mutedText, fontSize: 12 }}>
+              {data.volumeTotal} nos últimos 12 meses
+            </span>
+          </div>
+          <p style={{ ...mutedText, fontSize: 12, margin: "0 0 16px" }}>
+            O acervo que alimenta a análise. Meses sem conversa aparecem como zero.
+          </p>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 132 }}>
+            {data.volume.map((v) => {
+              const isMax = v.total === data.volumeMax && v.total > 0;
+              const h = data.volumeMax > 0 ? (v.total / data.volumeMax) * 100 : 0;
+              return (
+                <div
+                  key={v.month}
+                  title={`${v.label}/${String(v.year).slice(2)} — ${v.total} ${v.total === 1 ? "conversa" : "conversas"}`}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                    height: "100%",
+                    gap: 4,
+                  }}
+                >
+                  {/* Rótulo só no extremo — um número em cada coluna vira ruído. */}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      lineHeight: 1,
+                      color: isMax ? "var(--color-foreground)" : "transparent",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {v.total}
+                  </span>
+                  <div
+                    style={{
+                      width: "100%",
+                      maxWidth: 24,
+                      height: `${Math.max(h, v.total > 0 ? 3 : 1)}%`,
+                      minHeight: v.total > 0 ? 3 : 1,
+                      // Extremidade de dados arredondada, base quadrada.
+                      borderRadius: "4px 4px 0 0",
+                      background: v.total > 0
+                        ? isMax
+                          ? "var(--chart-seq-3)"
+                          : "var(--chart-seq-2)"
+                        : "var(--chart-track)",
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          {/* Eixo x: hairline sólido, recessivo. */}
+          <div style={{ height: 1, background: "var(--chart-grid)", margin: "6px 0 6px" }} />
+          <div style={{ display: "flex", gap: 2 }}>
+            {data.volume.map((v, i) => (
+              <span
+                key={v.month}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  textAlign: "center",
+                  fontSize: 10,
+                  letterSpacing: "0.02em",
+                  color: "var(--color-muted-foreground)",
+                  overflow: "hidden",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {/* Abaixo de ~32px por rótulo os meses se tocam; alterna um sim,
+                    um não — contando de trás pra frente, para que o mês mais
+                    recente nunca seja o omitido. Mede o container, não a janela:
+                    o gráfico também aperta numa janela larga com sidebar. */}
+                {measured &&
+                contentWidth / data.volume.length < 32 &&
+                (data.volume.length - 1 - i) % 2 === 1
+                  ? ""
+                  : v.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div style={mainGridStyle}>
         {/* Coluna esquerda */}
@@ -437,6 +503,190 @@ const ResumoPage = () => {
 
         {/* Coluna direita */}
         <div style={columnStyle}>
+          {data?.demand.length ? (
+            <div className="ds-card" style={{ padding: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h2 style={{ ...cardTitleStyle, margin: 0 }}>Demanda por tipo de serviço</h2>
+                <button type="button" style={seeAllStyle} onClick={() => router.push("/novos-negocios")}>
+                  Ver Todas ›
+                </button>
+              </div>
+              <p style={{ ...mutedText, fontSize: 12, margin: "0 0 4px" }}>
+                Conversas que sustentam cada tipo de negócio.
+              </p>
+              {data.demand.map((d, i) => (
+                <div
+                  key={d.type}
+                  onClick={() => router.push("/novos-negocios")}
+                  style={{ padding: "10px 0", cursor: "pointer" }}
+                >
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>
+                      {OPP_TYPE_LABEL[d.type] || d.type}
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>
+                      {d.count} {d.count === 1 ? "negócio" : "negócios"} · {d.conversations}{" "}
+                      {d.conversations === 1 ? "conversa" : "conversas"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: scoreColor(d.avgScore),
+                        whiteSpace: "nowrap",
+                        minWidth: 24,
+                        textAlign: "right",
+                      }}
+                    >
+                      {d.avgScore}
+                    </span>
+                  </div>
+                  {/* Barra proporcional ao nº de conversas — comparação visual
+                      sem depender de lib de gráfico. A trilha ocupa a linha
+                      inteira: com o rótulo ao lado, cada linha tinha uma trilha
+                      de comprimento diferente (o texto varia de largura) e as
+                      barras deixavam de ser comparáveis entre si. */}
+                  <div
+                    style={{
+                      height: 6,
+                      borderRadius: 999,
+                      background: "rgba(120,120,128,0.14)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.max(d.share, 2)}%`,
+                        height: "100%",
+                        borderRadius: 999,
+                        // Paleta categórica dedicada, em ordem fixa. Os tokens
+                        // --opp-*-fg repetem cor entre tipos (consultoria =
+                        // sistema, treinamento = produto) e sairiam iguais aqui.
+                        background: `var(--chart-cat-${(i % 4) + 1})`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Evidência por negócio: a distribuição prova que as oportunidades
+              nascem de um conjunto de conversas, não de uma reunião isolada. */}
+          {data?.evidence.total ? (
+            <div className="ds-card" style={{ padding: 20 }}>
+              <h2 style={{ ...cardTitleStyle, margin: 0 }}>Evidência por negócio</h2>
+              <p style={{ ...mutedText, fontSize: 12, margin: "0 0 14px" }}>
+                Quantas conversas sustentam cada oportunidade.
+              </p>
+              {/* Hero figure: o número que resume a virada. */}
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.022em" }}>
+                  {data.evidence.avgSources}
+                </span>
+                <span style={{ ...mutedText, fontSize: 12 }}>
+                  conversas por negócio, em média
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 76 }}>
+                {data.evidence.buckets.map((b) => {
+                  const h = data.evidence.max > 0 ? (b.opportunities / data.evidence.max) * 100 : 0;
+                  return (
+                    <div
+                      key={b.sources}
+                      title={`${b.opportunities} ${b.opportunities === 1 ? "negócio" : "negócios"} com ${b.sources} ${b.sources === 1 ? "conversa" : "conversas"}`}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        height: "100%",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "100%",
+                          maxWidth: 24,
+                          height: `${Math.max(h, 4)}%`,
+                          borderRadius: "4px 4px 0 0",
+                          background: "var(--chart-cat-1)",
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ height: 1, background: "var(--chart-grid)", margin: "6px 0" }} />
+              <div style={{ display: "flex", gap: 2 }}>
+                {data.evidence.buckets.map((b) => (
+                  <span
+                    key={b.sources}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      textAlign: "center",
+                      fontSize: 10,
+                      color: "var(--color-muted-foreground)",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {b.sources}
+                  </span>
+                ))}
+              </div>
+              <p style={{ ...mutedText, fontSize: 11, margin: "8px 0 0" }}>
+                Eixo: nº de conversas-fonte.{" "}
+                {data.evidence.single === 0
+                  ? "Nenhum negócio apoiado numa conversa só."
+                  : `${data.evidence.single} ${data.evidence.single === 1 ? "negócio ainda se apoia" : "negócios ainda se apoiam"} numa conversa só.`}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Cobertura: uma razão contra um limite → meter, não pizza de 2 fatias. */}
+          {data?.coverage.total ? (
+            <div className="ds-card" style={{ padding: 20 }}>
+              <h2 style={{ ...cardTitleStyle, margin: 0 }}>Cobertura do acervo</h2>
+              <p style={{ ...mutedText, fontSize: 12, margin: "0 0 14px" }}>
+                Conversas processadas que já viraram evidência de negócio.
+              </p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1, letterSpacing: "-0.022em" }}>
+                  {data.coverage.percent}%
+                </span>
+                <span style={{ ...mutedText, fontSize: 12 }}>
+                  {data.coverage.analyzed} de {data.coverage.total} conversas
+                </span>
+              </div>
+              {/* Trilho = um step da MESMA rampa, recuado em direção à
+                  superfície. Em fundo escuro o step claro (--chart-seq-1) lê
+                  como barra cheia; o recuo é para o escuro, não para o claro. */}
+              <div
+                style={{
+                  height: 10,
+                  borderRadius: 999,
+                  background: "var(--chart-meter-track)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.max(data.coverage.percent, 1)}%`,
+                    height: "100%",
+                    borderRadius: 999,
+                    background: "var(--chart-seq-3)",
+                  }}
+                />
+              </div>
+              <p style={{ ...mutedText, fontSize: 11, margin: "10px 0 0" }}>
+                As {data.coverage.total - data.coverage.analyzed} conversas restantes ainda não
+                foram usadas em nenhuma geração de negócio.
+              </p>
+            </div>
+          ) : null}
+
           {data?.themes.length ? (
             <div className="ds-card" style={{ padding: 20 }}>
               <h2 style={cardTitleStyle}>Temas em ascensão</h2>
@@ -470,8 +720,8 @@ const ResumoPage = () => {
 
           <div className="ds-card" style={{ padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h2 style={{ ...cardTitleStyle, margin: 0 }}>Pipeline de oportunidades</h2>
-              <button type="button" style={seeAllStyle} onClick={() => router.push("/oportunidades")}>
+              <h2 style={{ ...cardTitleStyle, margin: 0 }}>Pipeline de novos negócios</h2>
+              <button type="button" style={seeAllStyle} onClick={() => router.push("/novos-negocios")}>
                 Ver Todas ›
               </button>
             </div>
@@ -479,7 +729,7 @@ const ResumoPage = () => {
               data.pipeline.map((o, i) => (
                 <div
                   key={o.id}
-                  onClick={() => router.push("/oportunidades")}
+                  onClick={() => router.push("/novos-negocios")}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -517,7 +767,7 @@ const ResumoPage = () => {
                 </div>
               ))
             ) : (
-              <p style={{ ...mutedText, marginTop: 8 }}>Nenhuma oportunidade no pipeline.</p>
+              <p style={{ ...mutedText, marginTop: 8 }}>Nenhum negócio no pipeline.</p>
             )}
           </div>
 
