@@ -9,7 +9,7 @@ import { z } from 'zod';
 /**
  * Generate content-piece suggestions from recurring themes across processed
  * conversations, persisting them into `contents` (+ `content_sources` for
- * traceability). Mirrors POST /api/insights/analyze.
+ * traceability).
  */
 export async function POST(request: NextRequest) {
   try {

@@ -4,7 +4,7 @@ import { useEnrichment } from "./enrichment/useEnrichment";
 
 const TYPES: Record<string, { color: string; label: string }> = {
   pattern: { color: "var(--insight-pattern)", label: "Padrão" },
-  opportunity: { color: "var(--insight-opportunity)", label: "Oportunidade" },
+  opportunity: { color: "var(--insight-opportunity)", label: "Novo Negócio" },
   suggestion: { color: "var(--insight-suggestion)", label: "Sugestão" },
   trend: { color: "var(--insight-trend)", label: "Tendência" },
   connection: { color: "var(--insight-connection)", label: "Conexão" },

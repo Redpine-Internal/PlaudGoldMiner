@@ -61,3 +61,36 @@ export async function PATCH() {
     { status: 405 }
   );
 }
+
+/**
+ * Exclui um Novo Negócio e suas fontes.
+ *
+ * app_opportunity_sources NÃO tem foreign key para app_opportunities, então o
+ * banco não faz cascade: apagar só a oportunidade deixaria as fontes órfãs.
+ * As duas remoções vão na mesma transação para não sobrar meio registro.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const client = await pool.connect();
+  try {
+    const { id } = await params;
+
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM app_opportunity_sources WHERE opportunity_id = $1`, [id]);
+    const res = await client.query(`DELETE FROM app_opportunities WHERE id = $1`, [id]);
+    await client.query('COMMIT');
+
+    if (res.rowCount === 0) {
+      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
+    }
+    return NextResponse.json({ data: { id, deleted: true } });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Error deleting opportunity:', error);
+    return NextResponse.json({ error: 'Falha ao excluir o novo negócio' }, { status: 500 });
+  } finally {
+    client.release();
+  }
+}

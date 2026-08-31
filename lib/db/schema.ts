@@ -7,6 +7,7 @@ import {
   index,
   boolean,
   uniqueIndex,
+  uuid,
 } from 'drizzle-orm/pg-core';
 
 // =====================================================================
@@ -98,50 +99,34 @@ export const contents = pgTable('app_contents', {
   index('app_contents_platform_idx').on(table.platform),
 ]);
 
+// ===== OPPORTUNITY SOURCES (app_opportunity_sources) =====
+// Conversas que originaram a oportunidade, com o trecho da transcrição que
+// serve de justificativa. Nos moldes de app_content_sources (N fontes por
+// item). `app_opportunities.conversation_id` continua existindo como a fonte
+// primária/legada; esta tabela é a lista completa de evidências.
+export const opportunitySources = pgTable('app_opportunity_sources', {
+  id: text('id').primaryKey(),
+  opportunityId: text('opportunity_id'),
+  conversationId: text('conversation_id'),
+  excerpt: text('excerpt'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('app_opportunity_sources_opp_idx').on(table.opportunityId),
+  index('app_opportunity_sources_conv_idx').on(table.conversationId),
+  uniqueIndex('app_opportunity_sources_unq').on(table.opportunityId, table.conversationId),
+]);
+
 // ===== CONTENT SOURCES (app_content_sources) =====
 export const contentSources = pgTable('app_content_sources', {
   id: text('id').primaryKey(),
   contentId: text('content_id'),
-  conversationId: text('conversation_id'),
+  // uuid no banco — ao contrário de app_opportunity_sources, onde é text.
+  conversationId: uuid('conversation_id'),
   excerpt: text('excerpt'),
 }, (table) => [
   index('app_content_sources_content_idx').on(table.contentId),
   index('app_content_sources_conv_idx').on(table.conversationId),
 ]);
-
-// ===== CROSS INSIGHTS (app_cross_insights) =====
-export const crossInsights = pgTable('app_cross_insights', {
-  id: text('id').primaryKey(),
-  title: text('title').notNull(),
-  description: text('description').notNull(),
-  pattern: text('pattern').notNull(),
-  conversationIds: text('conversation_ids'),
-  insightType: text('insight_type').notNull(),
-  confidence: real('confidence').notNull(),
-  status: text('status').notNull().default('new'),
-  actionSuggestion: text('action_suggestion'),
-  // Recorrência e qualificação (reunião 2026-08-25): "X de Y conversas (Z%)",
-  // trechos-fonte, tipo de negócio e hipótese de metodologia proposta pela IA.
-  frequency: integer('frequency'),
-  analyzedCount: integer('analyzed_count'),
-  evidence: text('evidence'),            // jsonb no banco; lido como string JSON
-  businessType: text('business_type'),   // treinamento / consultoria / sistema
-  methodology: text('methodology'),
-  isHypothesis: boolean('is_hypothesis').notNull().default(false),
-  notes: text('notes'),                  // anotações da Andresa (D12)
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  index('app_cross_insights_status_idx').on(table.status),
-  index('app_cross_insights_type_idx').on(table.insightType),
-]);
-
-// ===== CROSS INSIGHT CONVERSATIONS (M:N) =====
-export const crossInsightConversations = pgTable('app_cross_insight_conversations', {
-  id: text('id').primaryKey(),
-  crossInsightId: text('cross_insight_id'),
-  conversationId: text('conversation_id'),
-  relevance: text('relevance'),
-});
 
 // ===== USER PROFILE (app_user_profile) =====
 export const userProfile = pgTable('app_user_profile', {
@@ -265,10 +250,6 @@ export type Content = typeof contents.$inferSelect;
 export type NewContent = typeof contents.$inferInsert;
 export type ContentSource = typeof contentSources.$inferSelect;
 export type NewContentSource = typeof contentSources.$inferInsert;
-export type CrossInsight = typeof crossInsights.$inferSelect;
-export type NewCrossInsight = typeof crossInsights.$inferInsert;
-export type CrossInsightConversation = typeof crossInsightConversations.$inferSelect;
-export type NewCrossInsightConversation = typeof crossInsightConversations.$inferInsert;
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 export type ProjectColumn = typeof projectColumns.$inferSelect;

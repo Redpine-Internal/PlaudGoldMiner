@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { conversations, opportunities } from '@/lib/db/schema';
+import { conversations, opportunities, opportunitySources } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import type { TranscriptionResult } from './prompts/process-transcription';
 
@@ -49,6 +49,19 @@ export async function persistTranscriptionResult(
       })
       .returning();
     createdOpportunities.push(created);
+
+    // Registra a conversa como fonte da oportunidade, com o trecho que a
+    // justifica. Hoje o gerador analisa uma conversa por vez, então nasce
+    // sempre com uma fonte; a tabela suporta N.
+    await db
+      .insert(opportunitySources)
+      .values({
+        id: crypto.randomUUID(),
+        opportunityId: created.id,
+        conversationId,
+        excerpt: opp.excerpt?.trim() ? opp.excerpt.trim() : null,
+      })
+      .onConflictDoNothing();
   }
 
   const [updatedConversation] = await db
