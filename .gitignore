@@ -39,6 +39,10 @@ local.db.*
 *.sqlite
 *.sqlite3
 
+# credenciais de acesso ao banco (senha em texto claro — nunca commitar)
+meetings_access
+meetings_access.*
+
 # vercel
 .vercel
 
