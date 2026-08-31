@@ -102,6 +102,9 @@
   --platform-linkedin-bg:var(--badge-bg);--platform-linkedin-fg:var(--badge-navy);--platform-linkedin-icon:var(--badge-navy);
   --platform-blog-bg:var(--badge-bg);--platform-blog-fg:var(--badge-navy);--platform-blog-icon:var(--badge-navy);
   --platform-artigo-bg:var(--badge-bg);--platform-artigo-fg:var(--badge-navy);--platform-artigo-icon:var(--badge-navy);
+  --platform-post-bg:var(--badge-bg);--platform-post-fg:var(--badge-navy);--platform-post-icon:var(--badge-navy);
+  --platform-carrossel-bg:var(--badge-bg);--platform-carrossel-fg:var(--badge-green);--platform-carrossel-icon:var(--badge-green);
+  --platform-roteiro-bg:var(--badge-bg);--platform-roteiro-fg:var(--badge-red);--platform-roteiro-icon:var(--badge-red);
   --opp-nova-bg:var(--badge-bg);--opp-nova-fg:var(--badge-green);
   --opp-analise-bg:var(--badge-bg);--opp-analise-fg:var(--badge-navy);
   --opp-qualificada-bg:var(--badge-bg);--opp-qualificada-fg:var(--badge-navy);

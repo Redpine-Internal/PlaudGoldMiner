@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import {
   EnrichmentContext,
@@ -42,9 +42,26 @@ export function EnrichmentProvider({ children }: { children: React.ReactNode }) 
     [interestingSet]
   );
 
+  // Ideias já geradas nesta sessão. O servidor persiste em generated_idea, mas a
+  // lista que alimenta os cards só é revalidada de vez em quando — sem este cache
+  // o card continua passando generatedIdea=null e o modal reabre em "gerando"
+  // (a rota devolve o texto do banco, então não gasta IA, mas o usuário vê o
+  // spinner de novo). Ref em vez de state: preencher não deve re-renderizar.
+  const ideaCache = useRef(new Map<string, string>());
+
+  const rememberIdea = useCallback((sourceId: string, generated: string) => {
+    ideaCache.current.set(sourceId, generated);
+  }, []);
+
   const openEnrichment = useCallback(
-    (sourceType: EnrichmentSourceType, sourceId: string, idea: IdeaData) =>
-      setOpen({ sourceType, sourceId, idea }),
+    (sourceType: EnrichmentSourceType, sourceId: string, idea: IdeaData) => {
+      const cached = ideaCache.current.get(sourceId);
+      setOpen({
+        sourceType,
+        sourceId,
+        idea: cached && !idea.generatedIdea ? { ...idea, generatedIdea: cached } : idea,
+      });
+    },
     []
   );
 
@@ -67,6 +84,7 @@ export function EnrichmentProvider({ children }: { children: React.ReactNode }) 
           idea={open.idea}
           onClose={() => setOpen(null)}
           onSaved={refresh}
+          onIdeaGenerated={rememberIdea}
         />
       ) : null}
     </EnrichmentContext.Provider>

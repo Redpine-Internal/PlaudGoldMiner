@@ -47,6 +47,9 @@
 --platform-linkedin-bg:var(--accent-info);--platform-linkedin-fg:var(--textButtonPrimary);--platform-linkedin-icon:var(--tagTextInfo);
 --platform-blog-bg:var(--accent-promo);--platform-blog-fg:var(--textButtonPrimary);--platform-blog-icon:var(--tagTextPromo);
 --platform-artigo-bg:var(--accent-promo);--platform-artigo-fg:var(--textButtonPrimary);--platform-artigo-icon:var(--tagTextPromo);
+--platform-post-bg:var(--accent-info);--platform-post-fg:var(--textButtonPrimary);--platform-post-icon:var(--tagTextInfo);
+--platform-carrossel-bg:var(--accent-success);--platform-carrossel-fg:var(--textButtonPrimary);--platform-carrossel-icon:var(--tagTextSuccess);
+--platform-roteiro-bg:var(--accent-error);--platform-roteiro-fg:var(--textButtonPrimary);--platform-roteiro-icon:var(--tagTextError);
 --opp-nova-bg:var(--accent-success);--opp-nova-fg:var(--textButtonPrimary);
 --opp-analise-bg:var(--accent-info);--opp-analise-fg:var(--textButtonPrimary);
 --opp-qualificada-bg:var(--accent-promo);--opp-qualificada-fg:var(--textButtonPrimary);
@@ -70,6 +73,26 @@
 --alert-warning-bg:color-mix(in srgb, var(--warning) 14%, var(--backgroundContainer));--alert-warning-fg:color-mix(in srgb, var(--warning) 82%, black);--alert-warning-border:color-mix(in srgb, var(--warning) 36%, var(--backgroundContainer));
 --alert-info-bg:color-mix(in srgb, var(--brand) 8%, var(--backgroundContainer));--alert-info-fg:var(--textPrimary);--alert-info-border:color-mix(in srgb, var(--brand) 24%, var(--backgroundContainer));
 --overlay:var(--backgroundOverlay);
+/* Paleta categórica dos gráficos.
+   Os tokens --opp-*-fg NÃO servem para gráfico: consultoria e sistema resolvem
+   ambos para #7fa8de, e treinamento colide com produto — duas séries sairiam
+   com a mesma cor. Estes steps foram gerados em OKLCH (L .62 / C .13) sobre as
+   hues da marca e aprovados nos seis checks em light e dark
+   (pior par adjacente ΔE 16.4 deutan / 12.5 tritan).
+   A ordem é fixa e nunca é ciclada: azul, laranja, roxo, verde. */
+--chart-cat-1:#4a88d2;
+--chart-cat-2:#bf7028;
+--chart-cat-3:#9970c4;
+--chart-cat-4:#479b57;
+/* Sequencial: uma hue só, clara -> escura. Para magnitude (nunca identidade). */
+--chart-seq-1:#c3d5ee;--chart-seq-2:#8fb2df;--chart-seq-3:#4a88d2;--chart-seq-4:#2f5c94;
+/* Trilho/grade recessivos — nunca competem com as marcas de dados. */
+--chart-track:color-mix(in srgb, var(--textPrimary) 10%, transparent);
+--chart-grid:color-mix(in srgb, var(--textPrimary) 8%, transparent);
+/* Trilho do meter: um step da rampa sequencial recuado em direção à superfície.
+   Em fundo claro o recuo é para o claro; o bloco de modo escuro no fim deste
+   arquivo (:root[data-theme="dark"], .dark) inverte. */
+--chart-meter-track:#dce7f5;
 }
 /* Regra p/ superfícies escuras: elementos viram brancos com a cor de acento na fonte */
 [data-surface="dark"]{
@@ -84,6 +107,9 @@
 --platform-linkedin-bg:var(--textButtonPrimary);--platform-linkedin-fg:var(--accent-info);
 --platform-blog-bg:var(--textButtonPrimary);--platform-blog-fg:var(--accent-promo);
 --platform-artigo-bg:var(--textButtonPrimary);--platform-artigo-fg:var(--accent-promo);--platform-artigo-icon:var(--accent-promo);
+--platform-post-bg:var(--textButtonPrimary);--platform-post-fg:var(--accent-info);--platform-post-icon:var(--accent-info);
+--platform-carrossel-bg:var(--textButtonPrimary);--platform-carrossel-fg:var(--accent-success);--platform-carrossel-icon:var(--accent-success);
+--platform-roteiro-bg:var(--textButtonPrimary);--platform-roteiro-fg:var(--accent-error);--platform-roteiro-icon:var(--accent-error);
 --opp-nova-bg:var(--textButtonPrimary);--opp-nova-fg:var(--accent-success);
 --opp-analise-bg:var(--textButtonPrimary);--opp-analise-fg:var(--accent-info);
 --opp-qualificada-bg:var(--textButtonPrimary);--opp-qualificada-fg:var(--accent-promo);
@@ -101,4 +127,11 @@
 --content-aprovado-bg:var(--textButtonPrimary);--content-aprovado-fg:var(--accent-success);
 --content-descartado-bg:var(--textButtonPrimary);--content-descartado-fg:var(--accent-inactive);
 --score-bg:var(--textButtonPrimary);--score-fg:var(--accent-success);
+}
+/* Modo escuro dos gráficos. O seletor do projeto é :root[data-theme="dark"], .dark
+   (ver styles/fig-tokens.css) — NÃO [data-surface="dark"], que só governa badges. */
+:root[data-theme="dark"], .dark{
+/* Trilho do meter: mesma hue do preenchimento, escurecida até quase a superfície.
+   O step claro da rampa (--chart-seq-1) leria como barra cheia sobre fundo escuro. */
+--chart-meter-track:#1e2c3e;
 }

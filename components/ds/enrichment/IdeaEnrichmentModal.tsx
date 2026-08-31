@@ -13,6 +13,16 @@ interface ReferenceItem {
   storagePath: string | null;
 }
 
+// Conversa que originou a ideia (novo negócio ou conteúdo), com o trecho que a
+// justifica.
+interface IdeaSource {
+  id: string;
+  conversationId: string | null;
+  conversationTitle: string | null;
+  conversationDate: string | null;
+  excerpt: string | null;
+}
+
 interface EnrichmentData {
   id: string;
   interesting: boolean;
@@ -27,12 +37,88 @@ interface Props {
   idea: IdeaData;
   onClose: () => void;
   onSaved: () => void;
+  /** Avisa o provider da ideia recém-gerada, para não regerar ao reabrir. */
+  onIdeaGenerated?: (sourceId: string, generated: string) => void;
 }
 
 const ALLOWED_IMG = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
 
-export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSaved }: Props) {
+const panel: React.CSSProperties = {
+  padding: "12px 14px",
+  background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))",
+  borderRadius: 8,
+  flexShrink: 0,
+};
+
+/**
+ * O roteiro é gravado como JSON ({ angle, points[] }) pelo gerador, mas linhas
+ * antigas podem trazer texto puro — os dois casos precisam renderizar.
+ */
+function parseOutline(outline?: string | null): { angle: string; points: string[]; text: string } | null {
+  if (!outline?.trim()) return null;
+  try {
+    const o = JSON.parse(outline);
+    if (o && typeof o === "object" && (Array.isArray(o.points) || typeof o.angle === "string")) {
+      return {
+        angle: typeof o.angle === "string" ? o.angle : "",
+        points: Array.isArray(o.points) ? o.points.map(String) : [],
+        text: "",
+      };
+    }
+  } catch {
+    // Não é JSON — cai no texto puro.
+  }
+  return { angle: "", points: [], text: outline };
+}
+
+/** Ficha do conteúdo: formato, status, tema e roteiro. */
+function ContentDetails({ idea }: { idea: IdeaData }) {
+  const outline = parseOutline(idea.outline);
+  const chips = [idea.formatLabel, idea.subtypeLabel, idea.statusLabel].filter(Boolean) as string[];
+  const theme = idea.originalText.trim();
+  if (!chips.length && !theme && !outline) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {chips.length ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {chips.map((c) => (
+            <span key={c} className="ds-badge ds-badge--compact">
+              {c}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {theme ? (
+        <div style={panel}>
+          <span className="ds-label" style={{ display: "block", marginBottom: 4 }}>Tema</span>
+          <p style={{ margin: 0, font: "400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>{theme}</p>
+        </div>
+      ) : null}
+      {outline ? (
+        <div style={panel}>
+          <span className="ds-label" style={{ display: "block", marginBottom: 4 }}>Roteiro</span>
+          {outline.angle ? (
+            <p style={{ margin: "0 0 6px", font: "italic 400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>
+              {outline.angle}
+            </p>
+          ) : null}
+          {outline.points.length ? (
+            <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 2, font: "400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>
+              {outline.points.map((pt, i) => (
+                <li key={i}>{pt}</li>
+              ))}
+            </ul>
+          ) : outline.text ? (
+            <p style={{ margin: 0, font: "400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>{outline.text}</p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSaved, onIdeaGenerated }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +128,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
   const [textEdited, setTextEdited] = useState(false);
   const [generatingIdea, setGeneratingIdea] = useState(false);
   const [refs, setRefs] = useState<ReferenceItem[]>([]);
+  const [sources, setSources] = useState<IdeaSource[]>([]);
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -96,6 +183,8 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
           if (!alive) return;
           if (body.data?.idea) {
             setText(body.data.idea);
+            // Guarda no provider: reabrir o card não deve voltar a "gerando".
+            onIdeaGenerated?.(sourceId, body.data.idea);
           } else {
             setText(idea.originalText);
             setError(body.error || "Não foi possível gerar a ideia — exibindo o texto padrão.");
@@ -109,12 +198,40 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
         }
         return;
       }
-      setText(idea.originalText);
+      // Conteúdo: o artigo em si é o rascunho; o tema é só o fallback enquanto
+      // o rascunho não foi gerado.
+      setText(idea.draft?.trim() || idea.originalText);
     })();
     return () => {
       alive = false;
     };
-  }, [sourceType, sourceId, idea.originalText, idea.generatedIdea]);
+  }, [sourceType, sourceId, idea.originalText, idea.generatedIdea, idea.draft, onIdeaGenerated]);
+
+  // Conversas que originaram a ideia. Busca independente do enriquecimento:
+  // falhar aqui não deve impedir o resto do modal. Insights não têm origem
+  // rastreada, então só negócios e conteúdos consultam.
+  useEffect(() => {
+    const base =
+      sourceType === "opportunity"
+        ? "/api/opportunities"
+        : sourceType === "content"
+          ? "/api/contents"
+          : null;
+    if (!base) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`${base}/${encodeURIComponent(sourceId)}/sources`);
+        const body = (await res.json()) as { data?: IdeaSource[] };
+        if (alive && body.data) setSources(body.data);
+      } catch {
+        // Silencioso: a justificativa é complementar.
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [sourceType, sourceId]);
 
   // PUT parcial dos campos de texto/flag.
   const put = async (patch: Record<string, unknown>) => {
@@ -362,8 +479,88 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
               </div>
             ) : null}
 
+            {sourceType === "content" ? <ContentDetails idea={idea} /> : null}
+
+            {sources.length ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span className="ds-label">
+                  {sources.length === 1
+                    ? "Conversa de origem"
+                    : `Conversas de origem (${sources.length})`}
+                </span>
+                {sources.map((s) => (
+                  <div
+                    key={s.id}
+                    style={{
+                      padding: "12px 14px",
+                      background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))",
+                      borderRadius: 8,
+                      flexShrink: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                      {s.conversationId ? (
+                        <a
+                          href={`/conversas/${s.conversationId}`}
+                          style={{ color: "var(--textLink)", font: "500 14px/20px var(--font-sans)" }}
+                        >
+                          {s.conversationTitle || "Conversa sem título"}
+                        </a>
+                      ) : (
+                        <span style={{ font: "500 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>
+                          {s.conversationTitle || "Conversa não encontrada"}
+                        </span>
+                      )}
+                      {s.conversationDate ? (
+                        <span style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>
+                          {new Date(s.conversationDate).toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      ) : null}
+                    </div>
+                    {s.excerpt ? (
+                      <blockquote
+                        style={{
+                          margin: 0,
+                          paddingLeft: 10,
+                          borderLeft: "2px solid var(--color-border)",
+                          font: "400 14px/20px var(--font-sans)",
+                          color: "var(--textPrimary)",
+                        }}
+                      >
+                        “{s.excerpt}”
+                      </blockquote>
+                    ) : (
+                      // Análises antigas guardavam só a conversa, sem a passagem que
+                      // sustentava a ideia — e o texto que sobrou é paráfrase, não fala,
+                      // então não dá para reancorar na transcrição. Em vez de exibir um
+                      // trecho inventado, aponta o usuário para a origem.
+                      <span style={{ fontSize: 13, color: "var(--color-muted-foreground)" }}>
+                        Gerada antes do registro de trechos —{" "}
+                        {s.conversationId ? (
+                          <a href={`/conversas/${s.conversationId}`} style={{ color: "var(--textLink)" }}>
+                            abrir a conversa
+                          </a>
+                        ) : (
+                          "conversa indisponível"
+                        )}
+                        .
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
             <label className="ds-label">
-              Texto gerado {generatingIdea ? "(gerando…)" : textEdited ? "(editado)" : ""}
+              {sourceType === "content" ? "Texto do artigo" : "Texto gerado"}{" "}
+              {generatingIdea ? "(gerando…)" : textEdited ? "(editado)" : ""}
             </label>
             <textarea
               value={text}

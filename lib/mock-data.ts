@@ -27,9 +27,10 @@ export const mockOpportunities: OpportunityCardProps[] = [
 
 // Mock data for Content Suggestion Cards
 export const mockContentSuggestions: ContentSuggestionCardProps[] = [
-    { id: 'cont-1', title: '5 Dicas para um Planejamento Trimestral Eficaz', platform: 'blog', theme: 'Produtividade', mentionCount: 8, relevanceScore: 90, status: 'sugerido' },
-    { id: 'cont-2', title: 'Como escolher o CRM certo para sua empresa', platform: 'youtube', theme: 'Vendas', mentionCount: 5, relevanceScore: 85, status: 'producao' },
-    { id: 'cont-3', title: 'O Futuro da Inteligência Artificial nos Negócios', platform: 'linkedin', theme: 'Tecnologia', mentionCount: 12, relevanceScore: 98, status: 'publicado' },
+    { id: 'cont-1', title: '5 Dicas para um Planejamento Trimestral Eficaz', platform: 'artigo', theme: 'Produtividade', mentionCount: 8, relevanceScore: 90, status: 'sugerido' },
+    { id: 'cont-2', title: 'Como escolher o CRM certo para sua empresa', platform: 'roteiro', subtype: 'YouTube', theme: 'Vendas', mentionCount: 5, relevanceScore: 85, status: 'producao' },
+    { id: 'cont-3', title: 'O Futuro da Inteligência Artificial nos Negócios', platform: 'post', subtype: 'LinkedIn', theme: 'Tecnologia', mentionCount: 12, relevanceScore: 98, status: 'publicado' },
+    { id: 'cont-4', title: '7 erros de gestão de terceiros que custam caro', platform: 'carrossel', subtype: 'Instagram', theme: 'Segurança do Trabalho', mentionCount: 6, relevanceScore: 88, status: 'sugerido' },
 ];
 
 // Mock data for Clone Update Cards

@@ -17,6 +17,10 @@ const MAP: Record<string, string> = {
   "thumbs-up": "thumb-up",
   youtube: "play-circle",
   linkedin: "chat",
+  // Formatos de conteúdo (taxonomia de 2026-08-28). O set Mística não tem
+  // ícone de slides nem de claquete, então reaproveitamos os mais próximos.
+  clapperboard: "play-circle",
+  layers: "documents",
   "book-open": "documents",
   clock: "alarm-clock",
   user: "user-account",

@@ -16,6 +16,16 @@ export interface IdeaData {
    * textOverride, o modal dispara a geração on-demand via /api/opportunities/idea.
    */
   generatedIdea?: string | null;
+  /** Rascunho/texto do artigo (apenas conteúdos) — exibido e editável no modal. */
+  draft?: string | null;
+  /** Formato do conteúdo (apenas conteúdos), já com o rótulo legível. */
+  formatLabel?: string | null;
+  /** Subtipo/canal do conteúdo, texto livre (ex.: "LinkedIn"). */
+  subtypeLabel?: string | null;
+  /** Roteiro/outline do conteúdo, cru como veio do gerador (JSON ou texto). */
+  outline?: string | null;
+  /** Status do conteúdo, já com o rótulo legível. */
+  statusLabel?: string | null;
 }
 
 export interface EnrichmentContextValue {

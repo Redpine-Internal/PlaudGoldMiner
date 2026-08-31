@@ -27,6 +27,9 @@ export const transcriptionResultSchema = z.object({
       'Subtipo específico e livre, ex. "Treinamento NR-35", "Consultoria em PGR", "Sistema de gestão de EPIs". String vazia se não for possível especificar.'
     ),
     score: z.number().min(0).max(100).describe('Score de confiança 0-100'),
+    excerpt: z.string().describe(
+      'Trecho literal da transcrição (1-3 frases) que justifica esta oportunidade, copiado sem alterações. String vazia se não houver um trecho claro.'
+    ),
   })).describe('Oportunidades de negócio identificadas'),
   problems: z.array(z.object({
     description: z.string().describe('Descrição do problema ou dor'),
@@ -57,6 +60,7 @@ Não invente informações - se algo não está claro, não inclua.
 IMPORTANTE - use SOMENTE estes valores nos campos categóricos:
 - opportunities[].type: apenas "treinamento", "consultoria" ou "sistema" (escolha o mais próximo; cursos/capacitações → treinamento; projetos/diagnósticos/assessoria → consultoria; software/ferramenta/produto digital → sistema)
 - opportunities[].subtype: subtipo específico em texto livre (ex. "Treinamento NR-35"); string vazia se não souber
+- opportunities[].excerpt: cole LITERALMENTE o trecho da transcrição (1-3 frases) em que a oportunidade aparece. Não parafraseie, não resuma e não junte partes distantes. String vazia se não houver um trecho claro.
 - problems[].severity: apenas "baixa", "media" ou "alta"
 - suggestedType: apenas "reuniao", "treinamento", "informal" ou "outro"
 
