@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, type CSSProperties } from "react";
 import useSWR from "swr";
 import { SlidersHorizontal, Trash2 } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
-import { Button, SearchInput, FilterChip, OpportunityCard, EmptyState, Pagination, StartProjectButton, GenerateBusinessModal, useEnrichment, type GeneratePayload } from "@/components/ds";
+import { Button, SearchInput, FilterChip, OpportunityCard, EmptyState, Pagination, StartProjectButton, GenerateBusinessModal, ThemeBoard, useEnrichment, type GeneratePayload, type ThemeBoardTheme } from "@/components/ds";
 import { FilterRail } from "@/components/lg/FilterRail";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -26,12 +26,22 @@ interface Opportunity {
   conversationDate: string | null;
   /** Nº de conversas que sustentam o negócio (recorrência). */
   sourceCount?: number;
+  /** Marca manual do usuário: 'alta' | 'media' | 'baixa', ou null. */
+  priority?: string | null;
+  /** Tema atribuído pelo agrupamento; null enquanto não foi agrupado. */
+  themeId?: string | null;
+  themeName?: string | null;
   createdAt: string;
 }
 
 interface ApiResponse {
   data: Opportunity[];
   total: number;
+}
+
+interface ThemesResponse {
+  data: ThemeBoardTheme[];
+  ungrouped: number;
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -46,9 +56,11 @@ type OppFilters = {
   types: string[];
   minScore: string;
   railOpen: boolean;
+  /** "negocio" = a grade de cards; "tema" = a visão agrupada. */
+  view: string;
 };
 
-const INITIAL_FILTERS: OppFilters = { status: "", types: [], minScore: "0", railOpen: true };
+const INITIAL_FILTERS: OppFilters = { status: "", types: [], minScore: "0", railOpen: true, view: "negocio" };
 
 const NovosNegociosPage = () => {
   const { selectedOpportunityId, setSelectedOpportunityId } = useAppStore();
@@ -63,9 +75,22 @@ const NovosNegociosPage = () => {
   const [genOpen, setGenOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [regrouping, setRegrouping] = useState(false);
 
   const { data, error, isLoading, mutate, isValidating } = useSWR<ApiResponse>(
     "/api/opportunities?limit=100",
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  const byTheme = f.view === "tema";
+  // Chave condicional: quem nunca alterna para "Por tema" não paga a requisição.
+  const {
+    data: themeData,
+    isLoading: themesLoading,
+    mutate: mutateThemes,
+  } = useSWR<ThemesResponse>(
+    byTheme ? "/api/opportunities/themes" : null,
     fetcher,
     { revalidateOnFocus: false }
   );
@@ -161,6 +186,58 @@ const NovosNegociosPage = () => {
       setGenError("Não foi possível excluir. Verifique a conexão e tente novamente.");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // O agrupamento gasta uma chamada de IA e substitui o cache inteiro, então
+  // roda só quando o usuário pede — nunca ao abrir a página.
+  const regroup = async () => {
+    setRegrouping(true);
+    setGenError(null);
+    setGenNote(null);
+    try {
+      const res = await fetch("/api/opportunities/themes", { method: "POST" });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setGenError(body?.error || `Falha ao agrupar por tema (HTTP ${res.status}).`);
+        return;
+      }
+      setGenNote(body?.message ?? null);
+      // A listagem também muda: cada card passa a carregar o tema novo.
+      await Promise.all([mutateThemes(), mutate()]);
+    } catch (err) {
+      console.error("Failed to group themes:", err);
+      setGenError("Não foi possível agrupar por tema. Verifique a conexão e tente novamente.");
+    } finally {
+      setRegrouping(false);
+    }
+  };
+
+  // Prioridade é a única coisa que o usuário edita no negócio. Atualização
+  // otimista: o select responde na hora e o servidor só reconcilia.
+  const setPriority = async (id: string, priority: string | null) => {
+    setGenError(null);
+    const patch = (rows: Opportunity[]) =>
+      rows.map((o) => (o.id === id ? { ...o, priority } : o));
+    mutate(
+      (prev) => (prev ? { ...prev, data: patch(prev.data) } : prev),
+      { revalidate: false }
+    );
+    try {
+      const res = await fetch(`/api/opportunities/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setGenError(body?.error || `Falha ao marcar a prioridade (HTTP ${res.status}).`);
+        await mutate();
+      }
+    } catch (err) {
+      console.error("Failed to set priority:", err);
+      setGenError("Não foi possível marcar a prioridade. Verifique a conexão.");
+      await mutate();
     }
   };
 
@@ -273,6 +350,40 @@ const NovosNegociosPage = () => {
             <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
               Só interessantes
             </FilterChip>
+            {/* Duas leituras do mesmo conjunto: o card responde "esse negócio é
+                bom?"; o tema responde "qual assunto o mercado repete?". */}
+            <div
+              role="group"
+              aria-label="Forma de ver os negócios"
+              style={{
+                display: "inline-flex",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                overflow: "hidden",
+              }}
+            >
+              {[
+                { value: "negocio", label: "Por negócio" },
+                { value: "tema", label: "Por tema" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  aria-pressed={f.view === opt.value}
+                  onClick={() => setF({ view: opt.value })}
+                  style={{
+                    font: "500 13px/20px var(--font-sans)",
+                    padding: "6px 12px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: f.view === opt.value ? "rgba(120,120,128,0.24)" : "transparent",
+                    color: f.view === opt.value ? "inherit" : "var(--color-muted-foreground)",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={() => setGenOpen(true)} disabled={generating}>
               {generating ? "Detectando..." : "Detectar Negócios"}
             </Button>
@@ -299,7 +410,18 @@ const NovosNegociosPage = () => {
             </div>
           ) : null}
 
-          {isLoading ? (
+          {byTheme ? (
+            <ThemeBoard
+              themes={themeData?.data ?? []}
+              items={list}
+              ungrouped={themeData?.ungrouped ?? 0}
+              regrouping={regrouping}
+              loading={isLoading || themesLoading}
+              onRegroup={regroup}
+              onSetPriority={setPriority}
+              onOpenItem={setSelectedOpportunityId}
+            />
+          ) : isLoading ? (
             <div style={grid}>
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="ds-card" style={{ height: 160 }} />

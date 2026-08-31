@@ -26,6 +26,8 @@ export { ConversationCard } from "./ConversationCard";
 export type { ConversationCardProps } from "./ConversationCard";
 export { OpportunityCard } from "./OpportunityCard";
 export type { OpportunityCardProps } from "./OpportunityCard";
+export { ThemeBoard, themeWeight } from "./ThemeBoard";
+export type { ThemeBoardProps, ThemeBoardTheme, ThemeBoardItem } from "./ThemeBoard";
 export { ContentCard } from "./ContentCard";
 export type { ContentCardProps } from "./ContentCard";
 export { StatCard } from "./StatCard";

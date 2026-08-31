@@ -54,12 +54,57 @@ export async function GET(
   }
 }
 
-// Edição desabilitada nesta fase: a UI não expõe edição de oportunidade.
-export async function PATCH() {
-  return NextResponse.json(
-    { error: 'Edição de oportunidade desabilitada nesta fase' },
-    { status: 405 }
-  );
+/** Prioridade marcada à mão. null limpa a marca. */
+const PRIORITIES = ['alta', 'media', 'baixa'] as const;
+
+/**
+ * Só a prioridade é editável.
+ *
+ * O texto do negócio vem da IA e é rastreável até a conversa de origem; deixar
+ * o usuário editá-lo quebraria essa correspondência. A prioridade é a única
+ * coisa que ele decide, e não veio de conversa nenhuma.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = (await request.json()) as { priority?: unknown };
+
+    if (!('priority' in body)) {
+      return NextResponse.json(
+        { error: 'Apenas o campo priority é editável.' },
+        { status: 400 }
+      );
+    }
+
+    const raw = body.priority;
+    const priority =
+      raw === null || raw === '' ? null
+      : typeof raw === 'string' && (PRIORITIES as readonly string[]).includes(raw) ? raw
+      : undefined;
+
+    if (priority === undefined) {
+      return NextResponse.json(
+        { error: `priority deve ser ${PRIORITIES.join(', ')} ou null.` },
+        { status: 400 }
+      );
+    }
+
+    const res = await pool.query(
+      `UPDATE app_opportunities SET priority = $1 WHERE id = $2`,
+      [priority, id]
+    );
+    if (res.rowCount === 0) {
+      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: { id, priority } });
+  } catch (error) {
+    console.error('Error updating opportunity priority:', error);
+    return NextResponse.json({ error: 'Falha ao marcar a prioridade' }, { status: 500 });
+  }
 }
 
 /**

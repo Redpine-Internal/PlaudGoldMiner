@@ -144,6 +144,78 @@ describe('GET /api/opportunities', () => {
     expect(body.data[0].generatedIdea).toBeNull();
   });
 
+  it('traz prioridade e tema junto com o negócio', async () => {
+    // A visão "Por tema" é montada a partir desta mesma listagem; sem o JOIN a
+    // alternância na página não teria como saber a que tema cada card pertence.
+    results.push(
+      {
+        rows: [
+          {
+            id: 'o1',
+            conversation_id: 'c1',
+            title: 'Negócio',
+            pain: 'dor',
+            context: null,
+            score: 80,
+            type: 'consultoria',
+            subtype: null,
+            generated_idea: null,
+            status: 'nova',
+            notes: null,
+            created_at: '2026-08-01',
+            source_count: 4,
+            priority: 'alta',
+            theme_id: 't1',
+            theme_name: 'Cultura e liderança',
+          },
+        ],
+      },
+      { rows: [{ total: '1' }] }
+    );
+
+    const res = await GET(req('/api/opportunities'));
+    const body = await res.json();
+
+    expect(calls[0].sql).toContain('app_business_theme_members');
+    expect(body.data[0].priority).toBe('alta');
+    expect(body.data[0].themeName).toBe('Cultura e liderança');
+  });
+
+  it('deixa prioridade e tema nulos no negócio ainda não agrupado', async () => {
+    // O LEFT JOIN devolve NULL, e a UI diferencia "sem tema" de "sem valor".
+    results.push(
+      {
+        rows: [
+          {
+            id: 'o2',
+            conversation_id: null,
+            title: 'Negócio novo',
+            pain: 'dor',
+            context: null,
+            score: 40,
+            type: 'treinamento',
+            subtype: null,
+            generated_idea: null,
+            status: 'nova',
+            notes: null,
+            created_at: '2026-08-02',
+            source_count: 1,
+            priority: null,
+            theme_id: null,
+            theme_name: null,
+          },
+        ],
+      },
+      { rows: [{ total: '1' }] }
+    );
+
+    const res = await GET(req('/api/opportunities'));
+    const body = await res.json();
+
+    expect(body.data[0].priority).toBeNull();
+    expect(body.data[0].themeId).toBeNull();
+  });
+
   it('responde 500 sem vazar o erro interno quando o banco falha', async () => {
     query.mockImplementationOnce(async () => {
       throw new Error('connection refused para postgres://user:senha@host');
@@ -205,9 +277,53 @@ describe('DELETE /api/opportunities/[id]', () => {
 });
 
 describe('PATCH /api/opportunities/[id]', () => {
-  it('recusa edição com 405 nesta fase', async () => {
-    const res = await PATCH();
+  const params = (id: string) => ({ params: Promise.resolve({ id }) });
+  const patch = (id: string, body: unknown) =>
+    new NextRequest(new URL(`/api/opportunities/${id}`, 'http://localhost'), {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
 
-    expect(res.status).toBe(405);
+  it('grava a prioridade marcada', async () => {
+    results.push({ rows: [], rowCount: 1 });
+
+    const res = await PATCH(patch('o1', { priority: 'alta' }), params('o1'));
+
+    expect(res.status).toBe(200);
+    expect(calls[0].params).toEqual(['alta', 'o1']);
+  });
+
+  it('aceita null para limpar a marca', async () => {
+    results.push({ rows: [], rowCount: 1 });
+
+    const res = await PATCH(patch('o1', { priority: null }), params('o1'));
+
+    expect(res.status).toBe(200);
+    expect(calls[0].params).toEqual([null, 'o1']);
+  });
+
+  it('recusa valor fora da lista sem tocar no banco', async () => {
+    // O valor vai direto para uma coluna text sem CHECK; a validação aqui é a
+    // única coisa entre o cliente e um "prioridade: urgentíssimo" no banco.
+    const res = await PATCH(patch('o1', { priority: 'urgentissimo' }), params('o1'));
+
+    expect(res.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('recusa a edição de qualquer outro campo', async () => {
+    // O texto do negócio vem da IA e é rastreável até a conversa de origem.
+    const res = await PATCH(patch('o1', { title: 'outro título' }), params('o1'));
+
+    expect(res.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('devolve 404 quando o negócio não existe', async () => {
+    results.push({ rows: [], rowCount: 0 });
+
+    const res = await PATCH(patch('sumido', { priority: 'baixa' }), params('sumido'));
+
+    expect(res.status).toBe(404);
   });
 });

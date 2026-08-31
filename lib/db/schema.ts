@@ -68,6 +68,10 @@ export const opportunities = pgTable('app_opportunities', {
   // demanda na primeira abertura do modal de enriquecimento e cacheada aqui.
   generatedIdea: text('generated_idea'),
   status: text('status').notNull().default('nova'),
+  // Prioridade marcada à mão pelo usuário: 'alta' | 'media' | 'baixa'.
+  // NULL (o padrão) significa não priorizado. Vive aqui, e não na tabela de
+  // temas, para sobreviver a um reagrupamento.
+  priority: text('priority'),
   notes: text('notes'),
   tags: text('tags'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -114,6 +118,31 @@ export const opportunitySources = pgTable('app_opportunity_sources', {
   index('app_opportunity_sources_opp_idx').on(table.opportunityId),
   index('app_opportunity_sources_conv_idx').on(table.conversationId),
   uniqueIndex('app_opportunity_sources_unq').on(table.opportunityId, table.conversationId),
+]);
+
+// ===== BUSINESS THEMES (app_business_themes) =====
+// Um tema agrupa negócios que são a mesma oferta escrita com títulos
+// diferentes. O agrupamento vem de uma chamada de IA e é cacheado aqui — sem
+// cache, abrir a página gastaria cota da Azure toda vez.
+export const businessThemes = pgTable('app_business_themes', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  /** Uma frase dizendo o que une os negócios do grupo. */
+  rationale: text('rationale'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ===== BUSINESS THEME MEMBERS (app_business_theme_members) =====
+// Vínculo negócio→tema, um tema por negócio (daí opportunityId ser a PK).
+// Tabela separada em vez de coluna em app_opportunities: aquela tabela é
+// reescrita pelo gerador e por rotas que não sabem de tema.
+export const businessThemeMembers = pgTable('app_business_theme_members', {
+  opportunityId: text('opportunity_id').primaryKey(),
+  themeId: text('theme_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('app_business_theme_members_theme_idx').on(table.themeId),
 ]);
 
 // ===== CONTENT SOURCES (app_content_sources) =====
@@ -248,6 +277,9 @@ export type Opportunity = typeof opportunities.$inferSelect;
 export type NewOpportunity = typeof opportunities.$inferInsert;
 export type Content = typeof contents.$inferSelect;
 export type NewContent = typeof contents.$inferInsert;
+export type BusinessTheme = typeof businessThemes.$inferSelect;
+export type NewBusinessTheme = typeof businessThemes.$inferInsert;
+export type BusinessThemeMember = typeof businessThemeMembers.$inferSelect;
 export type ContentSource = typeof contentSources.$inferSelect;
 export type NewContentSource = typeof contentSources.$inferInsert;
 export type Project = typeof projects.$inferSelect;

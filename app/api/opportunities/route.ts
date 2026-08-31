@@ -19,6 +19,11 @@ interface AppOpportunityRow {
   created_at: string;
   /** Quantas conversas sustentam a oportunidade — a recorrência é o critério. */
   source_count: number;
+  /** 'alta' | 'media' | 'baixa'; null quando não foi priorizada. */
+  priority: string | null;
+  /** Tema a que o negócio pertence; null enquanto não foi agrupado. */
+  theme_id: string | null;
+  theme_name: string | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -31,27 +36,36 @@ export async function GET(request: NextRequest) {
     const filters: string[] = [];
     const values: string[] = [];
 
+    // Colunas qualificadas com o alias o: o SELECT junta com as tabelas de tema,
+    // e "status" sem prefixo ficaria ambíguo se elas ganharem a mesma coluna.
     if (status) {
       values.push(status);
-      filters.push(`status = $${values.length}`);
+      filters.push(`o.status = $${values.length}`);
     }
     if (type) {
       values.push(type);
-      filters.push(`type = $${values.length}`);
+      filters.push(`o.type = $${values.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
     const [res, count] = await Promise.all([
       pool.query<AppOpportunityRow>(
-      `SELECT id, conversation_id, title, pain, context, score, type, subtype, generated_idea, status, notes, created_at,
-              (SELECT count(*)::int FROM app_opportunity_sources s WHERE s.opportunity_id = app_opportunities.id) AS source_count
-         FROM app_opportunities
+      `SELECT o.id, o.conversation_id, o.title, o.pain, o.context, o.score, o.type, o.subtype,
+              o.generated_idea, o.status, o.notes, o.created_at, o.priority,
+              (SELECT count(*)::int FROM app_opportunity_sources s WHERE s.opportunity_id = o.id) AS source_count,
+              m.theme_id, t.name AS theme_name
+         FROM app_opportunities o
+         LEFT JOIN app_business_theme_members m ON m.opportunity_id = o.id
+         LEFT JOIN app_business_themes t ON t.id = m.theme_id
         ${where}
-        ORDER BY created_at DESC
+        ORDER BY o.created_at DESC
         LIMIT $${values.length + 1}`,
       [...values, limit]
       ),
-      pool.query<{ total: string }>(`SELECT COUNT(*) AS total FROM app_opportunities ${where}`, values),
+      pool.query<{ total: string }>(
+        `SELECT COUNT(*) AS total FROM app_opportunities o ${where}`,
+        values
+      ),
     ]);
 
     const cards = await enrichWithConversation(
@@ -69,6 +83,9 @@ export async function GET(request: NextRequest) {
         createdAt: r.created_at,
         conversationId: r.conversation_id,
         sourceCount: r.source_count,
+        priority: r.priority ?? null,
+        themeId: r.theme_id ?? null,
+        themeName: r.theme_name ?? null,
       }))
     );
 
