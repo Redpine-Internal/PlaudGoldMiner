@@ -79,7 +79,11 @@ export const opportunities = pgTable('app_opportunities', {
 export const contents = pgTable('app_contents', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
+  // Formato do conteúdo: artigo | post | carrossel | roteiro. A coluna mantém
+  // o nome legado `platform`, mas desde 2026-08-28 não significa mais canal.
   platform: text('platform').notNull(),
+  // Variação livre dentro do formato (ex.: "LinkedIn", "Instagram", "YouTube").
+  subtype: text('subtype'),
   theme: text('theme').notNull(),
   outline: text('outline'),
   mentionCount: integer('mention_count').notNull().default(1),

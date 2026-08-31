@@ -3,11 +3,12 @@ import { cn } from '@/lib/utils';
 import { ContentSuggestionCardProps } from '@/types';
 
 export const PlatformBadge = ({ platform }: { platform: ContentSuggestionCardProps['platform'] }) => {
+    // Formatos de conteúdo (taxonomia 2026-08-28).
     const colors = {
-      youtube: 'bg-red-100 text-red-700',
-      linkedin: 'bg-blue-100 text-blue-700',
       artigo: 'bg-purple-100 text-purple-700',
-      blog: 'bg-purple-100 text-purple-700',
+      post: 'bg-blue-100 text-blue-700',
+      carrossel: 'bg-green-100 text-green-700',
+      roteiro: 'bg-red-100 text-red-700',
     };
     return <span className={cn('text-xs font-semibold px-2 py-1 rounded-full', colors[platform])}>{platform}</span>
 };

@@ -12,12 +12,13 @@ interface ContentRow {
   id: string;
   title: string;
   platform: string;
+  subtype: string | null;
   theme: string;
   outline: string | null;
 }
 
 /**
- * Gera o rascunho completo (artigo, copy de LinkedIn ou roteiro de YouTube) a
+ * Gera o rascunho completo (artigo, post, carrossel ou roteiro) a
  * partir da pauta + trechos-fonte de app_content_sources. Grava em
  * app_contents.draft, marca kind='artigo_completo' e status='rascunho'.
  * A publicação continua 100% humana.
@@ -29,7 +30,7 @@ export async function POST(
   try {
     const { id } = await params;
     const contentRes = await pool.query<ContentRow>(
-      `SELECT id, title, platform, theme, outline FROM app_contents WHERE id=$1 LIMIT 1`,
+      `SELECT id, title, platform, subtype, theme, outline FROM app_contents WHERE id=$1 LIMIT 1`,
       [id]
     );
     if (contentRes.rowCount === 0) {
@@ -64,6 +65,7 @@ export async function POST(
       system: ARTICLE_DRAFT_SYSTEM_PROMPT,
       prompt: createArticleDraftPrompt({
         platform: content.platform,
+        subtype: content.subtype,
         theme: content.theme,
         title: content.title,
         angle,

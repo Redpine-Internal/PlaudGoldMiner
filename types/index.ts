@@ -25,7 +25,10 @@ export interface OpportunityCardProps {
 export interface ContentSuggestionCardProps {
   id: string;
   title: string;
-  platform: 'youtube' | 'linkedin' | 'blog';
+  /** Formato do conteúdo (taxonomia 2026-08-28). */
+  platform: 'artigo' | 'post' | 'carrossel' | 'roteiro';
+  /** Variação livre dentro do formato (ex.: "LinkedIn", "YouTube"). */
+  subtype?: string | null;
   theme: string;
   mentionCount: number;
   relevanceScore: number;

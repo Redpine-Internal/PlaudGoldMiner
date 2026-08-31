@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
           id: contentId,
           title: s.title,
           platform: s.platform,
+          subtype: s.subtype?.trim() || null,
           theme: s.theme,
           // Store the outline (+ angle) as structured JSON, as the schema intends.
           outline: JSON.stringify({ angle: s.angle, points: s.outline }),

@@ -3,11 +3,16 @@ import { Icon } from "./Icon";
 import { Button } from "./Button";
 import { useEnrichment } from "./enrichment/useEnrichment";
 
+// Formatos de conteúdo. `youtube`/`linkedin`/`blog` são valores legados que a
+// migração 2026-08-28 converteu, mas seguem mapeados por segurança.
 const P: Record<string, { icon: string; color: string; label: string }> = {
-  youtube: { icon: "youtube", color: "var(--platform-youtube-icon)", label: "YouTube" },
-  linkedin: { icon: "linkedin", color: "var(--platform-linkedin-icon)", label: "LinkedIn" },
   artigo: { icon: "book-open", color: "var(--platform-artigo-icon)", label: "Artigo" },
-  blog: { icon: "book-open", color: "var(--platform-blog-icon)", label: "Artigo" },
+  post: { icon: "message-square", color: "var(--platform-post-icon)", label: "Post" },
+  carrossel: { icon: "layers", color: "var(--platform-carrossel-icon)", label: "Carrossel" },
+  roteiro: { icon: "clapperboard", color: "var(--platform-roteiro-icon)", label: "Roteiro" },
+  blog: { icon: "book-open", color: "var(--platform-artigo-icon)", label: "Artigo" },
+  linkedin: { icon: "message-square", color: "var(--platform-post-icon)", label: "Post" },
+  youtube: { icon: "clapperboard", color: "var(--platform-roteiro-icon)", label: "Roteiro" },
 };
 const STATUS: Record<string, string> = {
   sugerido: "Sugerido", rascunho: "Rascunho", em_revisao: "Em revisão",
@@ -16,7 +21,10 @@ const STATUS: Record<string, string> = {
 
 export interface ContentCardProps {
   title?: string;
+  /** Formato do conteúdo: artigo | post | carrossel | roteiro. */
   platform?: string;
+  /** Variação livre dentro do formato (ex.: "LinkedIn"). */
+  subtype?: string | null;
   theme?: string;
   outline?: string;
   mentionCount?: number;
@@ -28,6 +36,8 @@ export interface ContentCardProps {
   action?: React.ReactNode;
   sourceId?: string;
   enrichText?: string;
+  /** Texto do artigo já gerado — abre dentro do modal, editável. */
+  draft?: string | null;
   style?: React.CSSProperties;
   className?: string;
 }
@@ -59,7 +69,8 @@ function parseOutline(outline?: string): ParsedOutline | null {
 /** Content-suggestion card — structure and actions from app/conteudos. */
 export function ContentCard({
   title,
-  platform = "blog",
+  platform = "artigo",
+  subtype,
   theme,
   outline,
   mentionCount = 0,
@@ -70,10 +81,12 @@ export function ContentCard({
   action,
   sourceId,
   enrichText,
+  draft,
   style,
   className = "",
 }: ContentCardProps) {
-  const p = P[platform] || P.blog;
+  const p = P[platform] || P.artigo;
+  const sub = subtype?.trim();
   // outline is stored as JSON ({ angle, points[] }) by the generator, but may be
   // a plain string for legacy/mock rows — handle both gracefully.
   const parsed = parseOutline(outline);
@@ -84,7 +97,15 @@ export function ContentCard({
   const interesting = enrichment && sourceId ? enrichment.isInteresting("content", sourceId) : false;
   const handleCardClick = () => {
     if (enrichment && sourceId) {
-      enrichment.openEnrichment("content", sourceId, { title: title ?? "", originalText: enrichText ?? theme ?? "" });
+      enrichment.openEnrichment("content", sourceId, {
+        title: title ?? "",
+        originalText: enrichText ?? theme ?? "",
+        draft,
+        outline,
+        formatLabel: p.label,
+        subtypeLabel: sub || null,
+        statusLabel: STATUS[status] || status,
+      });
     }
   };
   return (
@@ -96,7 +117,9 @@ export function ContentCard({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name={p.icon} size={20} color={p.color} />
-          <span style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{p.label}</span>
+          <span style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+            {sub ? `${p.label} · ${sub}` : p.label}
+          </span>
           {interesting ? <Icon name="star" size={14} color="var(--brand)" /> : null}
         </div>
         <span className="ds-badge ds-badge--compact" style={{ background: `var(--content-${status}-bg)`, color: `var(--content-${status}-fg)` }}>

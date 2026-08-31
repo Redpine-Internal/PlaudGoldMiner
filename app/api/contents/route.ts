@@ -10,6 +10,7 @@ interface AppContentRow {
   id: string;
   title: string;
   platform: string;
+  subtype: string | null;
   theme: string;
   outline: string;
   draft: string | null;
@@ -42,13 +43,15 @@ export async function GET(request: NextRequest) {
     }
     if (search) {
       values.push(`%${search}%`);
-      filters.push(`(c.title ILIKE $${values.length} OR c.theme ILIKE $${values.length} OR c.outline ILIKE $${values.length})`);
+      filters.push(
+        `(c.title ILIKE $${values.length} OR c.theme ILIKE $${values.length} OR c.outline ILIKE $${values.length} OR c.subtype ILIKE $${values.length})`
+      );
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
     const [res, count] = await Promise.all([
       pool.query<AppContentRow>(
-      `SELECT c.id, c.title, c.theme, c.platform, c.outline, c.draft,
+      `SELECT c.id, c.title, c.theme, c.platform, c.subtype, c.outline, c.draft,
               c.mention_count, c.relevance_score, c.status, c.notes, c.created_at,
               src.conversation_id
          FROM app_contents c
@@ -69,6 +72,7 @@ export async function GET(request: NextRequest) {
         id: r.id,
         title: r.title,
         platform: r.platform,
+        subtype: r.subtype,
         theme: r.theme,
         outline: r.outline,
         draft: r.draft ?? null,

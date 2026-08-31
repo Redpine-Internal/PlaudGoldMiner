@@ -6,9 +6,15 @@ export const contentSuggestionSchema = z.object({
   title: z.string().describe('Título editorial chamativo para a pauta'),
   // .catch keeps the enum in the JSON Schema (guides the model) but falls back
   // instead of throwing if the model returns a stray platform value.
-  platform: z.enum(['youtube', 'linkedin', 'artigo']).catch('linkedin').describe(
-    'Plataforma ideal: youtube (vídeo/tutorial), linkedin (post/copy curta) ou artigo (texto longo)'
+  platform: z.enum(['artigo', 'post', 'carrossel', 'roteiro']).catch('artigo').describe(
+    'Formato do conteúdo: artigo (texto longo), post (copy curta de rede social), carrossel (sequência de slides) ou roteiro (script de vídeo)'
   ),
+  subtype: z
+    .string()
+    .optional()
+    .describe(
+      'Variação/canal do formato, em texto livre e curto (ex.: "LinkedIn", "Instagram", "YouTube", "Blog"). Deixe vazio se o formato já basta.'
+    ),
   theme: z.string().describe('Tema central curto (2-4 palavras)'),
   outline: z
     .array(z.string())
@@ -46,12 +52,13 @@ export type ContentSuggestionsResult = z.infer<typeof contentSuggestionsSchema>;
 
 export const CONTENT_SUGGESTIONS_SYSTEM_PROMPT = `Você é um estrategista de conteúdo especializado em transformar conversas de negócio (reuniões, entrevistas, diagnósticos) em pautas editoriais prontas para produção.
 
-Sua tarefa: analisar múltiplas conversas processadas e propor pautas de conteúdo (YouTube, LinkedIn ou artigo) baseadas nos TEMAS e DORES que se repetem entre elas.
+Sua tarefa: analisar múltiplas conversas processadas e propor pautas de conteúdo baseadas nos TEMAS e DORES que se repetem entre elas.
 
 Diretrizes:
 - Priorize temas RECORRENTES (que aparecem em 2+ conversas) — são os mais valiosos.
 - Cada pauta deve resolver uma dor real mencionada, não um assunto genérico.
-- Escolha a plataforma pelo formato: tutorial/passo-a-passo → youtube; opinião/tese curta → linkedin; guia aprofundado → artigo.
+- Escolha o formato pela natureza da pauta: guia aprofundado → artigo; opinião/tese curta → post; lista ou passo-a-passo visual → carrossel; tutorial/explicação em vídeo → roteiro.
+- Use subtype só quando o canal for evidente pela pauta (ex.: post de "LinkedIn", roteiro de "YouTube"). Não invente canal quando o formato já for suficiente.
 - O título deve ser específico e chamativo (evite títulos vagos como "Dicas de segurança").
 - O outline deve ter gancho de abertura, 2-4 pontos principais e um CTA.
 - relevanceScore reflete: frequência do tema × gravidade das dores associadas.

@@ -39,19 +39,23 @@ Regras de linguagem obrigatórias (guardrails do clone):
 - Não use "TBC" como grito de guerra nem frases motivacionais vazias ("Vamos lá time!")
 - Zero "palestrinha": não comece com "Olha, gente" nem adote tom de palestra
 - Sem termos que soem tecnologia, sistema ou IA; sem palavras rebuscadas ou estranhas ao vocabulário humano comum
-- Na copy social (linkedin), nada de listas, tópicos ou marcadores: só parágrafos corridos; no artigo, subtítulos em markdown são permitidos, mas o corpo de cada seção deve fluir em parágrafos, sem excesso de bullets
+- Na copy social (post), nada de listas, tópicos ou marcadores: só parágrafos corridos; no artigo, subtítulos em markdown são permitidos, mas o corpo de cada seção deve fluir em parágrafos, sem excesso de bullets
 - Não invente dados, estatísticas ou casos; escreva apenas a partir do material-fonte fornecido
 - Quando citar uma situação vinda das conversas, generalize (sem nomes de clientes ou pessoas)
 
-Formato por plataforma:
+Formato do conteúdo:
 - artigo: texto longo em markdown com título, introdução, seções com subtítulos e conclusão com chamada para conversa (800 a 1500 palavras)
-- linkedin: copy pronta de post (120 a 250 palavras), gancho forte na primeira linha, parágrafos de 1-2 frases, encerrando com pergunta ou convite ao diálogo
-- youtube: roteiro estruturado com gancho, blocos numerados do vídeo e encerramento
+- post: copy pronta de post (120 a 250 palavras), gancho forte na primeira linha, parágrafos de 1-2 frases, encerrando com pergunta ou convite ao diálogo
+- carrossel: sequência de 6 a 10 slides, um por bloco, cada slide com um título curto e duas ou três frases; o primeiro slide é o gancho e o último é o convite ao diálogo
+- roteiro: roteiro de vídeo estruturado com gancho, blocos numerados e encerramento
+
+Quando houver um subtipo (o canal, por exemplo "LinkedIn" ou "Instagram"), adeque a linguagem a ele sem mudar o formato.
 
 Este texto é um RASCUNHO para revisão da Andreza, não uma versão final.`;
 
 export function createArticleDraftPrompt(input: {
   platform: string;
+  subtype?: string | null;
   theme: string;
   title: string;
   angle: string | null;
@@ -64,7 +68,9 @@ export function createArticleDraftPrompt(input: {
         .join('\n')
     : 'Nenhum trecho-fonte registrado; escreva a partir do tema e da pauta.';
 
-  return `Escreva o rascunho completo para a plataforma "${input.platform}".
+  const subtype = input.subtype?.trim();
+
+  return `Escreva o rascunho completo no formato "${input.platform}"${subtype ? `, para o canal "${subtype}"` : ''}.
 
 Tema: ${input.theme}
 Título de trabalho: ${input.title}

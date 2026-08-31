@@ -8,6 +8,7 @@ interface AppContentRow {
   id: string;
   title: string;
   platform: string;
+  subtype: string | null;
   theme: string;
   outline: string;
   mention_count: number;
@@ -23,6 +24,7 @@ function toCard(r: AppContentRow): ContentCard {
     id: r.id,
     title: r.title,
     platform: r.platform,
+    subtype: r.subtype,
     theme: r.theme,
     outline: r.outline,
     mentionCount: r.mention_count,
@@ -41,7 +43,7 @@ export async function GET(
   try {
     const { id } = await params;
     const res = await pool.query<AppContentRow>(
-      `SELECT c.id, c.title, c.theme, c.platform, c.outline,
+      `SELECT c.id, c.title, c.theme, c.platform, c.subtype, c.outline,
               c.mention_count, c.relevance_score, c.status, c.notes, c.created_at,
               src.conversation_id
          FROM app_contents c
@@ -103,7 +105,7 @@ export async function PATCH(
     }
     const res = await pool.query<AppContentRow>(
       `UPDATE app_contents SET ${sets.join(', ')} WHERE id = $1
-       RETURNING id, title, platform, theme, outline, mention_count,
+       RETURNING id, title, platform, subtype, theme, outline, mention_count,
                  relevance_score, status, notes, created_at,
                  (SELECT conversation_id FROM app_content_sources
                    WHERE content_id = app_contents.id LIMIT 1) AS conversation_id`,

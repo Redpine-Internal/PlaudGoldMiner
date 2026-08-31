@@ -28,7 +28,10 @@ export interface OpportunityCard {
 export interface ContentCard {
   id: string;
   title: string;
+  /** Formato do conteúdo: artigo | post | carrossel | roteiro (coluna legada `platform`). */
   platform: string;
+  /** Variação livre dentro do formato (ex.: "LinkedIn"). Ausente nas fontes n8n. */
+  subtype?: string | null;
   theme: string;
   outline: string; // JSON: { body, hashtags, imagePrompt }
   mentionCount: number;

@@ -13,7 +13,10 @@ const PAGE_SIZE = 20;
 interface Content {
   id: string;
   title: string;
-  platform: "youtube" | "linkedin" | "artigo" | "blog";
+  /** Formato do conteúdo. Valores legados (youtube/linkedin/blog) foram
+   *  migrados em 2026-08-28, mas o tipo segue aberto para não quebrar a UI. */
+  platform: string;
+  subtype: string | null;
   theme: string;
   outline: string | null;
   draft?: string | null;
@@ -35,7 +38,9 @@ const CT_STATUS: Record<string, string> = {
   sugerido: "Sugerido", rascunho: "Rascunho", em_revisao: "Em revisão",
   aprovado: "Aprovado", descartado: "Descartado", producao: "Em produção", publicado: "Publicado",
 };
-const CT_PLATFORMS: Record<string, string> = { youtube: "YouTube", linkedin: "LinkedIn", artigo: "Artigo", blog: "Blog" };
+// Formatos de conteúdo (taxonomia 2026-08-28). O filtro é por formato; o
+// subtipo é texto livre e aparece no card, não no rail.
+const CT_PLATFORMS: Record<string, string> = { artigo: "Artigo", post: "Post", carrossel: "Carrossel", roteiro: "Roteiro" };
 
 type ConteudoFilters = { status: string; platforms: string[]; railOpen: boolean };
 
@@ -252,6 +257,7 @@ const ConteudosPage = () => {
                   style={{ height: "auto", flex: 1 }}
                   title={c.title}
                   platform={c.platform}
+                  subtype={c.subtype}
                   theme={c.theme}
                   outline={c.outline || undefined}
                   mentionCount={c.mentionCount}
@@ -259,6 +265,7 @@ const ConteudosPage = () => {
                   status={c.status}
                   sourceId={c.id}
                   enrichText={c.theme}
+                  draft={c.draft}
                   onApprove={() => {
                     if (c.status === "sugerido") return generateDraft(c.id);
                     if (c.status === "rascunho") return setSt(c.id, "em_revisao");
@@ -278,7 +285,7 @@ const ConteudosPage = () => {
                 />
                 {c.draft ? (
                   <details style={{ marginTop: 8 }}>
-                    <summary style={{ font: "500 12px/16px var(--fontFamily)", cursor: "pointer" }}>Ver / editar rascunho</summary>
+                    <summary style={{ font: "500 12px/16px var(--fontFamily)", cursor: "pointer" }}>Editar / regerar rascunho</summary>
                     <DraftEditor id={c.id} draft={c.draft} onSaved={mutate} onRegenerate={() => generateDraft(c.id)} regenerating={drafting === c.id} />
                   </details>
                 ) : null}
