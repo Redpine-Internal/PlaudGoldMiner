@@ -17,6 +17,8 @@ interface AppOpportunityRow {
   status: string;
   notes: string | null;
   created_at: string;
+  /** Quantas conversas sustentam a oportunidade — a recorrência é o critério. */
+  source_count: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -41,7 +43,8 @@ export async function GET(request: NextRequest) {
 
     const [res, count] = await Promise.all([
       pool.query<AppOpportunityRow>(
-      `SELECT id, conversation_id, title, pain, context, score, type, subtype, generated_idea, status, notes, created_at
+      `SELECT id, conversation_id, title, pain, context, score, type, subtype, generated_idea, status, notes, created_at,
+              (SELECT count(*)::int FROM app_opportunity_sources s WHERE s.opportunity_id = app_opportunities.id) AS source_count
          FROM app_opportunities
         ${where}
         ORDER BY created_at DESC
@@ -65,6 +68,7 @@ export async function GET(request: NextRequest) {
         notes: r.notes,
         createdAt: r.created_at,
         conversationId: r.conversation_id,
+        sourceCount: r.source_count,
       }))
     );
 

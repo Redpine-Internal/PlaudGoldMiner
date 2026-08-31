@@ -5,7 +5,7 @@ import { useEnrichment } from "./enrichment/useEnrichment";
 const STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
 const TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto", servico: "Serviço" };
 
-/** Compõe o texto padrão do enriquecimento a partir dos campos da oportunidade. */
+/** Compõe o texto padrão do enriquecimento a partir dos campos do negócio. */
 function buildEnrichText(opts: {
   type?: string;
   subtype?: string | null;
@@ -15,7 +15,7 @@ function buildEnrichText(opts: {
 }): string {
   const label = TYPES[opts.type ?? ""] || opts.type || "";
   const head =
-    `Oportunidade de ${label.toLowerCase()}` +
+    `Novo negócio de ${label.toLowerCase()}` +
     (opts.subtype ? ` — ${opts.subtype}` : "") +
     (opts.conversationTitle ? `, identificada na conversa "${opts.conversationTitle}"` : "") +
     ".";
@@ -41,13 +41,16 @@ export interface OpportunityCardProps {
   enrichText?: string;
   /** Ideia redigida pela IA (cache); ausente dispara geração ao abrir o modal. */
   generatedIdea?: string | null;
+  /** Quantas conversas sustentam o negócio. A recorrência é o que dá valor à
+   *  oportunidade, então ela vale mais na meta do que o título de uma conversa. */
+  sourceCount?: number;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
   action?: React.ReactNode;
   style?: React.CSSProperties;
   className?: string;
 }
 
-/** Opportunity list card — labels, chips and meta row from app/oportunidades. */
+/** Opportunity list card — labels, chips and meta row from app/novos-negocios. */
 export function OpportunityCard({
   title,
   pain,
@@ -63,6 +66,7 @@ export function OpportunityCard({
   sourceId,
   enrichText,
   generatedIdea,
+  sourceCount,
   action,
   style,
   className = "",
@@ -95,11 +99,16 @@ export function OpportunityCard({
       </div>
       <span style={{ font: "500 12px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
         {createdAt ? fmt(createdAt) + " · " : ""}Score {Math.round(score)}%
-        {conversationTitle ? " · De: " + conversationTitle : ""}
+        {sourceCount && sourceCount > 1
+          ? ` · ${sourceCount} conversas`
+          : conversationTitle
+            ? " · De: " + conversationTitle
+            : ""}
       </span>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6, marginTop: "auto", paddingTop: 12 }}>
         {subtype ? (
           <span
+            title={subtype}
             style={{
               display: "flex",
               alignItems: "flex-start",
@@ -109,7 +118,19 @@ export function OpportunityCard({
             }}
           >
             <Icon name="tag" size={12} style={{ flexShrink: 0, marginTop: 2 }} />
-            <span>{subtype}</span>
+            {/* A IA às vezes devolve subtipo longo; corta em 2 linhas para não
+                competir com o título. O texto inteiro fica no tooltip. */}
+            <span
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                minWidth: 0,
+              }}
+            >
+              {subtype}
+            </span>
           </span>
         ) : null}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>

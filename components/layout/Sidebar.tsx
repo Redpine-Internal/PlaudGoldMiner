@@ -7,7 +7,6 @@ import {
   MessageCircle,
   Target,
   FileText,
-  TrendingUp,
   ClipboardList,
   BookOpen,
   Sparkles,
@@ -26,14 +25,13 @@ const GROUPS: { label: string; items: NavDef[] }[] = [
     items: [
       { icon: Home, label: "Dashboard", path: "/" },
       { icon: MessageCircle, label: "Conversas", path: "/conversas" },
-      { icon: Target, label: "Oportunidades", path: "/oportunidades" },
+      { icon: Target, label: "Novos Negócios", path: "/novos-negocios" },
       { icon: FileText, label: "Conteúdos", path: "/conteudos" },
     ],
   },
   {
     label: "Inteligência",
     items: [
-      { icon: TrendingUp, label: "IA Insights", path: "/insights" },
       { icon: ClipboardList, label: "Projetos", path: "/projetos" },
       { icon: BookOpen, label: "Assuntos de Interesse", path: "/assuntos-interesse" },
       { icon: Sparkles, label: "Clone", path: "/clone" },

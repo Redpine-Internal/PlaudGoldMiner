@@ -10,7 +10,6 @@ import {
   Sparkles,
   MoreHorizontal,
   FileText,
-  TrendingUp,
   ClipboardList,
   BookOpen,
   Settings,
@@ -23,13 +22,12 @@ type TabDef = { icon: LucideIcon; label: string; path: string };
 const TABS: TabDef[] = [
   { icon: Home, label: "Início", path: "/" },
   { icon: MessageCircle, label: "Conversas", path: "/conversas" },
-  { icon: Target, label: "Oportun.", path: "/oportunidades" },
+  { icon: Target, label: "Negócios", path: "/novos-negocios" },
   { icon: Sparkles, label: "Clone", path: "/clone" },
 ];
 
 const MORE_ITEMS: TabDef[] = [
   { icon: FileText, label: "Conteúdos", path: "/conteudos" },
-  { icon: TrendingUp, label: "IA Insights", path: "/insights" },
   { icon: ClipboardList, label: "Projetos", path: "/projetos" },
   { icon: BookOpen, label: "Assuntos de Interesse", path: "/assuntos-interesse" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },

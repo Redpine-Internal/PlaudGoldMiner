@@ -43,6 +43,8 @@ export { Pagination } from "./Pagination";
 export type { PaginationProps } from "./Pagination";
 export { StartProjectButton } from "./StartProjectButton";
 export type { StartProjectButtonProps } from "./StartProjectButton";
+export { GenerateBusinessModal } from "./GenerateBusinessModal";
+export type { GenerateMode, GeneratePayload } from "./GenerateBusinessModal";
 
 export { EnrichmentProvider } from "./enrichment/EnrichmentProvider";
 export { useEnrichment } from "./enrichment/useEnrichment";

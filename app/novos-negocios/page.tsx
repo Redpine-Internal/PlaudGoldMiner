@@ -1,9 +1,9 @@
 "use client";
 import { useState, useMemo, useEffect, type CSSProperties } from "react";
 import useSWR from "swr";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Trash2 } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
-import { Button, SearchInput, FilterChip, OpportunityCard, EmptyState, Pagination, StartProjectButton, useEnrichment } from "@/components/ds";
+import { Button, SearchInput, FilterChip, OpportunityCard, EmptyState, Pagination, StartProjectButton, GenerateBusinessModal, useEnrichment, type GeneratePayload } from "@/components/ds";
 import { FilterRail } from "@/components/lg/FilterRail";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -15,7 +15,7 @@ interface Opportunity {
   title: string;
   pain: string;
   context: string | null;
-  type: "treinamento" | "consultoria" | "sistema" | "produto" | "servico";
+  type: "treinamento" | "consultoria" | "sistema" | "produto";
   subtype?: string | null;
   generatedIdea: string | null;
   status: "nova" | "analise" | "qualificada" | "descartada";
@@ -24,6 +24,8 @@ interface Opportunity {
   conversationId: string | null;
   conversationTitle: string | null;
   conversationDate: string | null;
+  /** Nº de conversas que sustentam o negócio (recorrência). */
+  sourceCount?: number;
   createdAt: string;
 }
 
@@ -35,7 +37,9 @@ interface ApiResponse {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const OPP_STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
-const OPP_TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto", servico: "Serviço" };
+// Taxonomia atual. "servico" era um tipo legado; a purga de 2026-08-28 zerou a
+// tabela e o gerador não o produz mais, então saiu do rail.
+const OPP_TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto" };
 
 type OppFilters = {
   status: string;
@@ -46,7 +50,7 @@ type OppFilters = {
 
 const INITIAL_FILTERS: OppFilters = { status: "", types: [], minScore: "0", railOpen: true };
 
-const OportunidadesPage = () => {
+const NovosNegociosPage = () => {
   const { selectedOpportunityId, setSelectedOpportunityId } = useAppStore();
   const enrichment = useEnrichment();
   const isMobile = useIsMobile();
@@ -55,6 +59,9 @@ const OportunidadesPage = () => {
   const [onlyInteresting, setOnlyInteresting] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const [genNote, setGenNote] = useState<string | null>(null);
+  const [genOpen, setGenOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
   const { data, error, isLoading, mutate, isValidating } = useSWR<ApiResponse>(
@@ -104,22 +111,56 @@ const OportunidadesPage = () => {
     setF({ status: "", types: [], minScore: "0" });
   };
 
-  const generate = async () => {
+  const generate = async (payload: GeneratePayload) => {
     setGenerating(true);
     setGenError(null);
+    setGenNote(null);
     try {
-      const res = await fetch("/api/opportunities/analyze", { method: "POST" });
+      const res = await fetch("/api/opportunities/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => null);
       if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        setGenError(body?.error || `Falha ao detectar oportunidades (HTTP ${res.status}).`);
+        setGenError(body?.error || `Falha ao detectar novos negócios (HTTP ${res.status}).`);
         return;
       }
+      setGenNote(body?.message ?? null);
+      setGenOpen(false);
       await mutate();
     } catch (err) {
       console.error("Failed to detect opportunities:", err);
-      setGenError("Não foi possível detectar oportunidades. Verifique a conexão e tente novamente.");
+      setGenError("Não foi possível detectar novos negócios. Verifique a conexão e tente novamente.");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // Exclusão manual: a confirmação é obrigatória porque o DELETE apaga também as
+  // fontes e não há desfazer. Atualização otimista — o card some na hora e a
+  // lista volta ao servidor só para reconciliar.
+  const remove = async (o: Opportunity) => {
+    if (!window.confirm(`Excluir "${o.title}"?\n\nIsso remove o novo negócio e suas conversas de origem. Não há como desfazer.`)) {
+      return;
+    }
+    setDeletingId(o.id);
+    setGenError(null);
+    try {
+      const res = await fetch(`/api/opportunities/${o.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setGenError(body?.error || `Falha ao excluir (HTTP ${res.status}).`);
+        return;
+      }
+      if (selectedOpportunityId === o.id) setSelectedOpportunityId(null);
+      setGenNote(`"${o.title}" foi excluído.`);
+      await mutate();
+    } catch (err) {
+      console.error("Failed to delete opportunity:", err);
+      setGenError("Não foi possível excluir. Verifique a conexão e tente novamente.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -185,12 +226,33 @@ const OportunidadesPage = () => {
         </div>
       ) : null}
 
+      {genNote ? (
+        <div
+          role="status"
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))",
+            color: "var(--textPrimary)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)",
+            font: "400 13px/18px var(--fontFamily)",
+          }}
+        >
+          {genNote}
+        </div>
+      ) : null}
+
+      {genOpen ? (
+        <GenerateBusinessModal onClose={() => setGenOpen(false)} onGenerate={generate} busy={generating} />
+      ) : null}
+
       <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
         {isMobile ? null : rail}
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8, marginBottom: 16 }}>
-            <SearchInput value={q} onChange={setQ} placeholder="Buscar oportunidades..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
+            <SearchInput value={q} onChange={setQ} placeholder="Buscar novos negócios..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
             {isMobile ? null : (
               <button
                 type="button"
@@ -211,12 +273,12 @@ const OportunidadesPage = () => {
             <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
               Só interessantes
             </FilterChip>
-            <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={generate} disabled={generating}>
-              {generating ? "Detectando..." : "Detectar Oportunidades"}
+            <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={() => setGenOpen(true)} disabled={generating}>
+              {generating ? "Detectando..." : "Detectar Negócios"}
             </Button>
             <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
             <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)" }}>
-              {list.length} oportunidade{list.length !== 1 ? "s" : ""}
+              {list.length} negócio{list.length !== 1 ? "s" : ""}
             </span>
           </div>
 
@@ -233,7 +295,7 @@ const OportunidadesPage = () => {
                 borderRadius: "var(--radius-lg)",
               }}
             >
-              Erro ao carregar oportunidades. Por favor, tente novamente.
+              Erro ao carregar novos negócios. Por favor, tente novamente.
             </div>
           ) : null}
 
@@ -255,6 +317,7 @@ const OportunidadesPage = () => {
                     type={o.type}
                     subtype={o.subtype}
                     generatedIdea={o.generatedIdea}
+                    sourceCount={o.sourceCount}
                     status={o.status}
                     score={o.score}
                     conversationTitle={o.conversationTitle || undefined}
@@ -263,12 +326,42 @@ const OportunidadesPage = () => {
                     selected={selectedOpportunityId === o.id}
                     onSelect={() => setSelectedOpportunityId(o.id)}
                     action={
-                      <StartProjectButton
-                        sourceType="opportunity"
-                        sourceId={o.id}
-                        title={o.title}
-                        description={o.pain}
-                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <StartProjectButton
+                          sourceType="opportunity"
+                          sourceId={o.id}
+                          title={o.title}
+                          description={o.pain}
+                        />
+                        {/* O card inteiro abre o modal; sem stopPropagation o
+                            clique no lixo abriria o modal por baixo do confirm. */}
+                        <button
+                          type="button"
+                          aria-label={`Excluir ${o.title}`}
+                          title="Excluir"
+                          disabled={deletingId === o.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            remove(o);
+                          }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 32,
+                            height: 32,
+                            flexShrink: 0,
+                            borderRadius: "var(--radius-md)",
+                            border: "1px solid var(--color-border)",
+                            background: "transparent",
+                            color: "var(--color-muted-foreground)",
+                            cursor: deletingId === o.id ? "wait" : "pointer",
+                            opacity: deletingId === o.id ? 0.5 : 1,
+                          }}
+                        >
+                          <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+                        </button>
+                      </div>
                     }
                   />
                 ))}
@@ -276,12 +369,12 @@ const OportunidadesPage = () => {
               <Pagination page={page} pageCount={pageCount} onChange={setPage} />
             </div>
           ) : opps.length ? (
-            <EmptyState icon="lightbulb" title="Nenhuma oportunidade encontrada" message="Nenhuma oportunidade corresponde aos filtros selecionados." />
+            <EmptyState icon="lightbulb" title="Nenhum negócio encontrado" message="Nenhum novo negócio corresponde aos filtros selecionados." />
           ) : (
             <EmptyState
               icon="lightbulb"
-              title="Nenhuma oportunidade detectada"
-              message="Oportunidades de negócio serão detectadas automaticamente quando você processar suas conversas."
+              title="Nenhum negócio detectado"
+              message="A geração é manual: escolha um período ou selecione conversas e use 'Detectar Negócios'."
             />
           )}
         </div>
@@ -290,4 +383,4 @@ const OportunidadesPage = () => {
   );
 };
 
-export default OportunidadesPage;
+export default NovosNegociosPage;
