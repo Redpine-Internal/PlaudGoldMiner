@@ -1,40 +1,58 @@
-# Andresa AI - Product Requirements Document
+# EHS Insights - Product Requirements Document
 
 **Author:** Wesley
 **Date:** 2025-11-28
-**Version:** 1.0
+**Version:** 1.2 (atualizado 2026-09-02 — sistema em produção)
+
+> **Nota de versão.** As seções marcadas com **[IMPLEMENTADO]** descrevem o
+> comportamento que está no ar hoje, verificado no código e no banco. As demais
+> permanecem como intenção de produto. O nome do produto no PRD original era
+> "Andresa AI"; o sistema em produção chama-se **EHS Insights**.
 
 ---
 
 ## Executive Summary
 
-**Andresa AI** é uma plataforma pessoal de gestão de conversas e insights que processa reuniões e interações da Andresa para extrair oportunidades de negócio, sugestões de conteúdo e alimentar uma base de conhecimento personalizada ("Clone").
+**EHS Insights** transforma conversas de trabalho gravadas na EHS Brasil em inteligência de negócio: oportunidades comerciais qualificadas, pautas de conteúdo e uma base consultável por chat.
 
-A plataforma captura conversas (reuniões, treinamentos, conversas informais), processa via IA para extrair insights estruturados, e mais importante - **conecta pontos entre diferentes conversas** para gerar ideias inovadoras que a usuária não teria sozinha.
+A Andresa grava reuniões, treinamentos e conversas informais num Plaud. São centenas de horas por ano em que clientes dizem, sem perceber, o que precisam comprar — e que ninguém tem tempo de reouvir. O sistema ingere tudo, entende o que foi dito e **conecta pontos entre conversas diferentes**, revelando demanda que nenhuma conversa isolada mostraria.
 
 ### O que Torna Este Produto Especial
 
-A IA vai além da simples transcrição e organização. Ela:
-- **Detecta padrões** across múltiplas conversas ao longo do tempo
-- **Conecta problemas** mencionados com a expertise da Andresa
-- **Sugere ideias inovadoras** combinando insights de fontes diferentes
-- **Aprende continuamente** através do Clone, refinando sugestões com base no conhecimento acumulado
+A IA vai além da transcrição e organização. Ela:
+- **Detecta padrões** entre múltiplas conversas ao longo do tempo
+- **Mede recorrência** com denominador explícito ("8 de 50 conversas, 16%"), não contagem solta
+- **Qualifica** o que é oportunidade real e o que é apenas padrão observado
+- **Sustenta cada afirmação** com o trecho da conversa que a originou, linkado à fonte
 
-Exemplo: "Você mencionou dificuldade com gestão de projetos em 3 reuniões diferentes. Combinando isso com sua expertise em produtividade, você poderia criar um sistema de gestão simplificado."
+Exemplo real do sistema: *"Esse tema de treinamento em altura apareceu em 8 de 50 conversas (16%), subindo em relação à geração anterior (5 de 50). Qualificado como oportunidade real, tipo treinamento, subtipo 'Treinamento NR-35', com 8 evidências rastreáveis."*
+
+### Princípio inegociável
+
+**Nenhum insight sem evidência.** Toda afirmação da IA carrega o trecho-fonte e o link para a conversa de origem. Propostas de metodologia são marcadas como hipótese e exigem aprovação humana — a IA sugere, a Andresa decide.
 
 ---
 
 ## Project Classification
 
-**Technical Type:** Web App (SPA)
-**Domain:** General (Produtividade/IA Pessoal)
-**Complexity:** Low
+**Technical Type:** Web App (Next.js App Router, SSR + API Routes)
+**Domain:** Inteligência comercial a partir de conversas gravadas
+**Complexity:** Medium — pipeline de ingestão idempotente, análise em lote com controle de cota e estado compartilhado com agentes externos
 
-Este é um projeto brownfield com protótipo frontend já implementado:
-- Layout de 3 colunas funcional
-- Página de Conversas com lista e detalhes
-- Componentes reutilizáveis (Badges, Cards, Skeletons)
-- 4 páginas ainda como placeholders (Dashboard, Oportunidades, Conteúdos, Clone, Configurações)
+**Status:** em produção no Google Cloud Run. **[IMPLEMENTADO]**
+
+Situação atual (verificada no banco em 2026-09-02):
+
+| Área | Estado |
+|---|---|
+| Conversas ingeridas | 257 |
+| Oportunidades detectadas | 20 |
+| Temas de negócio | 6 |
+| Conteúdos | 20 |
+| Projetos | 2 |
+| Páginas | 11, todas funcionais (nenhuma placeholder) |
+| Rotas de API | 43 |
+| Testes | 70, cobrindo a lógica de análise e ingestão |
 
 ---
 
@@ -61,23 +79,30 @@ O produto é bem-sucedido quando:
 
 ## Ecosystem & Integrations
 
-### Fontes de Dados
-- **Plaud AI:** Dispositivo de gravação que processa áudio e gera transcrições. É a fonte primária de dados para o sistema.
-- **Google Drive:** Fonte secundária/fallback para transcrições. Permite importar arquivos de texto armazenados no Drive.
+### Fontes de Dados **[IMPLEMENTADO]**
+- **Plaud:** Gravador que processa áudio e gera transcrições. Fonte primária, via API REST com varredura completa e idempotente.
+- **Google Drive:** Via alternativa, para transcrições que não vieram do gravador. Opcional — o pipeline do Plaud não depende dele em nenhum ponto.
 
-### Sistemas Externos
-- **Clone (externo):** Base de conhecimento personalizada que será alimentada pela Andresa AI. O Clone aprende com as conversas processadas e refina suas capacidades ao longo do tempo.
+### Sistemas Externos **[IMPLEMENTADO]**
+- **n8n:** Pipeline de embeddings e agentes, sobre o mesmo Postgres. Comunicação por webhooks autenticados (`x-plaude-api-key`). O app nunca fala com o Postgres do n8n diretamente.
+- **Clone:** Deixou de ser sistema externo. Hoje é chat interno sobre a base (`/api/clone/chat`), com as conversas, oportunidades, conteúdos e perfil como contexto.
 
-### Fluxo de Dados
+### Fluxo de Dados **[IMPLEMENTADO]**
 ```
 ┌─────────────┐
-│  Plaud AI   │──────┐
-│ (primário)  │      │     ┌──────────────────┐     ┌─────────────┐
-└─────────────┘      ├────▶│   Andresa AI     │────▶│ Clone       │
-┌─────────────┐      │     │   (processa +    │     │ (aprende +  │
-│Google Drive │──────┘     │   extrai)        │     │ refina)     │
-│ (fallback)  │            └──────────────────┘     └─────────────┘
-└─────────────┘
+│    Plaud    │──────┐
+│ (primário)  │      │     ┌──────────────────┐     ┌──────────────────┐
+└─────────────┘      ├────▶│   EHS Insights   │◀───▶│ Supabase Postgres│
+┌─────────────┐      │     │  ingestão + IA   │     │  (compartilhado) │
+│Google Drive │──────┘     └──────────────────┘     └──────────────────┘
+│ (opcional)  │                     │                         ▲
+└─────────────┘                     │ webhooks                │
+                                    ▼                         │
+                            ┌──────────────┐                  │
+                            │     n8n      │──────────────────┘
+                            │ embeddings + │
+                            │   agentes    │
+                            └──────────────┘
 ```
 
 ---
@@ -90,41 +115,46 @@ O MVP foca em entregar valor imediato com o mínimo de complexidade técnica.
 
 | Área | Funcionalidade | Prioridade | Descrição |
 |------|----------------|------------|-----------|
-| **Ingestão** | Upload manual de transcrições | P0 | Aceitar arquivos txt/json do Plaud AI |
-| **Ingestão** | Importar do Google Drive | P0 | Fallback para buscar transcrições no Drive |
-| **Processamento** | Extração de insights via IA | P0 | Usar OpenAI/Claude para analisar transcrições |
-| **Conversas** | Lista e detalhes | P0 | Visualizar todas as conversas processadas (já existe frontend) |
-| **Oportunidades** | Detecção automática | P0 | IA identifica oportunidades de negócio nas conversas |
-| **Conexões** | Cross-conversation insights | P0 | IA conecta pontos entre múltiplas conversas |
-| **Conteúdos** | Sugestões de conteúdo | P1 | Gerar ideias de conteúdo baseadas nos insights |
-| **Clone Export** | Exportar para Clone | P1 | Formato estruturado para alimentar Clone externo |
+| **Ingestão** | Varredura automática da API do Plaud | P0 | **[IMPLEMENTADO]** Reconciliação diária + botão de sync manual; idempotente |
+| **Ingestão** | Importar do Google Drive | P0 | **[IMPLEMENTADO]** Via alternativa, para transcrições que não vieram do gravador |
+| **Processamento** | Extração de insights via IA | P0 | **[IMPLEMENTADO]** Azure OpenAI com saída estruturada (Zod) |
+| **Conversas** | Lista e detalhes | P0 | **[IMPLEMENTADO]** 257 conversas ingeridas |
+| **Oportunidades** | Detecção + qualificação | P0 | **[IMPLEMENTADO]** Separa oportunidade real de padrão observado |
+| **Conexões** | Insights cross-conversation | P0 | **[IMPLEMENTADO]** Análise em lote com recorrência e evidências |
+| **Temas** | Agrupamento por tema recorrente | P0 | **[IMPLEMENTADO]** Une ofertas iguais escritas com títulos diferentes |
+| **Conteúdos** | Pauta → rascunho integral | P1 | **[IMPLEMENTADO]** Artigo, post, carrossel ou roteiro |
+| **Projetos** | Quadro de tarefas por oportunidade | P1 | **[IMPLEMENTADO]** Com geração de ações por IA |
+| **Clone** | Chat sobre a base | P1 | **[IMPLEMENTADO]** Consulta interna, não export externo |
 
-#### MVP User Flow
+#### MVP User Flow **[IMPLEMENTADO]**
 ```
-Fluxo Principal (Plaud AI):
-1. Andresa grava reunião com Plaud AI
-2. Plaud processa e gera transcrição
-3. Andresa abre Andresa AI e faz upload da transcrição
-4. Sistema processa via IA e extrai insights
-5. Andresa revisa insights e exporta para Clone
+Fluxo Principal (Plaud):
+1. Andresa grava a conversa no Plaud
+2. Ingestão diária varre a API e traz TODAS as gravações (completude é requisito:
+   gravação sem resumo é processada, não ignorada)
+3. IA processa as conversas pendentes e extrai insights
+4. Análise em lote cruza as N conversas mais recentes e mede recorrência
+5. Insights qualificados viram oportunidades reais; os demais, padrões observados
+6. Andresa prioriza, gera pauta de conteúdo ou abre projeto
 
 Fluxo Alternativo (Google Drive):
-1. Andresa tem transcrição salva no Google Drive
-2. Andresa abre Andresa AI e conecta ao Drive (OAuth)
-3. Andresa seleciona arquivo do Drive para importar
-4. Sistema processa via IA e extrai insights
-5. Andresa revisa insights e exporta para Clone
+1. Transcrição que não veio do Plaud está no Drive
+2. Andresa conecta o Drive (OAuth) e seleciona o arquivo
+3. Sistema processa e o material entra no mesmo pipeline
 ```
+
+> A ingestão manual por upload de arquivo, prevista no PRD original, foi substituída pela
+> varredura automática da API do Plaud. O "export para Clone" foi substituído pelo Clone
+> como chat interno sobre a base.
 
 ### 🚀 Growth Scope (Pós-MVP)
 
 | Área | Funcionalidade | Descrição |
 |------|----------------|-----------|
-| **Ingestão** | Integração automática Plaud API | Sincronização automática de novas gravações |
 | **Dashboard** | Métricas e visualizações | Overview de insights, tendências, padrões |
-| **Clone** | Integração bidirecional | Consultar e atualizar Clone via API |
 | **Configurações** | Preferências de IA | Customizar tipos de insights desejados |
-| **Busca** | Busca semântica | Encontrar informações em conversas passadas |
+| **Busca** | Busca semântica | Pipeline de embeddings existe no n8n; falta a superfície de busca no app |
+| **Enriquecimento** | Material de referência por assunto | Parcialmente implementado (Assuntos de Interesse) |
 
 ### 🔮 Vision Scope (Futuro)
 
@@ -192,13 +222,18 @@ Fluxo Alternativo (Google Drive):
 | FR-5.3 | Sistema deve classificar tipo de conteúdo (post, artigo, vídeo, curso) | P1 |
 | FR-5.4 | Sistema deve permitir aprovar/rejeitar sugestões | P1 |
 
-### FR-6: Exportação para Clone
+### FR-6: Clone — consulta à base **[IMPLEMENTADO]**
+
+> Substitui o requisito original de "Exportação para Clone". O Clone deixou de ser sistema
+> externo alimentado por export; virou chat interno sobre a própria base.
 
 | ID | Requisito | Prioridade |
 |----|-----------|------------|
-| FR-6.1 | Sistema deve permitir exportar dados em formato estruturado (JSON) | P1 |
-| FR-6.2 | Sistema deve incluir contexto e metadados na exportação | P1 |
-| FR-6.3 | Sistema deve permitir selecionar o que exportar (conversas, insights, oportunidades) | P1 |
+| FR-6.1 | Sistema deve responder perguntas em linguagem natural sobre a base | P1 |
+| FR-6.2 | Sistema deve usar conversas, oportunidades, conteúdos e perfil como contexto | P1 |
+| FR-6.3 | Sistema deve transmitir a resposta em streaming | P1 |
+| FR-6.4 | Sistema deve respeitar orçamento de tokens antes de chamar o modelo | P1 |
+| FR-6.5 | Sistema deve permitir exportar dados em formato estruturado (`/api/export`) | P2 |
 
 ### FR-7: Cross-Conversation Intelligence (Diferencial)
 
@@ -276,83 +311,107 @@ Fluxo Alternativo (Google Drive):
 
 ## Technical Architecture
 
-### Stack Tecnológica
+### Stack Tecnológica **[IMPLEMENTADO]**
 
 | Camada | Tecnologia | Justificativa |
 |--------|------------|---------------|
-| **Frontend** | Next.js 16, React 19, TypeScript | Já implementado no protótipo |
-| **Styling** | Tailwind CSS v4, shadcn/ui | Já implementado no protótipo |
-| **State** | Zustand | Já implementado no protótipo |
+| **Frontend** | Next.js 16 (App Router, Turbopack), React 19, TypeScript | UI e API no mesmo projeto |
+| **Styling** | Tailwind CSS v4, shadcn/ui | — |
+| **State** | Zustand (local), SWR (dados) | — |
 | **Backend** | Next.js API Routes | Simplicidade, mesmo stack |
-| **IA** | OpenAI GPT-4 ou Claude | APIs maduras, qualidade de output |
-| **Database** | SQLite (MVP) → PostgreSQL | Simplicidade inicial, escalável depois |
-| **Storage** | Local filesystem (MVP) | Dados pessoais, baixo volume |
+| **IA — análise** | Azure OpenAI via AI SDK | `generateObject` com schema Zod garante saída estruturada |
+| **IA — clone** | Anthropic Claude via AI SDK | Streaming de chat sobre a base |
+| **Database** | Supabase Postgres + Drizzle ORM | Compartilhado com os agentes n8n |
+| **Auth** | Supabase Auth (email/senha) | Sessão validada no middleware a cada request |
+| **Ingestão** | API do Plaud | Varredura completa, idempotente |
+| **Automação** | n8n (webhooks) | Embeddings e agentes, fora deste app |
+| **Deploy** | Docker → Google Cloud Run | Escala a zero; secrets no Secret Manager |
 
-### Estrutura de Dados
+> A decisão original de SQLite/libSQL (Turso) foi revertida: o banco migrou para Supabase
+> Postgres, porque os agentes n8n precisam operar sobre os mesmos dados.
+
+### Decisões de arquitetura não-óbvias **[IMPLEMENTADO]**
+
+**`conversations` é uma VIEW, não uma tabela.** Projeta `meetings` + `summaries` com triggers
+`INSTEAD OF`. Consequência: **`.returning()` não funciona** — o Postgres não suporta em views
+com `INSTEAD OF`. Use fetch-after-write.
+
+**O token do Plaud vive no banco (`app_plaud_tokens`), não em variável de ambiente.** O Plaud
+rotaciona o refresh token a cada uso (validade 24h); qualquer cópia estática — env, arquivo,
+Secret Manager — invalida no primeiro refresh feito por outra instância. Com Cloud Run em
+`min-instances=0`, o estado precisa ser central. O refresh roda sob `SELECT ... FOR UPDATE`
+para que instâncias concorrentes não invalidem o token uma da outra. Ver ADR-0001.
+
+**Agrupamento por tema é cacheado** em `app_business_themes`. Sem cache, abrir "Novos
+Negócios" consumiria cota da Azure a cada visita.
+
+**Prioridade da oportunidade vive em `app_opportunities`**, não na tabela de temas, para
+sobreviver a um reagrupamento.
+
+**O ambiente local roda em container.** `next dev` não reproduz o runtime de produção — um bug
+de autenticação (`UntrustedHost`) só apareceu no build standalone, depois de já estar no ar.
+
+### Modelo de Dados **[IMPLEMENTADO]**
+
+15 tabelas. `conversations` é uma VIEW; as tabelas de domínio da app usam prefixo `app_`.
+
+| Tabela | Papel |
+|---|---|
+| `conversations` (view sobre `meetings` + `summaries`) | Gravação ingerida: transcrição, resumo, participantes, data |
+| `app_opportunities` | Oportunidade detectada: dor, contexto, score, tipo, subtipo, status, prioridade |
+| `app_opportunity_sources` | Evidências: as conversas que originaram a oportunidade, com o trecho justificador |
+| `app_business_themes` | Tema que agrupa ofertas iguais escritas com títulos diferentes |
+| `app_business_theme_members` | Vínculo oportunidade → tema (um tema por oportunidade) |
+| `app_contents` | Pauta ou artigo completo, com rascunho gerado |
+| `app_content_sources` | Evidências da pauta |
+| `app_projects` · `app_project_columns` · `app_project_tasks` | Quadro de tarefas por oportunidade |
+| `app_idea_enrichment` · `app_idea_enrichment_reference` | Enriquecimento de ideias com material de referência |
+| `app_user_profile` | Perfil do usuário |
+| `app_plaud_tokens` | Token set do Plaud (linha única `id='default'`) — ver ADR-0001 |
+| `app_ingest_runs` | Log de execuções da ingestão |
 
 ```typescript
-// Conversa processada
-interface Conversation {
-  id: string;
-  title: string;
-  type: 'reuniao' | 'treinamento' | 'informal' | 'outro';
-  date: Date;
-  duration?: number;
-  participants: string[];
-  transcription: string;
-  summary: string;
-  topics: string[];
-  tags: string[];
-  createdAt: Date;
-  processedAt: Date;
-}
-
-// Oportunidade detectada
+// Oportunidade — campos que carregam a semântica do produto
 interface Opportunity {
   id: string;
+  conversationId: string | null;  // fonte primária; a lista completa vive em sources
   title: string;
-  description: string;
-  type: 'produto' | 'servico' | 'conteudo' | 'outro';
-  status: 'nova' | 'analise' | 'descartada' | 'implementada';
-  sourceConversationIds: string[];
-  confidence: number; // 0-1
-  createdAt: Date;
-}
-
-// Sugestão de conteúdo
-interface ContentSuggestion {
-  id: string;
-  title: string;
-  description: string;
-  type: 'post' | 'artigo' | 'video' | 'curso';
-  status: 'sugerido' | 'aprovado' | 'rejeitado' | 'criado';
-  sourceConversationIds: string[];
-  createdAt: Date;
-}
-
-// Conexão cross-conversation
-interface CrossInsight {
-  id: string;
-  title: string;
-  description: string;
-  conversationIds: string[];
-  pattern: string; // descrição do padrão detectado
+  pain: string;                   // a dor identificada — obrigatória
+  context: string | null;
+  score: number;                  // confiança da qualificação
+  type: 'treinamento' | 'consultoria' | 'sistema';
+  subtype: string | null;         // livre, sugerido pela IA: "Treinamento NR-35"
+  generatedIdea: string | null;   // proposta redigida pela IA, cacheada
+  status: string;                 // default 'nova'
+  priority: 'alta' | 'media' | 'baixa' | null;  // marcada à mão; null = não priorizado
+  notes: string | null;
+  tags: string | null;
   createdAt: Date;
 }
 ```
 
-### API Routes (MVP)
+> **Taxonomia de tipo.** Fechada em `treinamento` (cursos/capacitações), `consultoria`
+> (projetos/diagnósticos/assessoria) e `sistema` (software/produto digital). Os tipos
+> `produto` e `servico` do PRD original existem apenas em linhas legadas.
 
-| Route | Method | Descrição |
-|-------|--------|-----------|
-| `/api/conversations` | GET | Listar conversas |
-| `/api/conversations` | POST | Upload e processar nova conversa |
-| `/api/conversations/[id]` | GET | Detalhes de uma conversa |
-| `/api/opportunities` | GET | Listar oportunidades |
-| `/api/opportunities/[id]` | PATCH | Atualizar status |
-| `/api/content-suggestions` | GET | Listar sugestões |
-| `/api/export` | POST | Exportar para Clone |
-| `/api/insights/cross` | GET | Insights cross-conversation |
+### API Routes **[IMPLEMENTADO]**
+
+43 rotas. As principais, por domínio:
+
+| Domínio | Rotas | Papel |
+|---|---|---|
+| **Ingestão Plaud** | `/api/plaud/ingest` · `/ingest/status` · `/sync` · `/files` · `/files/[id]` · `/analyze` | Varredura (cron autenticado por `INGEST_CRON_SECRET` ou botão da UI), status e análise |
+| **Conversas** | `/api/conversations` · `/[id]` · `/[id]/opportunities` · `/upload` | Listagem, detalhe, oportunidades geradas |
+| **Oportunidades** | `/api/opportunities` · `/[id]` · `/[id]/sources` · `/analyze` · `/themes` · `/idea` | CRUD, evidências, análise em lote, agrupamento por tema, ideia gerada |
+| **Conteúdos** | `/api/contents` · `/[id]` · `/[id]/draft` · `/[id]/sources` · `/analyze` | Pauta, rascunho integral, evidências |
+| **Projetos** | `/api/projects` · `/[id]` · `/[id]/columns` · `/[id]/generate` · `/[id]/tasks` · `/api/tasks/[id]` · `/api/columns/[id]` | Quadro de tarefas com geração por IA |
+| **Enriquecimento** | `/api/enrichment` · `/interesting` · `/reference` · `/upload` | Assuntos de interesse e material de referência |
+| **Clone** | `/api/clone/chat` | Chat com streaming sobre a base |
+| **Drive** | `/api/drive/files` · `/folders` · `/import` | Importação alternativa |
+| **Outros** | `/api/dashboard` · `/api/profile` · `/api/export` · `/api/process` · `/api/n8n/status` · `/api/auth/[...nextauth]` | — |
+
+Todas exigem sessão, exceto `/api/plaud/ingest` com o header `x-ingest-secret` correto
+(usado pelo cron) e as rotas de autenticação.
 
 ---
 
@@ -381,23 +440,33 @@ interface CrossInsight {
 
 | # | Pergunta | Impacto | Status |
 |---|----------|---------|--------|
-| 1 | Qual o formato exato de exportação do Plaud AI? | Define parser de ingestão | Pendente |
-| 2 | Clone externo aceita que formato de input? | Define formato de export | Pendente |
-| 3 | Qual provedor de IA usar (OpenAI vs Claude)? | Custo e qualidade | A decidir |
-| 4 | Onde hospedar o app? (Vercel, self-hosted) | Custo e complexidade | A decidir |
+| 1 | Qual o formato exato de exportação do Plaud? | Define parser de ingestão | **Resolvido** — API REST (`/open/third-party/files/`), cliente em `lib/plaud/client.ts` |
+| 2 | Clone externo aceita que formato de input? | Define formato de export | **Descartada** — o Clone virou chat interno sobre a base, não sistema externo |
+| 3 | Qual provedor de IA usar (OpenAI vs Claude)? | Custo e qualidade | **Resolvido** — Azure OpenAI para análise estruturada, Claude para o chat do Clone |
+| 4 | Onde hospedar o app? (Vercel, self-hosted) | Custo e complexidade | **Resolvido** — Google Cloud Run, container, escala a zero |
+| 5 | Como paginar/limitar o universo da análise em lote? | Custo de IA e representatividade | Aberta — hoje: 50 conversas mais recentes, com filtro opcional de período |
+| 6 | Qual gatilho promove padrão observado a oportunidade real? | Precisão da qualificação | Aberta — critério vive no prompt, não em regra explícita |
 
 ---
 
 ## Appendix
 
-### A. Brownfield Context
+### A. Contexto de evolução
 
-Este PRD considera o código existente:
-- **Frontend funcional:** Layout 3 colunas, página de Conversas, componentes reutilizáveis
-- **Stack definida:** Next.js 16, React 19, TypeScript, Tailwind v4, Zustand
-- **Páginas placeholder:** Dashboard, Oportunidades, Conteúdos, Clone, Configurações
+O PRD original (v1.0/v1.1, dez/2025) descrevia um protótipo frontend com páginas
+placeholder. O sistema evoluiu além daquele escopo e está em produção. As divergências
+relevantes entre o planejado e o construído:
 
-Referência: [Documentação do Projeto](./index.md)
+| Planejado (v1.1) | Construído |
+|---|---|
+| Upload manual de transcrição | Varredura automática e idempotente da API do Plaud |
+| SQLite (MVP) → PostgreSQL | Supabase Postgres desde o início da fase atual, compartilhado com n8n |
+| Export para Clone externo | Clone como chat interno sobre a base |
+| Tipos `produto`/`servico` | Taxonomia `treinamento`/`consultoria`/`sistema` com subtipo livre |
+| Hospedagem a decidir | Google Cloud Run, container, escala a zero |
+| Páginas placeholder | 11 páginas funcionais |
+
+Referência: [Documentação do Projeto](./index.md) · [README](../README.md) · [ADR-0001](./adr/0001-tokens-plaud-persistidos-no-banco.md)
 
 ### B. Related Documents
 
@@ -416,6 +485,7 @@ Referência: [Documentação do Projeto](./index.md)
 |--------|------|-------|----------|
 | 1.0 | 2025-11-28 | Wesley | Versão inicial - Discovery e estrutura |
 | 1.1 | 2025-12-01 | PM Agent | Escopo MVP, requisitos funcionais/não-funcionais, arquitetura |
+| 1.2 | 2026-09-02 | Claude | Alinhamento com o sistema em produção: stack real (Supabase Postgres, Azure OpenAI, Cloud Run) no lugar de SQLite/indefinidos; taxonomia de oportunidade (`treinamento`/`consultoria`/`sistema`); ingestão automática no lugar de upload manual; Clone como chat interno; modelo de dados com as 15 tabelas; 43 rotas de API; decisões de arquitetura não-óbvias; questões 1–4 fechadas, 5–6 abertas |
 
 ---
 
