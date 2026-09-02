@@ -1,9 +1,10 @@
 "use client";
 import { useState, useMemo, useEffect, type CSSProperties } from "react";
 import useSWR from "swr";
-import { SlidersHorizontal, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
-import { Button, SearchInput, FilterChip, OpportunityCard, EmptyState, Pagination, StartProjectButton, GenerateBusinessModal, ThemeBoard, useEnrichment, type GeneratePayload, type ThemeBoardTheme } from "@/components/ds";
+import { Button, SearchInput, OpportunityCard, EmptyState, Pagination, StartProjectButton, GenerateBusinessModal, ThemeBoard, useEnrichment, type GeneratePayload, type ThemeBoardTheme } from "@/components/ds";
 import { FilterRail } from "@/components/lg/FilterRail";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -63,6 +64,7 @@ type OppFilters = {
 const INITIAL_FILTERS: OppFilters = { status: "", types: [], minScore: "0", railOpen: true, view: "negocio" };
 
 const NovosNegociosPage = () => {
+  const router = useRouter();
   const { selectedOpportunityId, setSelectedOpportunityId } = useAppStore();
   const enrichment = useEnrichment();
   const isMobile = useIsMobile();
@@ -95,7 +97,7 @@ const NovosNegociosPage = () => {
     { revalidateOnFocus: false }
   );
 
-  const opps = data?.data || [];
+  const opps = useMemo(() => data?.data ?? [], [data]);
 
   const minScore = Number(f.minScore) || 0;
 
@@ -128,12 +130,12 @@ const NovosNegociosPage = () => {
     return c;
   }, [opps]);
 
-  const hasFilters = Boolean(q || f.status || f.types.length || f.minScore !== "0");
-  const activeCount = (f.status ? 1 : 0) + f.types.length + (f.minScore !== "0" ? 1 : 0);
+  const hasFilters = Boolean(q || f.status || f.types.length || f.minScore !== "0" || onlyInteresting);
 
   const clearAll = () => {
     setQ("");
     setF({ status: "", types: [], minScore: "0" });
+    setOnlyInteresting(false);
   };
 
   const generate = async (payload: GeneratePayload) => {
@@ -243,7 +245,8 @@ const NovosNegociosPage = () => {
 
   const rail = (
     <FilterRail
-      open={f.railOpen}
+      open
+      style={{ width: 200 }}
       onClear={hasFilters ? clearAll : undefined}
       sections={[
         {
@@ -274,18 +277,55 @@ const NovosNegociosPage = () => {
             { value: "85", label: "85+" },
           ],
         },
+        {
+          kind: "checks",
+          title: "Filtros",
+          values: onlyInteresting ? ["interesting"] : [],
+          onChange: (values) => setOnlyInteresting(values.includes("interesting")),
+          options: [{ value: "interesting", label: "Só interessantes" }],
+        },
       ]}
     />
   );
 
   const grid: CSSProperties = {
     display: "grid",
-    gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))",
-    gap: 16,
+    gridTemplateColumns: "1fr",
+    gap: 0,
   };
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+    <div className="pgm-opportunities-page" style={{ maxWidth: 1280, margin: "0 auto" }}>
+      <ol className="pgm-process-strip" aria-label="Etapas do fluxo de inteligência">
+        <li><span>1</span>Capturar conversas</li>
+        <li><span>2</span>Revisar evidências</li>
+        <li aria-current="step"><span>3</span>Avaliar oportunidade</li>
+        <li><span>4</span>Ativar ações</li>
+        <li className="pgm-process-strip__help">+ O que você faz aqui</li>
+      </ol>
+      <header className="pgm-opportunities-hero">
+        <div>
+          <p className="pgm-page-eyebrow">Observatório de oportunidades · {opps.length} negócios</p>
+          <h1>Novos Negócios</h1>
+        </div>
+        <div className="pgm-opportunities-hero__actions">
+          <div role="group" aria-label="Forma de ver os negócios" className="pgm-opportunities-view">
+            {[
+              { value: "negocio", label: "Por negócio" },
+              { value: "tema", label: "Por tema" },
+            ].map((opt) => (
+              <button key={opt.value} type="button" aria-pressed={f.view === opt.value} onClick={() => setF({ view: opt.value })}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+          <Button variant="outline" onClick={() => router.push("/projetos")}>Criar projeto</Button>
+          <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={() => setGenOpen(true)} disabled={generating}>
+            {generating ? "Detectando..." : "Detectar Negócios →"}
+          </Button>
+        </div>
+      </header>
       {genError ? (
         <div
           role="alert"
@@ -324,71 +364,13 @@ const NovosNegociosPage = () => {
         <GenerateBusinessModal onClose={() => setGenOpen(false)} onGenerate={generate} busy={generating} />
       ) : null}
 
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+      <div className="pgm-opportunities-layout">
         {isMobile ? null : rail}
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8, marginBottom: 16 }}>
-            <SearchInput value={q} onChange={setQ} placeholder="Buscar novos negócios..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
-            {isMobile ? null : (
-              <button
-                type="button"
-                className="ds-btn ds-btn--secondary"
-                aria-pressed={f.railOpen}
-                onClick={() => setF({ railOpen: !f.railOpen })}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  cursor: "pointer",
-                  background: f.railOpen ? "rgba(120,120,128,0.24)" : undefined,
-                }}
-              >
-                <SlidersHorizontal size={16} strokeWidth={1.75} />
-                Filtros{activeCount ? ` · ${activeCount}` : ""}
-              </button>
-            )}
-            <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
-              Só interessantes
-            </FilterChip>
-            {/* Duas leituras do mesmo conjunto: o card responde "esse negócio é
-                bom?"; o tema responde "qual assunto o mercado repete?". */}
-            <div
-              role="group"
-              aria-label="Forma de ver os negócios"
-              style={{
-                display: "inline-flex",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)",
-                overflow: "hidden",
-              }}
-            >
-              {[
-                { value: "negocio", label: "Por negócio" },
-                { value: "tema", label: "Por tema" },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  aria-pressed={f.view === opt.value}
-                  onClick={() => setF({ view: opt.value })}
-                  style={{
-                    font: "500 13px/20px var(--font-sans)",
-                    padding: "6px 12px",
-                    border: "none",
-                    cursor: "pointer",
-                    background: f.view === opt.value ? "rgba(120,120,128,0.24)" : "transparent",
-                    color: f.view === opt.value ? "inherit" : "var(--color-muted-foreground)",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={() => setGenOpen(true)} disabled={generating}>
-              {generating ? "Detectando..." : "Detectar Negócios"}
-            </Button>
-            <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
-            <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)" }}>
+          <div className="pgm-opportunities-toolbar">
+            <SearchInput value={q} onChange={setQ} placeholder="Buscar negócios" />
+            <span>
               {list.length} negócio{list.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -459,6 +441,7 @@ const NovosNegociosPage = () => {
                             clique no lixo abriria o modal por baixo do confirm. */}
                         <button
                           type="button"
+                          className="icon-btn"
                           aria-label={`Excluir ${o.title}`}
                           title="Excluir"
                           disabled={deletingId === o.id}
@@ -470,8 +453,6 @@ const NovosNegociosPage = () => {
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            width: 32,
-                            height: 32,
                             flexShrink: 0,
                             borderRadius: "var(--radius-md)",
                             border: "1px solid var(--color-border)",

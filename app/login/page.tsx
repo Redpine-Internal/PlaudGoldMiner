@@ -60,7 +60,7 @@ export default function LoginPage() {
           gap: 16,
           background: "var(--surface, var(--background))",
           border: "1px solid var(--border, rgba(0,0,0,0.1))",
-          borderRadius: 12,
+          borderRadius: 6,
           padding: 32,
         }}
       >

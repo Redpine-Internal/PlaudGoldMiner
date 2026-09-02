@@ -1,20 +1,14 @@
-/* Mística design system (tokens + skin + aliases + components).
-   Loaded before Tailwind so its CSS custom properties exist when @theme inline maps them. */
+/* Base estrutural e compatibilidade dos componentes existentes.
+   A identidade visual ativa é definida pela camada Intelligence OS abaixo. */
 @import "../styles/styles.css";
 
-/* Liquid Glass (macOS 27) — redesign Plaud Gold Miner. fig-tokens traz a paleta
-   Figma/macOS (accents, fills, labels); liquid-glass define os tokens semânticos
-   --color-*, o dark mode (.dark) e restiliza as classes DS por cima do legado
-   Mística. */
-@import "../styles/fig-tokens.css";
-@import "../styles/liquid-glass.css";
+/* Gabinete Editorial de Inteligência — contrato visual aprovado no Claude Design
+   e registrado em DESIGN.md. Esta camada substitui o experimento Liquid Glass. */
+@import "../styles/intelligence-os.css";
 
 @import "tailwindcss";
 
-/* Bridge Tailwind's utility color/radius/font names onto the Mística variables.
-   The alias layer in styles/tokens/colors.css already defines every --color-* below
-   in terms of the active skin, so utilities like bg-background / text-foreground /
-   bg-primary stay in sync with the design system and the theme engine. */
+/* Ponte das utilities Tailwind para os tokens canônicos do novo design. */
 @theme inline {
   --color-background: var(--color-background);
   --color-foreground: var(--color-foreground);
@@ -48,14 +42,14 @@
 
   --color-text-secondary: var(--color-text-secondary);
 
-  /* Radii — the product uses 8px on cards (container override lives in the skin/effects) */
+  /* Geometria discreta: controles de 4–6px, sem cápsulas decorativas. */
   --radius-sm: var(--radius-input);
   --radius-md: var(--radius-input);
   --radius-lg: var(--radius-container);
   --radius-xl: var(--radius-popup);
 
-  /* Fonts — single family (Telefonica Sans); headings share it at regular/light */
+  /* Duas vozes: editorial nos títulos e sans-serif na interface. */
   --font-sans: var(--fontFamily);
-  --font-heading: var(--fontFamily);
+  --font-heading: var(--font-display);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }

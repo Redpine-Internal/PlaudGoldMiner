@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Trash2 } from "lucide-react";
 import { Button, EmptyState, Pagination, SearchInput, Skeleton } from "@/components/ds";
 import { GlassList, GlassListRow } from "@/components/lg/GlassList";
 
@@ -39,28 +38,37 @@ const statusFg: Record<Project["status"], string> = {
   arquivado: "var(--badge-gray)",
 };
 
-// React 19 deduplica e eleva este <style> pelo par href+precedence.
-const PROJ_CSS = `
-.proj-archive{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:none;border-radius:7px;background:transparent;color:var(--color-muted-foreground);cursor:pointer;flex-shrink:0}
-.proj-archive:hover{color:var(--badge-red);background:var(--color-accent)}
-.proj-archive:focus-visible{outline:2px solid var(--color-ring);outline-offset:2px}
-`;
+const sourceLabels: Record<string, string> = {
+  opportunity: "Novo negócio",
+  insight: "Insight",
+  content: "Conteúdo",
+  manual: "Criação manual",
+};
 
 export default function ProjetosPage() {
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Project["status"]>("ativo");
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const { data, error, isLoading, isValidating, mutate } = useSWR<ApiResponse>("/api/projects?limit=100", fetcher, { revalidateOnFocus: false });
 
-  const projects = data?.data || [];
-  const list = useMemo(() => projects.filter((p) => p.title.toLowerCase().includes(q.toLowerCase())), [projects, q]);
+  const projects = useMemo(() => data?.data ?? [], [data]);
+  const counts = useMemo(() => ({
+    ativo: projects.filter((project) => project.status === "ativo").length,
+    pausado: projects.filter((project) => project.status === "pausado").length,
+    arquivado: projects.filter((project) => project.status === "arquivado").length,
+  }), [projects]);
+  const list = useMemo(
+    () => projects.filter((project) => project.status === statusFilter && project.title.toLowerCase().includes(q.toLowerCase())),
+    [projects, q, statusFilter],
+  );
   const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
 
-  useEffect(() => { setPage(1); }, [q]);
+  useEffect(() => { setPage(1); }, [q, statusFilter]);
   useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
 
   const createProject = async () => {
@@ -82,28 +90,35 @@ export default function ProjetosPage() {
     }
   };
 
-  const archive = async (id: string) => {
+  const setProjectStatus = async (id: string, status: Project["status"]) => {
     await fetch(`/api/projects/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "arquivado" }),
+      body: JSON.stringify({ status }),
     });
     await mutate();
   };
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-      <style href="pgm-projetos" precedence="default">
-        {PROJ_CSS}
-      </style>
+    <div className="pgm-projects-page" style={{ maxWidth: 1280, margin: "0 auto" }}>
+      <ol className="pgm-process-strip" aria-label="Etapas do fluxo de inteligência">
+        <li><span>1</span>Capturar conversas</li>
+        <li><span>2</span>Revisar evidências</li>
+        <li><span>3</span>Avaliar oportunidade</li>
+        <li aria-current="step"><span>4</span>Ativar ações</li>
+        <li className="pgm-process-strip__help">+ O que você faz aqui</li>
+      </ol>
 
-      <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", rowGap: 8 }}>
-        <h1 style={{ margin: 0, fontSize: 22, lineHeight: "28px", fontWeight: 700, letterSpacing: "-0.022em", color: "var(--color-foreground)" }}>Projetos</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Button variant="primary" icon="add-more" onClick={() => setShowCreate((open) => !open)}>Novo Projeto</Button>
-          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+      <header className="pgm-projects-hero">
+        <div>
+          <p className="pgm-page-eyebrow">Portfólio de execução</p>
+          <h1>Projetos</h1>
         </div>
-      </div>
+        <div className="pgm-projects-hero__actions">
+          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} onClick={() => mutate()}>Atualizar</Button>
+          <Button variant="primary" icon="add-more" onClick={() => setShowCreate((open) => !open)}>Novo Projeto →</Button>
+        </div>
+      </header>
 
       {showCreate ? (
         <form
@@ -123,12 +138,19 @@ export default function ProjetosPage() {
         </form>
       ) : null}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-        <SearchInput value={q} onChange={setQ} placeholder="Buscar projetos..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
-        <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)" }}>{list.length} projeto{list.length !== 1 ? "s" : ""}</span>
+      <div className="pgm-projects-toolbar">
+        <SearchInput value={q} onChange={setQ} placeholder="Buscar projetos" />
+        <div className="pgm-projects-tabs" role="tablist" aria-label="Status do projeto">
+          {(["ativo", "pausado", "arquivado"] as const).map((status) => (
+            <button key={status} type="button" role="tab" aria-selected={statusFilter === status} onClick={() => setStatusFilter(status)}>
+              {statusLabels[status]} <span>{counts[status]}</span>
+            </button>
+          ))}
+        </div>
+        <span className="pgm-projects-toolbar__count">{list.length} projeto{list.length !== 1 ? "s" : ""}</span>
       </div>
 
-      {error ? <div role="alert" style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: 16 }}>Erro ao carregar projetos. Por favor, tente novamente.</div> : null}
+      {error ? <div role="alert" style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: 6 }}>Erro ao carregar projetos. Por favor, tente novamente.</div> : null}
 
       {isLoading ? (
         <GlassList>
@@ -143,36 +165,33 @@ export default function ProjetosPage() {
         </GlassList>
       ) : list.length ? (
         <>
-          <GlassList>
+          <GlassList className="pgm-project-list">
             {paged.map((p) => (
               <GlassListRow
                 key={p.id}
                 onClick={() => router.push(`/projetos/${p.id}`)}
+                hideChevron
+                className="pgm-project-row"
                 aria-label={p.title}
-                style={{ padding: "14px 18px" }}
               >
-                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--color-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</span>
-                  {p.description ? (
-                    <span style={{ fontSize: 13, color: "var(--color-muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</span>
-                  ) : null}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 1 }}>
-                    <span className="ds-badge" style={{ background: "var(--badge-bg)", color: statusFg[p.status] }}>{statusLabels[p.status]}</span>
-                    <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>criado em {new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>
-                  </div>
+                <div className="pgm-project-row__main">
+                  <strong>{p.title}</strong>
+                  {p.description ? <p>{p.description}</p> : null}
                 </div>
-                {p.status !== "arquivado" ? (
+                <span className="ds-badge pgm-project-row__status" style={{ background: "var(--badge-bg)", color: statusFg[p.status] }}>{statusLabels[p.status]}</span>
+                <span className="pgm-project-row__origin">Origem: {p.sourceType ? sourceLabels[p.sourceType] || p.sourceType : "Não informada"}</span>
+                <span className="pgm-project-row__date">criado em {new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>
+                <div className="pgm-project-row__actions">
+                  {p.status !== "arquivado" ? (
+                    <button type="button" onClick={(event) => { event.stopPropagation(); void setProjectStatus(p.id, "arquivado"); }}>Arquivar</button>
+                  ) : null}
                   <button
                     type="button"
-                    className="proj-archive"
-                    title="Arquivar projeto"
-                    aria-label={`Arquivar ${p.title}`}
-                    onClick={(event) => { event.stopPropagation(); void archive(p.id); }}
-                    onKeyDown={(event) => event.stopPropagation()}
+                    onClick={(event) => { event.stopPropagation(); void setProjectStatus(p.id, p.status === "pausado" ? "ativo" : "pausado"); }}
                   >
-                    <Trash2 size={16} strokeWidth={1.75} />
+                    {p.status === "pausado" ? "Retomar" : "Pausar"}
                   </button>
-                ) : null}
+                </div>
               </GlassListRow>
             ))}
           </GlassList>

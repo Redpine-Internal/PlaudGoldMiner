@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { useParams, useRouter } from "next/navigation";
 import { Button, EmptyState, Markdown } from "@/components/ds";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -17,6 +18,7 @@ const fieldStyle = { width: "100%", boxSizing: "border-box" as const, padding: "
 export default function ProjetoPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const projectId = Array.isArray(params.id) ? params.id[0] : params.id;
   const { data, error, isLoading, mutate } = useSWR<ApiResponse>(projectId ? `/api/projects/${projectId}` : null, fetcher, { revalidateOnFocus: false });
   const board = data?.data;
@@ -30,6 +32,7 @@ export default function ProjetoPage() {
   const [taskNames, setTaskNames] = useState<Record<string, string>>({});
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [mobileColumnId, setMobileColumnId] = useState("");
 
   const request = async (url: string, method: string, body?: unknown) => {
     const res = await fetch(url, { method, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -72,6 +75,8 @@ export default function ProjetoPage() {
   if (isLoading || !board) return <div style={{ display: "flex", gap: 16, overflow: "hidden" }}>{[1, 2, 3].map((n) => <div key={n} style={{ minWidth: 280, height: 260, borderRadius: "var(--radius-lg)", background: "var(--color-sidebar)", border: "1px solid var(--color-border)" }} />)}</div>;
 
   const tasksFor = (columnId: string) => board.tasks.filter((task) => task.columnId === columnId);
+  const activeColumnId = board.columns.some((column) => column.id === mobileColumnId) ? mobileColumnId : board.columns[0]?.id;
+  const visibleColumns = isMobile ? board.columns.filter((column) => column.id === activeColumnId) : board.columns;
   const actions: Array<["aprofundar" | "plano" | "riscos" | "conteudo", string]> = [["aprofundar", "Aprofundar"], ["plano", "Virar plano"], ["riscos", "Riscos & perguntas"], ["conteudo", "Gerar conteúdo"]];
 
   return <div>
@@ -96,8 +101,16 @@ export default function ProjetoPage() {
     </div>
 
     {!board.columns.length ? <EmptyState icon="add-more" title="Nenhuma coluna" message="Adicione uma coluna para começar a organizar o projeto." /> : null}
-    <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 12, alignItems: "flex-start" }}>
-      {board.columns.map((column) => {
+    {isMobile && board.columns.length ? (
+      <label className="pgm-kanban-stage-picker">
+        <span>Etapa visível</span>
+        <select value={activeColumnId} onChange={(event) => setMobileColumnId(event.target.value)}>
+          {board.columns.map((column) => <option key={column.id} value={column.id}>{column.name} · {tasksFor(column.id).length}</option>)}
+        </select>
+      </label>
+    ) : null}
+    <div className="pgm-kanban-board">
+      {visibleColumns.map((column) => {
         const tasks = tasksFor(column.id);
         return <div key={column.id} onDragOver={(event) => event.preventDefault()} onDrop={async (event) => {
           event.preventDefault(); const taskId = event.dataTransfer.getData("text/plain") || draggingId; const task = board.tasks.find((item) => item.id === taskId);
@@ -105,23 +118,40 @@ export default function ProjetoPage() {
           try { await request(`/api/tasks/${task.id}`, "PATCH", { columnId: column.id, position: (Math.max(0, ...tasks.map((item) => item.position)) + 1000) }); await mutate(); }
           catch (err) { setMessage(err instanceof Error ? err.message : "Não foi possível mover a tarefa."); }
           finally { setDraggingId(null); }
-        }} style={{ minWidth: 280, width: 280, padding: 12, background: "var(--color-sidebar)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)" }}>
+        }} className="pgm-kanban-column">
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             {renaming === column.id ? <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={async (e) => { if (e.key === "Enter" && renameValue.trim()) { try { await request(`/api/columns/${column.id}`, "PATCH", { name: renameValue }); setRenaming(null); await mutate(); } catch (err) { setMessage(err instanceof Error ? err.message : "Não foi possível renomear a coluna."); } } }} style={fieldStyle} /> : <><strong style={{ flex: 1, font: "500 14px/20px var(--font-sans)" }}>{column.name}</strong><span style={{ color: "var(--color-muted-foreground)", font: "400 13px/18px var(--font-sans)" }}>{tasks.length}</span></>}
             <Button variant="link" icon="square-pen" title="Renomear coluna" onClick={() => { setRenaming(column.id); setRenameValue(column.name); }} />
             <Button variant="link" icon="trash-can" title="Excluir coluna" onClick={async () => { try { await request(`/api/columns/${column.id}`, "DELETE"); await mutate(); } catch (err) { setMessage(err instanceof Error ? err.message : "Não foi possível excluir a coluna."); } }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 32 }}>
-            {tasks.map((task) => <div key={task.id} draggable onDragStart={(event) => { setDraggingId(task.id); event.dataTransfer.setData("text/plain", task.id); }} style={{ padding: 12, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", cursor: "grab" }}>
+            {tasks.map((task) => <div key={task.id} draggable={!isMobile} onDragStart={(event) => { setDraggingId(task.id); event.dataTransfer.setData("text/plain", task.id); }} className="pgm-kanban-task">
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><strong style={{ flex: 1, font: "500 14px/20px var(--font-sans)" }}>{task.title}</strong><Button variant="link" icon="trash-can" title="Excluir tarefa" onClick={async () => { try { await request(`/api/tasks/${task.id}`, "DELETE"); await mutate(); } catch (err) { setMessage(err instanceof Error ? err.message : "Não foi possível excluir a tarefa."); } }} /></div>
               {task.kind.startsWith("ai:") ? <span style={{ display: "inline-block", marginTop: 8, padding: "2px 6px", borderRadius: 5, background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 11px/16px var(--font-sans)" }}>{task.kind.slice(3)}</span> : null}
               {task.detail ? <Markdown style={{ maxHeight: 70, overflow: "hidden", marginTop: 8 }}>{task.detail.slice(0, 240) + (task.detail.length > 240 ? "..." : "")}</Markdown> : null}
+              {isMobile && board.columns.length > 1 ? (
+                <label className="pgm-kanban-move">
+                  <span>Mover para…</span>
+                  <select value={task.columnId} onChange={async (event) => {
+                    const columnId = event.target.value;
+                    const destinationTasks = tasksFor(columnId);
+                    try {
+                      await request(`/api/tasks/${task.id}`, "PATCH", { columnId, position: Math.max(0, ...destinationTasks.map((item) => item.position)) + 1000 });
+                      await mutate();
+                    } catch (err) {
+                      setMessage(err instanceof Error ? err.message : "Não foi possível mover a tarefa.");
+                    }
+                  }}>
+                    {board.columns.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+                  </select>
+                </label>
+              ) : null}
             </div>)}
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 12 }}><input aria-label={`Nova tarefa em ${column.name}`} value={taskNames[column.id] || ""} onChange={(e) => setTaskNames((current) => ({ ...current, [column.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addTask(column.id); }} placeholder="Nova tarefa" style={fieldStyle} /><Button variant="outline" icon="add-more" onClick={() => addTask(column.id)}>Adicionar</Button></div>
         </div>;
       })}
-      <div style={{ minWidth: 280, padding: 12, border: "1px dashed var(--color-border)", borderRadius: "var(--radius-lg)" }}><div style={{ display: "flex", gap: 6 }}><input aria-label="Nome da nova coluna" value={columnName} onChange={(e) => setColumnName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addColumn(); }} placeholder="Nome da coluna" style={fieldStyle} /><Button variant="outline" icon="add-more" onClick={addColumn}>Coluna</Button></div></div>
+      <div className="pgm-kanban-new-column"><div style={{ display: "flex", gap: 6 }}><input aria-label="Nome da nova coluna" value={columnName} onChange={(e) => setColumnName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addColumn(); }} placeholder="Nome da coluna" style={fieldStyle} /><Button variant="outline" icon="add-more" onClick={addColumn}>Coluna</Button></div></div>
     </div>
   </div>;
 }

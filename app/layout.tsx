@@ -8,20 +8,13 @@ export const metadata: Metadata = {
   description: "Gestão de conversas e insights.",
 };
 
-// Applied before hydration to avoid a flash of the wrong color scheme.
-// 'pgm-theme': 'dark' | 'light'; unset follows the system preference.
-const THEME_BOOT = `(function(){try{var t=localStorage.getItem('pgm-theme');if(t==='dark'||(t!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();`;
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-br" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
-      </head>
+    <html lang="pt-BR">
       <body>
         <SessionProvider>
           <AppShell>{children}</AppShell>

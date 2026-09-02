@@ -13,8 +13,8 @@ import {
   applyBg,
 } from "@/lib/theme";
 
-const secTitle: React.CSSProperties = { font: "400 18px/24px var(--fontFamily)", marginBottom: 4 };
-const secDesc: React.CSSProperties = { margin: "0 0 16px", font: "400 13px/18px var(--fontFamily)", color: "var(--textSecondary)" };
+const secTitle: React.CSSProperties = { font: "400 24px/30px var(--font-display)", margin: 0 };
+const secDesc: React.CSSProperties = { margin: "4px 0 0", font: "400 12px/18px var(--fontFamily)", color: "var(--textSecondary)" };
 
 interface N8nHealth {
   configured: boolean;
@@ -70,14 +70,14 @@ function N8nSection() {
   };
 
   return (
-    <div style={{ borderTop: "1px solid var(--divider)", paddingTop: 16 }}>
+    <div style={{ paddingTop: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10, font: "400 14px/20px var(--fontFamily)" }}>
           <Icon name="controls" size={20} color="var(--textSecondary)" />
           n8n · automações
         </span>
         {status === "on" ? (
-          <span className="ds-badge" style={{ background: "var(--accent-success)", color: "var(--textButtonPrimary)" }}>
+          <span className="ds-badge" style={{ background: "var(--accent-success)", color: "#fff" }}>
             Conectado
           </span>
         ) : status === "connecting" ? (
@@ -118,12 +118,12 @@ function N8nSection() {
           ).map(([w, st]) => (
             <div
               key={w}
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px", background: "var(--background)", borderRadius: 8 }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px", background: "var(--background)", borderRadius: 6 }}
             >
               <span style={{ font: "400 13px/18px var(--fontFamily)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w}</span>
               <span
                 className="ds-badge ds-badge--compact"
-                style={{ background: st === "Ativo" ? "var(--accent-success)" : "var(--accent-inactive)", color: "var(--textButtonPrimary)", flexShrink: 0 }}
+                style={{ background: st === "Ativo" ? "var(--accent-success)" : "var(--accent-inactive)", color: "#fff", flexShrink: 0 }}
               >
                 {st}
               </span>
@@ -147,23 +147,26 @@ function N8nSection() {
 const ConfiguracoesPage = () => {
   const [accent, setAccent] = useState<string>(() => {
     try {
-      return localStorage.getItem(THEME_KEY_ACCENT) || "#000000";
+      const saved = localStorage.getItem(THEME_KEY_ACCENT);
+      return ACCENTS.some((item) => item.hex === saved) ? saved! : "#A6D7F0";
     } catch {
-      return "#000000";
+      return "#A6D7F0";
     }
   });
   const [aux, setAux] = useState<string>(() => {
     try {
-      return localStorage.getItem(THEME_KEY_AUX) || "mistica";
+      const saved = localStorage.getItem(THEME_KEY_AUX);
+      return saved && AUX_PRESETS[saved] ? saved : "corporativa";
     } catch {
-      return "mistica";
+      return "corporativa";
     }
   });
   const [bg, setBg] = useState<string>(() => {
     try {
-      return localStorage.getItem(THEME_KEY_BG) || "#ECECEC";
+      const saved = localStorage.getItem(THEME_KEY_BG);
+      return BGS.some((item) => item.hex === saved) ? saved! : "#FFFFFF";
     } catch {
-      return "#ECECEC";
+      return "#FFFFFF";
     }
   });
 
@@ -196,23 +199,24 @@ const ConfiguracoesPage = () => {
   };
 
   return (
-    <div>
-      <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: "0 0 20px" }}>Configurações</h1>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 720 }}>
-        <div className="ds-card" style={{ padding: 20 }}>
-          <h2 style={secTitle}>Cor principal</h2>
-          <p style={secDesc}>Usada em botões, links, seleção e no item ativo do menu.</p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+    <div className="pgm-settings-page">
+      <header className="pgm-settings-hero">
+        <p className="pgm-page-eyebrow">Sistema e integrações</p>
+        <h1>Configurações</h1>
+      </header>
+      <div className="pgm-settings-sections">
+        <section className="ds-card pgm-settings-section">
+          <div><h2 style={secTitle}>Cor principal</h2><p style={secDesc}>Usada em botões, links, seleção e no item ativo do menu.</p></div>
+          <div className="pgm-settings-controls" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {ACCENTS.map((a) => (
               <button
                 key={a.hex}
                 type="button"
+                className="pgm-swatch"
                 title={a.name}
                 onClick={() => pickAccent(a.hex)}
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
+                  borderRadius: 4,
                   background: a.hex,
                   cursor: "pointer",
                   border: "none",
@@ -227,18 +231,19 @@ const ConfiguracoesPage = () => {
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="ds-card" style={{ padding: 20 }}>
-          <h2 style={secTitle}>Cores auxiliares</h2>
-          <p style={secDesc}>Paleta dos badges e estados semânticos (sucesso, alerta, erro, promo).</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <section className="ds-card pgm-settings-section">
+          <div><h2 style={secTitle}>Cores auxiliares</h2><p style={secDesc}>Paleta dos badges e estados semânticos (sucesso, alerta, erro, promoção).</p></div>
+          <div className="pgm-settings-controls">
+          <div className="pgm-settings-presets">
             {Object.entries(AUX_PRESETS).map(([k, p]) => {
-              const v = p.vars || { success: "#75C0C7", warning: "#A7863E", error: "#DE6B61", promo: "#B86BE8" };
+              const v = p.vars || { success: "#2F6F4E", warning: "#8B5A28", error: "#963E35", promo: "#5F401F" };
               return (
                 <button
                   key={k}
                   type="button"
+                  className="pgm-preset-button"
                   onClick={() => pickAux(k)}
                   style={{
                     display: "flex",
@@ -263,35 +268,34 @@ const ConfiguracoesPage = () => {
               );
             })}
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-            <span className="ds-badge" style={{ background: "var(--accent-success)", color: "var(--textButtonPrimary)" }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+            <span className="ds-badge" style={{ background: "var(--badge-bg)", color: "var(--accent-success)" }}>
               processado
             </span>
-            <span className="ds-badge" style={{ background: "var(--accent-warning)", color: "var(--textButtonPrimary)" }}>
+            <span className="ds-badge" style={{ background: "var(--badge-bg)", color: "var(--accent-warning)" }}>
               pendente
             </span>
-            <span className="ds-badge" style={{ background: "var(--accent-error)", color: "var(--textButtonPrimary)" }}>
+            <span className="ds-badge" style={{ background: "var(--badge-bg)", color: "var(--accent-error)" }}>
               erro
             </span>
-            <span className="ds-badge" style={{ background: "var(--accent-promo)", color: "var(--textButtonPrimary)" }}>
+            <span className="ds-badge" style={{ background: "var(--badge-bg)", color: "var(--accent-promo)" }}>
               Qualificada
             </span>
           </div>
-        </div>
+          </div>
+        </section>
 
-        <div className="ds-card" style={{ padding: 20 }}>
-          <h2 style={secTitle}>Fundo do sistema</h2>
-          <p style={secDesc}>Tom geral da área de trabalho — frio ou quente.</p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <section className="ds-card pgm-settings-section">
+          <div><h2 style={secTitle}>Fundo do sistema</h2><p style={secDesc}>Tom geral da área de trabalho: frio ou quente.</p></div>
+          <div className="pgm-settings-controls" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {BGS.map((b) => (
               <button
                 key={b.hex}
                 type="button"
+                className="pgm-swatch pgm-swatch--wide"
                 title={b.name}
                 onClick={() => pickBg(b.hex)}
                 style={{
-                  width: 56,
-                  height: 36,
                   borderRadius: 5,
                   background: b.hex,
                   cursor: "pointer",
@@ -302,22 +306,23 @@ const ConfiguracoesPage = () => {
               />
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="ds-card" style={{ padding: 20 }}>
-          <h2 style={secTitle}>Integrações</h2>
-          <p style={{ ...secDesc, marginBottom: 12 }}>Conecte fontes para processar conversas automaticamente.</p>
+        <section className="ds-card pgm-settings-section">
+          <div><h2 style={secTitle}>Integrações</h2><p style={secDesc}>Conecte fontes para processar conversas automaticamente.</p></div>
+          <div className="pgm-settings-controls">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 10, font: "400 14px/20px var(--fontFamily)" }}>
               <Icon name="cloud-upload" size={20} color="var(--textSecondary)" />
               Google Drive
             </span>
-            <span className="ds-badge" style={{ background: "var(--accent-success)", color: "var(--textButtonPrimary)" }}>
+            <span className="ds-badge" style={{ background: "var(--accent-success)", color: "#fff" }}>
               Conectado
             </span>
           </div>
           <N8nSection />
-        </div>
+          </div>
+        </section>
       </div>
     </div>
   );

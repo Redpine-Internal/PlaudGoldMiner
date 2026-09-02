@@ -203,6 +203,7 @@ const ConversasView = () => {
 
   const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
+  const statusTargets = contentActive ? baseList : paged;
 
   // Grupos de data da página atual (grupos vazios somem).
   const groups = useMemo(() => {
@@ -225,14 +226,12 @@ const ConversasView = () => {
     ? baseList.filter((c) => { const s = statusById[c.id]; return !s || s === "loading"; }).length
     : 0;
 
-  // Fetch statuses at the page level (not per-card) so a card the content filter
-  // will hide still gets fetched — otherwise it'd never mount to reveal itself.
-  // Only runs while a content filter is active; goes through the concurrency
-  // queue to stay under Plaud's rate limit.
+  // Resolve os três campos de conteúdo nas linhas visíveis. Quando um filtro de
+  // conteúdo está ativo, todas as candidatas precisam ser verificadas antes de
+  // sabermos quais permanecem na lista. A fila limita a concorrência do Plaud.
   useEffect(() => {
-    if (!contentActive) return;
     let cancelled = false;
-    baseList.forEach((c) => {
+    statusTargets.forEach((c) => {
       if (statusById[c.id]) return; // already loaded or loading
       reportStatus(c.id, "loading");
       statusFetcher(`/api/plaud/files/${c.id}/status`)
@@ -256,7 +255,7 @@ const ConversasView = () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contentActive, baseList]);
+  }, [contentActive, statusTargets]);
 
   const toggleType = (t: string) => setF({ types: types.includes(t) ? types.filter((x) => x !== t) : [...types, t] });
   const toggleContent = (k: keyof ContentFlags) =>
@@ -268,9 +267,12 @@ const ConversasView = () => {
   };
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-      {/* Ações — o título "Conversas" já vive na toolbar do shell */}
-      <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, flexWrap: "wrap", rowGap: 8 }}>
+    <div className="pgm-conversations-page" style={{ maxWidth: 1280, margin: "0 auto" }}>
+      <header className="pgm-page-intro">
+        <p className="pgm-page-eyebrow">Biblioteca de evidências · Plaud (principal) · Drive (alternativa)</p>
+        <h1>Conversas</h1>
+      </header>
+      <div className="pgm-command-bar">
         <Button variant="secondary" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
         <SyncPlaudButton onDone={() => mutate()} />
         <Button variant="secondary" icon="hard-drive" onClick={() => setDriveOpen(true)}>
@@ -283,7 +285,7 @@ const ConversasView = () => {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8 }}>
-          <SearchInput value={q} onChange={setQ} placeholder="Buscar por título ou resumo..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
+          <SearchInput value={q} onChange={setQ} placeholder="Buscar por título ou resumo" style={{ flex: 1, maxWidth: 264, minWidth: 160 }} />
           <FilterChip active={showFilters || types.length > 0 || content.length > 0} onClick={() => setShowFilters(!showFilters)} count={types.length + content.length || undefined}>
             Filtros
           </FilterChip>
@@ -307,7 +309,7 @@ const ConversasView = () => {
             style={{
               padding: 16,
               border: "1px solid var(--color-border)",
-              borderRadius: 12,
+              borderRadius: 6,
               background: "var(--color-card)",
               display: "flex",
               flexDirection: "column",
@@ -368,6 +370,16 @@ const ConversasView = () => {
         </GlassList>
       ) : list.length ? (
         <>
+          {isMobile ? null : (
+            <div className="pgm-conversations-columns" aria-hidden="true">
+              <span>Título</span>
+              <span>Tipo</span>
+              <span>Status</span>
+              <span>Data</span>
+              <span>Duração</span>
+              <span>Conteúdo</span>
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {groups.map((g) => (
               <div key={g.label} style={{ minWidth: 0 }}>
@@ -427,6 +439,23 @@ function ConversationRow({
   const flags = status && status !== "loading" ? status : null;
   const dateFmt = fmtDate(c.date);
   const displayStatus = c.status === "processando" ? "pendente" : c.status;
+
+  if (!isMobile) {
+    return (
+      <GlassListRow className="pgm-conversation-row" onClick={onSelect} hideChevron aria-label={c.title}>
+        <span className="pgm-conversation-row__title">{c.title}</span>
+        <TypeBadge type={c.type} />
+        <StatusBadge status={displayStatus} />
+        <span className="pgm-conversation-row__muted">{dateFmt}</span>
+        <span className="pgm-conversation-row__muted">{c.duration || "—"}</span>
+        <div className="pgm-conversation-row__content">
+          <IndicatorBadge icon="file-text" label="Resumo" shortLabel="RES" on={flags?.hasSummary} loading={!flags} />
+          <IndicatorBadge icon="documents" label="Transcrição" shortLabel="TRA" on={flags?.hasTranscription} loading={!flags} />
+          <IndicatorBadge icon="lightbulb" label="Insights" shortLabel="INS" on={flags?.hasInsights} loading={!flags} />
+        </div>
+      </GlassListRow>
+    );
+  }
 
   return (
     <GlassListRow onClick={onSelect} aria-label={c.title}>
@@ -488,7 +517,7 @@ function ConversationRow({
 }
 
 /** Cápsula neutra indicando se um conteúdo existe (texto verde semântico) ou não (muted). */
-function IndicatorBadge({ icon, label, on, loading }: { icon: string; label: string; on?: boolean; loading?: boolean }) {
+function IndicatorBadge({ icon, label, shortLabel, on, loading }: { icon: string; label: string; shortLabel?: string; on?: boolean; loading?: boolean }) {
   const active = Boolean(on) && !loading;
   return (
     <span
@@ -504,12 +533,12 @@ function IndicatorBadge({ icon, label, on, loading }: { icon: string; label: str
         fontWeight: 600,
         lineHeight: "16px",
         background: "var(--badge-bg, var(--color-muted))",
-        color: active ? "var(--badge-green, #248A3D)" : "var(--color-muted-foreground)",
+        color: active ? "var(--badge-green)" : "var(--color-muted-foreground)",
         opacity: loading ? 0.5 : 1,
       }}
     >
       <Icon name={loading ? "reload" : active ? "check" : icon} size={11} className={loading ? "ds-spin" : undefined} />
-      {label}
+      {shortLabel || label}
     </span>
   );
 }

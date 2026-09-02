@@ -1,7 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import useSWR from "swr";
-import { SlidersHorizontal } from "lucide-react";
 import { Button, SearchInput, FilterChip, ContentCard, EmptyState, Pagination, StartProjectButton, useEnrichment } from "@/components/ds";
 import { FilterRail } from "@/components/lg/FilterRail";
 import type { FilterRailSection, FilterOption } from "@/components/lg/FilterRail";
@@ -36,7 +35,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const CT_STATUS: Record<string, string> = {
   sugerido: "Sugerido", rascunho: "Rascunho", em_revisao: "Em revisão",
-  aprovado: "Aprovado", descartado: "Descartado", producao: "Em produção", publicado: "Publicado",
+  aprovado: "Aprovado", publicado: "Publicado", descartado: "Descartado", producao: "Em produção",
 };
 // Formatos de conteúdo (taxonomia 2026-08-28). O filtro é por formato; o
 // subtipo é texto livre e aparece no card, não no rail.
@@ -50,6 +49,8 @@ const ConteudosPage = () => {
   const [q, setQ] = useState("");
   const [f, setF] = usePersistedFilters<ConteudoFilters>("conteudos", { status: "", platforms: [], railOpen: true });
   const [onlyInteresting, setOnlyInteresting] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [drafting, setDrafting] = useState<string | null>(null);
@@ -61,7 +62,7 @@ const ConteudosPage = () => {
     { revalidateOnFocus: false }
   );
 
-  const items = data?.data || [];
+  const items = useMemo(() => data?.data ?? [], [data]);
 
   // Busca + "só interessantes" (contexto comum a lista e contadores do rail).
   const base = useMemo(
@@ -147,21 +148,19 @@ const ConteudosPage = () => {
   const statusOptions = useMemo<FilterOption[]>(() => {
     const counts: Record<string, number> = {};
     for (const c of statusBase) counts[c.status] = (counts[c.status] ?? 0) + 1;
-    const present = new Set<string>(items.map((c) => c.status));
-    if (f.status) present.add(f.status);
     return [
       { value: "", label: "Todos", count: statusBase.length },
       ...Object.keys(CT_STATUS)
-        .filter((s) => present.has(s))
+        .filter((s) => s !== "producao" || counts.producao || f.status === "producao")
         .map((s) => ({ value: s, label: CT_STATUS[s], count: counts[s] ?? 0 })),
     ];
-  }, [items, statusBase, f.status]);
+  }, [statusBase, f.status]);
 
   const platformOptions = useMemo<FilterOption[]>(() => {
     const present = new Set<string>(items.map((c) => c.platform));
     for (const p of f.platforms) present.add(p);
     return [
-      ...Object.keys(CT_PLATFORMS).filter((p) => present.has(p)),
+      ...Object.keys(CT_PLATFORMS),
       ...[...present].filter((p) => !(p in CT_PLATFORMS)),
     ].map((p) => ({ value: p, label: CT_PLATFORMS[p] ?? p }));
   }, [items, f.platforms]);
@@ -173,44 +172,69 @@ const ConteudosPage = () => {
     if (platformOptions.length) {
       s.push({ kind: "checks", title: "Plataforma", options: platformOptions, values: f.platforms, onChange: (vs) => setF({ platforms: vs }) });
     }
+    s.push({
+      kind: "checks",
+      title: "Filtros",
+      options: [{ value: "interesting", label: "Só interessantes" }],
+      values: onlyInteresting ? ["interesting"] : [],
+      onChange: (values) => setOnlyInteresting(values.includes("interesting")),
+    });
     return s;
-  }, [statusOptions, platformOptions, f.status, f.platforms, setF]);
+  }, [statusOptions, platformOptions, f.status, f.platforms, onlyInteresting, setF]);
 
-  const railFilterCount = (f.status ? 1 : 0) + f.platforms.length;
+  const railFilterCount = (f.status ? 1 : 0) + f.platforms.length + (onlyInteresting ? 1 : 0);
 
   const rail = (
     <FilterRail
-      open={f.railOpen}
+      open
       sections={sections}
-      onClear={railFilterCount ? () => setF({ status: "", platforms: [] }) : undefined}
+      style={{ width: 200 }}
+      onClear={railFilterCount ? () => { setF({ status: "", platforms: [] }); setOnlyInteresting(false); } : undefined}
     />
   );
 
-  /* ── Cabeçalho da view: busca, alternador do rail, ações, contador ── */
+  /* ── Cabeçalho editorial e ferramentas da coleção ── */
 
   const header = (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8, marginBottom: 16 }}>
-      <SearchInput value={q} onChange={setQ} placeholder="Buscar conteúdos..." style={{ flex: 1, maxWidth: 448, minWidth: 160 }} />
-      {isMobile ? null : (
-        <FilterChip
-          active={f.railOpen}
-          onClick={() => setF({ railOpen: !f.railOpen })}
-          count={railFilterCount || null}
-          style={{ gap: 6 }}
-        >
-          <SlidersHorizontal size={16} strokeWidth={1.75} />
+    <header className="pgm-content-hero">
+      <div>
+        <p className="pgm-page-eyebrow">Estúdio editorial · {items.length} sugestões</p>
+        <h1>Conteúdos</h1>
+      </div>
+      <div className="pgm-content-hero__actions">
+        {isMobile ? null : (
+          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+        )}
+        <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={generate} disabled={generating}>
+          {generating ? "Gerando..." : "Gerar Conteúdos →"}
+        </Button>
+        {isMobile ? (
+          <Button variant="outline" onClick={() => setMobileActionsOpen((open) => !open)}>
+            Mais ações ▾
+          </Button>
+        ) : null}
+      </div>
+      {isMobile && mobileActionsOpen ? (
+        <div className="pgm-content-mobile-actions">
+          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} onClick={() => mutate()}>
+            Atualizar lista
+          </Button>
+        </div>
+      ) : null}
+    </header>
+  );
+
+  const collectionToolbar = (
+    <div className="pgm-content-toolbar">
+      <SearchInput value={q} onChange={setQ} placeholder="Buscar conteúdos" />
+      {isMobile ? (
+        <FilterChip active={mobileFiltersOpen} onClick={() => setMobileFiltersOpen((open) => !open)} count={railFilterCount || null}>
           Filtros
         </FilterChip>
-      )}
-      <FilterChip active={onlyInteresting} onClick={() => setOnlyInteresting((v) => !v)}>
-        Só interessantes
-      </FilterChip>
-      <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={generate} disabled={generating}>
-        {generating ? "Gerando..." : "Gerar Conteúdos"}
-      </Button>
-      <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
-      <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)" }}>
-        {list.length} sugest{list.length !== 1 ? "ões" : "ão"}
+      ) : null}
+      <span className="pgm-content-toolbar__count">
+        <strong>{list.length}</strong>
+        <span>sugest{list.length !== 1 ? "ões" : "ão"}</span>
       </span>
     </div>
   );
@@ -243,14 +267,14 @@ const ConteudosPage = () => {
       ) : null}
 
       {isLoading ? (
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+        <div className="pgm-content-grid">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="ds-card" style={{ height: 220 }} />
+            <div key={i} className="ds-card pgm-content-card" style={{ height: 220 }} />
           ))}
         </div>
       ) : list.length ? (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+          <div className="pgm-content-grid">
             {paged.map((c) => (
               <div key={c.id} style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                 <ContentCard
@@ -263,6 +287,7 @@ const ConteudosPage = () => {
                   mentionCount={c.mentionCount}
                   relevanceScore={c.relevanceScore}
                   status={c.status}
+                  createdAt={c.createdAt}
                   sourceId={c.id}
                   enrichText={c.theme}
                   draft={c.draft}
@@ -310,20 +335,30 @@ const ConteudosPage = () => {
 
   if (isMobile) {
     return (
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+      <div className="pgm-content-page">
         {header}
-        <div style={{ marginBottom: 12 }}>{rail}</div>
+        {collectionToolbar}
+        {mobileFiltersOpen ? <div className="pgm-content-mobile-filters">{rail}</div> : null}
         {content}
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", gap: 24, alignItems: "flex-start" }}>
-      {rail}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {header}
-        {content}
+    <div className="pgm-content-page">
+      {header}
+      <div className="pgm-content-layout">
+        <div className="pgm-content-rail">
+          {rail}
+          <div className="pgm-content-flow" aria-label="Fluxo editorial">
+            <p>Fluxo</p>
+            <span>Sugestão → rascunho → revisão → publicação</span>
+          </div>
+        </div>
+        <div className="pgm-content-results">
+          {collectionToolbar}
+          {content}
+        </div>
       </div>
     </div>
   );

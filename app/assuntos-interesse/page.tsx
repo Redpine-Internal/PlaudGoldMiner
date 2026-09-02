@@ -1,6 +1,5 @@
 "use client";
 import useSWR from "swr";
-import { Star, StickyNote } from "lucide-react";
 import { useEnrichment, EmptyState } from "@/components/ds";
 import { GlassList, GlassListRow } from "@/components/lg/GlassList";
 
@@ -40,30 +39,15 @@ export default function AssuntosInteressePage() {
   const items = data?.data || [];
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12, minWidth: 0 }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 22,
-              fontWeight: 700,
-              lineHeight: 1.25,
-              letterSpacing: "-0.022em",
-            }}
-          >
-            Assuntos de Interesse
-          </h1>
-          {!isLoading && items.length > 0 ? (
-            <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>
-              {items.length} {items.length === 1 ? "assunto" : "assuntos"}
-            </span>
-          ) : null}
-        </div>
-        <p style={{ margin: "4px 0 0", fontSize: 13, lineHeight: "20px", color: "var(--color-muted-foreground)" }}>
+    <div className="pgm-topics-page">
+      <header className="pgm-topics-hero">
+        <p className="pgm-page-eyebrow">Mesa de temas acompanhados</p>
+        <h1>Assuntos de Interesse</h1>
+        {!isLoading ? <span>{items.length} {items.length === 1 ? "assunto" : "assuntos"}</span> : null}
+        <p>
           Ideias marcadas como interessantes, de todas as áreas.
         </p>
-      </div>
+      </header>
 
       {isLoading ? (
         <GlassList>
@@ -77,10 +61,12 @@ export default function AssuntosInteressePage() {
           ))}
         </GlassList>
       ) : items.length ? (
-        <GlassList>
+        <GlassList className="pgm-topics-list">
           {items.map((it) => (
             <GlassListRow
               key={it.enrichmentId}
+              className="pgm-topic-row"
+              hideChevron
               aria-label={it.title || "(sem título)"}
               onClick={() =>
                 enrichment?.openEnrichment(it.sourceType, it.sourceId, {
@@ -89,71 +75,17 @@ export default function AssuntosInteressePage() {
                 })
               }
             >
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <Star
-                    size={16}
-                    strokeWidth={1.75}
-                    aria-hidden
-                    style={{ color: "var(--brand)", flexShrink: 0 }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      letterSpacing: "-0.01em",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {it.title || "(sem título)"}
-                  </span>
-                  <span
-                    className="ds-badge ds-badge--compact"
-                    style={{
-                      background: "var(--badge-bg)",
-                      color: TYPE_FG[it.sourceType] || "var(--badge-gray)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {TYPE_LABEL[it.sourceType] || it.sourceType}
-                  </span>
-                </div>
-                {it.subtitle ? (
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: "var(--color-muted-foreground)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {it.subtitle}
-                  </span>
-                ) : null}
-                {it.notes ? (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontSize: 12,
-                      color: "var(--color-muted-foreground)",
-                      minWidth: 0,
-                    }}
-                  >
-                    <StickyNote size={13} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0 }} />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.notes}</span>
-                  </span>
-                ) : null}
+              <div className="pgm-topic-row__source">
+                <span style={{ color: TYPE_FG[it.sourceType] || "var(--badge-gray)" }}>{TYPE_LABEL[it.sourceType] || it.sourceType}</span>
+                <small>{it.sourceId.slice(0, 8)}</small>
               </div>
-              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>
-                  {it.refCount} referência{it.refCount !== 1 ? "s" : ""}
-                </span>
+              <div className="pgm-topic-row__main">
+                <strong>{it.title || "(sem título)"}</strong>
+                {it.subtitle ? <span>{it.subtitle}</span> : null}
               </div>
+              <span className="pgm-topic-row__updated">Atualizado: {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString("pt-BR") : "não informado"}</span>
+              <span className="pgm-topic-row__refs">{it.refCount} referência{it.refCount !== 1 ? "s" : ""}</span>
+              <span className="pgm-topic-row__notes">{it.notes || "sem observações"}</span>
             </GlassListRow>
           ))}
         </GlassList>

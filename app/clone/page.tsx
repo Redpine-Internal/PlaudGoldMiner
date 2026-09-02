@@ -1,8 +1,9 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import { useAppStore, type CloneMsg } from "@/stores/appStore";
-import { Icon, Button } from "@/components/ds";
+import { Icon } from "@/components/ds";
 
 interface Opportunity {
   id: string;
@@ -36,7 +37,7 @@ const iconBtn: React.CSSProperties = {
 const suggestions = ["O que aprendi essa semana?", "Quais negócios priorizar?", "Ideias de conteúdo sobre delegação"];
 
 const ClonePage = () => {
-  const { chats, activeChatId, saveChatMsgs } = useAppStore();
+  const { chats, activeChatId, saveChatMsgs, newChat, selectChat } = useAppStore();
   const chat = chats.find((c) => c.id === activeChatId) || chats[0];
 
   const { data: convData } = useSWR<{ data: unknown[]; total: number }>("/api/conversations?limit=100", fetcher);
@@ -49,7 +50,23 @@ const ClonePage = () => {
     contents: ctData?.data || [],
   };
 
-  return <CloneChat key={chat.id} data={data} chat={chat} onMsgs={saveChatMsgs} />;
+  return (
+    <div className="pgm-clone-layout">
+      <aside className="pgm-clone-history" aria-label="Histórico do Clone">
+        <button type="button" className="pgm-clone-history__new" onClick={() => newChat()}>Novo chat →</button>
+        <p>Histórico</p>
+        <div className="pgm-clone-history__list">
+          {chats.map((item) => (
+            <button key={item.id} type="button" aria-pressed={item.id === activeChatId} onClick={() => selectChat(item.id)} title={item.title}>
+              {item.title}
+            </button>
+          ))}
+        </div>
+        <Link href="/configuracoes">Configurações</Link>
+      </aside>
+      <CloneChat key={chat.id} data={data} chat={chat} onMsgs={saveChatMsgs} />
+    </div>
+  );
 };
 
 function CloneChat({
@@ -164,10 +181,11 @@ function CloneChat({
   const gerarInsights = () => send("Analise minhas conversas e me dê um insight cruzado relevante, com um próximo passo prático.");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 48px)" }}>
-      <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: "0 0 16px" }}>Clone</h1>
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, maxWidth: 760, margin: "0 auto", width: "100%" }}>
-        <div ref={endRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, paddingBottom: 16 }}>
+    <section className="pgm-clone-chat">
+      <h1>Clone</h1>
+      <div className="pgm-clone-chat__rule" />
+      <div className="pgm-clone-chat__body">
+        <div ref={endRef} className="pgm-clone-messages">
           {msgs.map((m, i) =>
             m.role === "user" ? (
               <div
@@ -177,7 +195,7 @@ function CloneChat({
                   maxWidth: "70%",
                   background: "var(--backgroundContainer)",
                   color: "var(--textPrimary)",
-                  borderRadius: "12px 12px 2px 12px",
+                  borderRadius: 6,
                   padding: "12px 16px",
                   font: "400 14px/21px var(--fontFamily)",
                 }}
@@ -185,21 +203,16 @@ function CloneChat({
                 {m.text}
               </div>
             ) : (
-              <div key={i} style={{ alignSelf: "flex-start", maxWidth: "85%" }}>
-                <div style={{ font: "400 15px/24px var(--fontFamily)", color: "var(--textPrimary)" }}>{m.text}</div>
-                {i > 0 ? (
-                  <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                    <button type="button" title="Copiar" style={iconBtn} onClick={() => navigator.clipboard?.writeText(m.text)}>
-                      <Icon name="copy" size={15} />
-                    </button>
-                    <button type="button" title="Útil" style={iconBtn}>
-                      <Icon name="thumb-up" size={15} />
-                    </button>
-                    <button type="button" title="Regenerar" style={iconBtn}>
-                      <Icon name="reload" size={15} />
-                    </button>
+              <div key={i} className="pgm-clone-message">
+                <span>Clone</span>
+                <div>
+                  <p>{m.text}</p>
+                  <div className="pgm-clone-message__actions">
+                    <button type="button" title="Copiar" style={iconBtn} onClick={() => navigator.clipboard?.writeText(m.text)}><Icon name="copy" size={15} />Copiar</button>
+                    <button type="button" title="Útil" style={iconBtn}><Icon name="thumb-up" size={15} />Útil</button>
+                    <button type="button" title="Regenerar" style={iconBtn}><Icon name="reload" size={15} />Regenerar</button>
                   </div>
-                ) : null}
+                </div>
               </div>
             )
           )}
@@ -209,20 +222,24 @@ function CloneChat({
               <span style={{ font: "400 13px/18px var(--fontFamily)", color: "var(--textSecondary)" }}>{thinking}</span>
             </div>
           ) : null}
-        </div>
-        {msgs.length <= 1 ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12, justifyContent: "center" }}>
+          {msgs.length <= 1 ? (
+          <div className="pgm-clone-suggestions">
             {suggestions.map((sg) => (
               <button key={sg} type="button" className="ds-chip" onClick={() => send(sg)}>
                 {sg}
               </button>
             ))}
           </div>
-        ) : null}
-        <div style={{ background: "var(--backgroundContainer)", borderRadius: 12, padding: "8px 8px 8px 16px" }}>
+          ) : null}
+        </div>
+        <div className="pgm-clone-composer">
+          <div className="pgm-clone-modes" role="group" aria-label="Modo do assistente">
+            <button type="button" aria-pressed="true">Clone</button>
+            <button type="button" onClick={consultarBase} disabled={!!thinking}>Consultar base</button>
+            <button type="button" onClick={gerarInsights} disabled={!!thinking}>Gerar insights</button>
+          </div>
           <input
             className="ds-input"
-            style={{ border: "none", boxShadow: "none", background: "transparent", padding: "8px 0", font: "400 15px/22px var(--fontFamily)", width: "100%" }}
             value={input}
             placeholder="Pergunte ao seu Clone..."
             onChange={(e) => setInput(e.target.value)}
@@ -230,43 +247,12 @@ function CloneChat({
               if (e.key === "Enter") send();
             }}
           />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, font: "500 13px/18px var(--fontFamily)", color: "var(--textPrimary)" }}>
-              <Icon name="ai" size={16} color="var(--brand)" />
-              Clone
-            </span>
-            <Button variant="outline" size="sm" icon="brain" onClick={consultarBase} disabled={!!thinking} style={{ background: "var(--background)" }}>
-              Consultar base
-            </Button>
-            <Button variant="outline" size="sm" icon="lightbulb" onClick={gerarInsights} disabled={!!thinking} style={{ background: "var(--background)" }}>
-              Gerar insights
-            </Button>
-            <button
-              type="button"
-              title="Enviar"
-              onClick={() => send()}
-              disabled={!input.trim() || !!thinking}
-              style={{
-                marginLeft: "auto",
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
-                border: "none",
-                background: "var(--buttonPrimaryBackground)",
-                color: "var(--textButtonPrimary)",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                opacity: !input.trim() || thinking ? 0.5 : 1,
-              }}
-            >
-              <Icon name="chevron-up" size={18} />
-            </button>
-          </div>
+          <button type="button" className="pgm-clone-send" title="Enviar" onClick={() => send()} disabled={!input.trim() || !!thinking}>
+            Enviar →
+          </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 

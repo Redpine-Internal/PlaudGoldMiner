@@ -49,46 +49,56 @@ const PerfilPage = () => {
   };
 
   return (
-    <div>
-      <h1 style={{ font: "400 28px/32px var(--fontFamily)", margin: "0 0 20px" }}>Perfil</h1>
-      <div className="ds-card" style={{ padding: 20, maxWidth: 560 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-          <span
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              background: "var(--brand)",
-              color: "var(--textButtonPrimary)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              font: "500 22px/1 var(--fontFamily)",
-              flexShrink: 0,
-            }}
-          >
+    <div className="pgm-profile-page">
+      <header className="pgm-profile-hero">
+        <p className="pgm-page-eyebrow">Perfil</p>
+        <h1>Perfil</h1>
+      </header>
+
+      <section className="pgm-profile-identity" aria-label="Identidade da conta">
+        <span className="pgm-profile-avatar" aria-hidden>
             {(nome[0] || "A").toUpperCase()}
-          </span>
-          <div>
-            <div style={{ font: "400 18px/24px var(--fontFamily)" }}>{nome || "—"}</div>
-            <div style={{ font: "400 13px/18px var(--fontFamily)", color: "var(--textSecondary)" }}>{email}</div>
-          </div>
+        </span>
+        <div>
+          <div className="pgm-profile-name">{nome || "Não informado"}</div>
+          <div className="pgm-profile-email">{email || "E-mail não informado"}</div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Input label="Nome" labelIcon="user-account" value={nome} onChange={setNome} />
-          <Input label="E-mail" value={email} onChange={setEmail} type="email" />
-          <div>
+      </section>
+
+      <section className="pgm-profile-form" aria-label="Dados do perfil">
+        <div className="pgm-profile-field">
+          <div className="pgm-profile-field__label">
+            <strong>Nome</strong>
+            <span>Como você será identificado no sistema.</span>
+          </div>
+          <Input className="pgm-profile-field__control" label="Nome" labelIcon="user-account" value={nome} onChange={setNome} />
+        </div>
+        <div className="pgm-profile-field">
+          <div className="pgm-profile-field__label">
+            <strong>E-mail</strong>
+            <span>Endereço usado para acesso e comunicações.</span>
+          </div>
+          <Input className="pgm-profile-field__control" label="E-mail" value={email} onChange={setEmail} type="email" />
+        </div>
+        <div className="pgm-profile-field">
+          <div className="pgm-profile-field__label">
+            <strong>Sobre você</strong>
+            <span>Contexto que ajuda o Clone a responder com mais precisão.</span>
+          </div>
+          <div className="pgm-profile-field__control">
             <label className="ds-label">Sobre você (alimenta o Clone)</label>
             <textarea
               className="ds-input"
-              style={{ resize: "vertical", minHeight: 72, fontFamily: "var(--fontFamily)" }}
+              style={{ resize: "vertical", minHeight: 112, fontFamily: "var(--fontFamily)" }}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
             />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        </div>
+        <div className="pgm-profile-actions">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <Button icon="check" onClick={save} disabled={saving}>
-              {saving ? "Salvando..." : "Salvar"}
+              {saving ? "Salvando..." : "Salvar alterações"}
             </Button>
             {saved ? (
               <span style={{ font: "400 13px/18px var(--fontFamily)", color: "var(--accent-success)" }}>
@@ -101,7 +111,7 @@ const PerfilPage = () => {
             ) : null}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
