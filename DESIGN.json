@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-02T00:00:00-04:00",
+  "title": "Design System: Plaud Gold Miner",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Tinta editorial",
+        "canonical": "oklch(19% 0.012 65)",
+        "tonalRamp": ["oklch(15% 0.010 65)", "oklch(24% 0.012 65)", "oklch(34% 0.012 65)", "oklch(44% 0.011 65)", "oklch(56% 0.010 65)", "oklch(68% 0.008 65)", "oklch(82% 0.006 65)", "oklch(95% 0.003 65)"]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Papel branco",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["oklch(15% 0.008 85)", "oklch(28% 0.008 85)", "oklch(42% 0.007 85)", "oklch(56% 0.006 85)", "oklch(70% 0.005 85)", "oklch(82% 0.004 85)", "oklch(92% 0.003 85)", "#FFFFFF"]
+      },
+      "accent-sky": {
+        "role": "primary",
+        "displayName": "Azul-céu funcional",
+        "canonical": "#A6D7F0",
+        "tonalRamp": ["oklch(22% 0.052 232)", "oklch(32% 0.064 232)", "oklch(44% 0.075 232)", "oklch(56% 0.078 232)", "oklch(68% 0.070 232)", "oklch(78% 0.056 232)", "oklch(88% 0.035 232)", "oklch(95% 0.016 232)"]
+      },
+      "evidence-bronze": {
+        "role": "secondary",
+        "displayName": "Bronze de evidência",
+        "canonical": "#9C6E42",
+        "tonalRamp": ["oklch(18% 0.040 58)", "oklch(28% 0.052 58)", "oklch(38% 0.064 58)", "oklch(48% 0.070 58)", "oklch(58% 0.066 58)", "oklch(70% 0.052 58)", "oklch(82% 0.032 58)", "oklch(94% 0.014 58)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display editorial",
+        "purpose": "Títulos principais de página e chamadas editoriais."
+      },
+      "body": {
+        "displayName": "Interface",
+        "purpose": "Controles, dados, formulários e conteúdo operacional."
+      },
+      "prose": {
+        "displayName": "Leitura editorial",
+        "purpose": "Resumos, transcrições e textos longos com Tiempos Text."
+      },
+      "label": {
+        "displayName": "Rótulo operacional",
+        "purpose": "Botões, tabs, metadados breves e eyebrows."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "180ms cubic-bezier(0.165, 0.84, 0.44, 1)",
+        "purpose": "Hover, foco, abertura de menus e feedback de estado."
+      }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "640px" },
+      { "name": "mobile-shell", "value": "900px" },
+      { "name": "tablet", "value": "1200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação dominante de uma superfície, com 40 px no desktop, alvo mínimo de 44 px no toque e azul-céu funcional.",
+      "html": "<button class=\"ds-btn-primary\">NOVA CONVERSA</button>",
+      "css": ".ds-btn-primary{min-height:40px;padding:10px 18px;border:1px solid #A6D7F0;border-radius:6px;background:#A6D7F0;color:#080503;font:600 .875rem/1.25 Soehne,Archivo,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;transition:background 180ms cubic-bezier(.165,.84,.44,1),transform 180ms cubic-bezier(.165,.84,.44,1)}.ds-btn-primary:hover{background:#B8E0F4}.ds-btn-primary:active{transform:translateY(1px)}.ds-btn-primary:focus-visible{outline:2px solid #5F401F;outline-offset:2px}@media(max-width:900px){.ds-btn-primary{min-height:44px}}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ação secundária discreta, com o mesmo vocabulário de forma.",
+      "html": "<button class=\"ds-btn-secondary\">MAIS AÇÕES</button>",
+      "css": ".ds-btn-secondary{min-height:40px;padding:10px 14px;border:1px solid #E3E0DA;border-radius:6px;background:#FFFFFF;color:#18130E;font:600 .875rem/1.25 Soehne,Archivo,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;transition:background 180ms cubic-bezier(.165,.84,.44,1)}.ds-btn-secondary:hover{background:#F8F7F5}.ds-btn-secondary:focus-visible{outline:2px solid #5F401F;outline-offset:2px}@media(max-width:900px){.ds-btn-secondary{min-height:44px}}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Busca de coleção com label acessível e superfície sutil.",
+      "html": "<label class=\"ds-field\"><span>Buscar</span><input type=\"search\" placeholder=\"Buscar conteúdos\"></label>",
+      "css": ".ds-field{display:grid;gap:8px;color:#554F49;font:600 .875rem/1.25 Soehne,Archivo,Arial,sans-serif}.ds-field input{min-height:48px;padding:11px 12px;border:1px solid #E3E0DA;border-radius:4px;background:#F8F7F5;color:#18130E;font:400 1rem/1.5 Soehne,Archivo,Arial,sans-serif}.ds-field input:focus-visible{outline:2px solid #5F401F;outline-offset:2px}"
+    },
+    {
+      "name": "Desktop Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Item ativo da navegação escura sem faixa lateral colorida.",
+      "html": "<a class=\"ds-nav-item is-active\" href=\"#\">Dashboard</a>",
+      "css": ".ds-nav-item{display:flex;align-items:center;min-height:48px;padding:10px 12px;border-radius:6px;color:#A8A49F;font:600 .875rem/1.25 Soehne,Archivo,Arial,sans-serif;text-decoration:none}.ds-nav-item:hover,.ds-nav-item.is-active{background:rgba(255,255,255,.09);color:#F7F5F1}.ds-nav-item:focus-visible{outline:2px solid #A6D7F0;outline-offset:2px}"
+    },
+    {
+      "name": "Mobile Tab Bar",
+      "kind": "nav",
+      "refersTo": "mobile-tab-bar",
+      "description": "Cinco destinos persistentes e acesso ao menu completo pela ação Mais.",
+      "html": "<nav class=\"ds-tabbar\" aria-label=\"Navegação principal\"><a class=\"is-active\" href=\"#\">Dashboard</a><a href=\"#\">Conversas</a><a href=\"#\">Negócios</a><a href=\"#\">Clone</a><button>Mais</button></nav>",
+      "css": ".ds-tabbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;min-height:60px;padding:0 4px max(0px,env(safe-area-inset-bottom));border-top:1px solid #E3E0DA;background:#FFFFFF}.ds-tabbar a,.ds-tabbar button{display:grid;place-items:center;min-width:44px;min-height:59px;border:0;border-radius:0;background:transparent;color:#554F49;font:600 .75rem/1.15 Soehne,Archivo,Arial,sans-serif;text-decoration:none}.ds-tabbar .is-active{color:#18130E;box-shadow:inset 0 -3px #A6D7F0}.ds-tabbar a:focus-visible,.ds-tabbar button:focus-visible{outline:2px solid #5F401F;outline-offset:-2px}"
+    },
+    {
+      "name": "Editorial List Row",
+      "kind": "card",
+      "refersTo": "button-secondary",
+      "description": "Linha integralmente acionável para conversas, conteúdos e projetos.",
+      "html": "<a class=\"ds-list-row\" href=\"#\"><strong>Reunião de consultoria</strong><span>20/08/2026 · 31 min · processado</span></a>",
+      "css": ".ds-list-row{display:grid;align-content:center;gap:4px;min-height:72px;padding:12px 16px;border-bottom:1px solid #E3E0DA;background:#FFFFFF;color:#18130E;text-decoration:none}.ds-list-row strong{font:600 1rem/1.35 Soehne,Archivo,Arial,sans-serif}.ds-list-row span{color:#554F49;font:400 .875rem/1.4 Soehne,Archivo,Arial,sans-serif}.ds-list-row:hover{background:#F8F7F5}.ds-list-row:focus-visible{outline:2px solid #5F401F;outline-offset:-2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Gabinete Editorial de Inteligência",
+    "overview": "O Plaud Gold Miner combina a autoridade silenciosa de uma publicação institucional com a precisão de uma ferramenta operacional. A informação deve parecer editada, não empilhada; contexto, prioridade, ação e prova formam a sequência dominante.",
+    "keyCharacteristics": [
+      "Superfície principal quase branca e sem tonalidade bege perceptível.",
+      "Navegação escura, estável e familiar.",
+      "Contraste editorial entre títulos serifados e controles sans-serif.",
+      "Azul-claro raro, exclusivamente funcional.",
+      "Cantos discretos de 4 a 6 px e elevação quase inexistente.",
+      "Mobile com estrutura própria, sem perda de campos ou ações."
+    ],
+    "rules": [
+      { "name": "The Preservation Rule", "body": "Responsividade pode reorganizar, resumir e revelar; nunca pode apagar campo, rota, transcrição, evidência ou ação existente.", "section": "overview" },
+      { "name": "The One Functional Accent Rule", "body": "Azul-céu comunica ação, foco ou seleção. Se não houver função, não use a cor.", "section": "colors" },
+      { "name": "The No Side Stripe Rule", "body": "Nunca use border-left ou border-right acima de 1 px como destaque colorido.", "section": "colors" },
+      { "name": "The Two-Voice Rule", "body": "Tiempos Fine aparece nos títulos, Tiempos Text na leitura editorial e Soehne ou Archivo governa a interface.", "section": "typography" },
+      { "name": "The Flat-by-Default Rule", "body": "Superfícies em repouso não têm sombra.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar canvas como fundo da área principal de conteúdo.",
+      "Do usar accent-sky apenas para ação, foco ou seleção.",
+      "Do preservar todos os campos, rotas, transcrições, evidências e os 11 blocos do Dashboard.",
+      "Do usar controles de 40 px no desktop e alvos mínimos de 44 px em superfícies de toque."
+    ],
+    "donts": [
+      "Don't usar fundos bege ou creme na área principal de trabalho.",
+      "Don't usar roxo, azul saturado ou a estética genérica de SaaS e ferramentas de IA.",
+      "Don't usar glassmorphism, gradientes decorativos, cápsulas flutuantes ou sombras ostensivas.",
+      "Don't usar faixas coloridas laterais, excesso de linhas ou divisórias decorativas.",
+      "Don't esconder campos, dados ou ações para fazer a interface móvel caber."
+    ]
+  }
+}
