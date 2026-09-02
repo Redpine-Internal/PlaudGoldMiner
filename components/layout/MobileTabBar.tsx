@@ -1,18 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BookOpen,
+  ClipboardList,
+  FileText,
   Home,
   MessageCircle,
-  Target,
-  Sparkles,
   MoreHorizontal,
-  FileText,
-  ClipboardList,
-  BookOpen,
   Settings,
+  Sparkles,
+  Target,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -20,7 +20,7 @@ import {
 type TabDef = { icon: LucideIcon; label: string; path: string };
 
 const TABS: TabDef[] = [
-  { icon: Home, label: "Início", path: "/" },
+  { icon: Home, label: "Dashboard", path: "/" },
   { icon: MessageCircle, label: "Conversas", path: "/conversas" },
   { icon: Target, label: "Negócios", path: "/novos-negocios" },
   { icon: Sparkles, label: "Clone", path: "/clone" },
@@ -37,141 +37,67 @@ const MORE_ITEMS: TabDef[] = [
 const MobileTabBar = () => {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-
   const isActive = (path: string) => (path === "/" ? pathname === "/" : pathname.startsWith(path));
-  const moreActive = MORE_ITEMS.some((i) => isActive(i.path));
+  const moreActive = MORE_ITEMS.some((item) => isActive(item.path));
+
+  useEffect(() => {
+    const open = () => setMoreOpen(true);
+    window.addEventListener("pgm:open-more", open);
+    return () => window.removeEventListener("pgm:open-more", open);
+  }, []);
 
   return (
     <>
       {moreOpen ? (
         <>
-          <div
-            onClick={() => setMoreOpen(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 44,
-              background: "rgba(10,16,30,0.3)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-            }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              left: 10,
-              right: 10,
-              bottom: 96,
-              zIndex: 45,
-              padding: 8,
-              background: "color-mix(in srgb, var(--color-card) 76%, transparent)",
-              backdropFilter: "blur(32px) saturate(1.8)",
-              WebkitBackdropFilter: "blur(32px) saturate(1.8)",
-              border: "1px solid color-mix(in srgb, #ffffff 40%, var(--color-border))",
-              borderRadius: 24,
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.45), 0 24px 64px rgba(0,6,20,0.25)",
-            }}
-          >
+          <button type="button" className="pgm-mobile-backdrop" aria-label="Fechar menu" onClick={() => setMoreOpen(false)} />
+          <section className="pgm-more-sheet" aria-label="Menu completo">
+            <h2 className="pgm-more-sheet__title">Mais áreas</h2>
             {MORE_ITEMS.map((item) => {
-              const IconCmp = item.icon;
+              const Icon = item.icon;
               const active = isActive(item.path);
               return (
                 <Link
                   key={item.path}
                   href={item.path}
-                  onClick={() => setMoreOpen(false)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    height: 48,
-                    padding: "0 14px",
-                    borderRadius: 5,
-                    fontSize: 15,
-                    fontWeight: 500,
-                    textDecoration: "none",
-                    color: active ? "var(--color-brand)" : "var(--color-foreground)",
-                  }}
+                  className="pgm-more-sheet__item"
+                  aria-current={active ? "page" : undefined}
                 >
-                  <IconCmp size={24} strokeWidth={1.75} />
+                  <Icon size={20} strokeWidth={1.75} aria-hidden />
                   <span>{item.label}</span>
                 </Link>
               );
             })}
-          </div>
+          </section>
         </>
       ) : null}
 
-      <nav
-        style={{
-          position: "fixed",
-          left: 10,
-          right: 10,
-          bottom: 10,
-          zIndex: 46,
-          height: 74,
-          padding: "8px 6px calc(8px + env(safe-area-inset-bottom))",
-          boxSizing: "content-box",
-          display: "flex",
-          alignItems: "stretch",
-          background: "var(--modal-material)",
-          backdropFilter: "blur(60px)",
-          WebkitBackdropFilter: "blur(60px)",
-          border: "1px solid color-mix(in srgb, #ffffff 40%, var(--color-border))",
-          borderRadius: 9999,
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.45), 0 12px 40px rgba(0,6,20,0.2)",
-        }}
-      >
+      <nav className="pgm-mobile-tabs" aria-label="Navegação principal">
         {TABS.map((tab) => {
-          const IconCmp = tab.icon;
+          const Icon = tab.icon;
           const active = isActive(tab.path);
           return (
             <Link
               key={tab.path}
               href={tab.path}
+              className="pgm-mobile-tabs__item"
+              data-active={active}
+              aria-current={active ? "page" : undefined}
               onClick={() => setMoreOpen(false)}
-              style={{
-                flex: 1,
-                minWidth: 44,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 3,
-                textDecoration: "none",
-                fontSize: 10,
-                fontWeight: active ? 600 : 400,
-                color: active ? "var(--color-brand)" : "var(--color-muted-foreground)",
-              }}
             >
-              <IconCmp size={24} strokeWidth={active ? 2 : 1.75} />
+              <Icon size={22} strokeWidth={1.75} aria-hidden />
               <span>{tab.label}</span>
             </Link>
           );
         })}
         <button
           type="button"
-          onClick={() => setMoreOpen((v) => !v)}
-          style={{
-            flex: 1,
-            minWidth: 44,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 3,
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            padding: 0,
-            borderRadius: 5,
-            font: "inherit",
-            fontSize: 10,
-            fontWeight: moreOpen || moreActive ? 600 : 400,
-            color: moreOpen || moreActive ? "var(--color-brand)" : "var(--color-muted-foreground)",
-          }}
+          className="pgm-mobile-tabs__item"
+          data-active={moreOpen || moreActive}
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen((open) => !open)}
         >
-          <MoreHorizontal size={24} strokeWidth={1.75} />
+          <MoreHorizontal size={22} strokeWidth={1.75} aria-hidden />
           <span>Mais</span>
         </button>
       </nav>

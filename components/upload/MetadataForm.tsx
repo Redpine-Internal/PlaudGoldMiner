@@ -56,13 +56,13 @@ export function MetadataForm({
   // Update when AI suggestions arrive
   useEffect(() => {
     if (suggestedTitle && !title) {
-      setTitle(suggestedTitle);
+      queueMicrotask(() => setTitle(suggestedTitle));
     }
   }, [suggestedTitle, title]);
 
   useEffect(() => {
     if (suggestedType && type === 'outro') {
-      setType(suggestedType);
+      queueMicrotask(() => setType(suggestedType));
     }
   }, [suggestedType, type]);
 
@@ -117,7 +117,7 @@ export function MetadataForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Digite o título da conversa"
-          className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+          className="min-h-[48px] w-full rounded-[4px] border-0 bg-muted px-3 py-2 focus:ring-2 focus:ring-primary"
           disabled={disabled}
           required
         />
@@ -125,10 +125,10 @@ export function MetadataForm({
           <button
             type="button"
             onClick={() => setTitle(suggestedTitle)}
-            className="mt-1 text-xs text-primary hover:underline"
+            className="mt-1 min-h-[44px] rounded-[4px] px-2 text-xs text-primary hover:bg-muted"
             disabled={disabled}
           >
-            Usar sugestão da IA: "{suggestedTitle}"
+            Usar sugestão da IA: “{suggestedTitle}”
           </button>
         )}
       </div>
@@ -145,7 +145,7 @@ export function MetadataForm({
               type="button"
               onClick={() => setType(option.value)}
               disabled={disabled}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              className={`min-h-[44px] rounded-[6px] px-3 py-2 text-sm font-medium transition-all ${
                 type === option.value
                   ? `${option.color} ring-2 ring-offset-2 ring-primary`
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -159,7 +159,7 @@ export function MetadataForm({
           <button
             type="button"
             onClick={() => setType(suggestedType)}
-            className="mt-2 text-xs text-primary hover:underline"
+            className="mt-2 min-h-[44px] rounded-[4px] px-2 text-xs text-primary hover:bg-muted"
             disabled={disabled}
           >
             Usar sugestão da IA:{' '}
@@ -179,7 +179,7 @@ export function MetadataForm({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+            className="min-h-[48px] w-full rounded-[4px] border-0 bg-muted px-3 py-2 focus:ring-2 focus:ring-primary"
             disabled={disabled}
             required
           />
@@ -194,7 +194,7 @@ export function MetadataForm({
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             placeholder="ex: 45min"
-            className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-primary"
+            className="min-h-[48px] w-full rounded-[4px] border-0 bg-muted px-3 py-2 focus:ring-2 focus:ring-primary"
             disabled={disabled}
           />
         </div>
@@ -206,17 +206,18 @@ export function MetadataForm({
           <Tag className="inline h-4 w-4 mr-1" />
           Tags
         </label>
-        <div className="flex flex-wrap items-center gap-2 p-2 border border-border rounded-lg bg-background min-h-[42px]">
+        <div className="flex min-h-[48px] flex-wrap items-center gap-2 rounded-[4px] bg-muted p-2">
           {tags.map((tag) => (
             <span
               key={tag}
-              className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-sm"
+              className="flex min-h-[44px] items-center gap-1 rounded-[4px] bg-background px-2 py-0.5 text-sm text-[var(--bronze-deep)]"
             >
               {tag}
               <button
                 type="button"
                 onClick={() => removeTag(tag)}
-                className="hover:text-destructive"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[4px] hover:bg-[var(--backgroundAlternative)] hover:text-destructive"
+                aria-label={`Remover tag ${tag}`}
                 disabled={disabled}
               >
                 ×
@@ -234,20 +235,20 @@ export function MetadataForm({
             onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
             onKeyDown={handleTagKeyDown}
             placeholder={tags.length === 0 ? 'Adicione tags...' : ''}
-            className="flex-1 min-w-[100px] outline-none bg-transparent"
+            className="min-h-[44px] min-w-[100px] flex-1 bg-transparent outline-none"
             disabled={disabled}
           />
         </div>
 
         {/* Tag suggestions dropdown */}
         {showTagSuggestions && filteredTags.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-lg shadow-lg max-h-32 overflow-y-auto">
+          <div className="absolute z-10 mt-1 max-h-32 w-full overflow-y-auto rounded-[6px] border border-border bg-background">
             {filteredTags.slice(0, 5).map((tag) => (
               <button
                 key={tag}
                 type="button"
                 onClick={() => addTag(tag)}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                className="min-h-[44px] w-full px-3 py-2 text-left text-sm hover:bg-muted"
               >
                 {tag}
               </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, X, Filter, Calendar } from 'lucide-react';
 
 interface FilterState {

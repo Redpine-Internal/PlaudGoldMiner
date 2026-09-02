@@ -104,9 +104,9 @@ export function DriveFilePicker({
 
   const getFileIcon = (mimeType: string) => {
     if (mimeType === 'application/vnd.google-apps.folder') {
-      return <Folder className="h-5 w-5 text-yellow-500" />;
+      return <Folder className="h-5 w-5 text-[var(--bronze)]" />;
     }
-    return <FileText className="h-5 w-5 text-blue-500" />;
+    return <FileText className="h-5 w-5 text-[var(--bronze-deep)]" />;
   };
 
   if (!session?.accessToken) {
@@ -120,15 +120,16 @@ export function DriveFilePicker({
   }
 
   return (
-    <div className="flex flex-col h-[500px]">
+    <div className="pgm-drive-picker flex h-[500px] flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           {folderStack.length > 0 && (
             <button
               onClick={navigateBack}
-              className="p-1 hover:bg-muted rounded"
+              className="icon-btn hover:bg-muted"
               disabled={loading || isImporting}
+              aria-label="Voltar uma pasta"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
@@ -151,8 +152,9 @@ export function DriveFilePicker({
         </div>
         <button
           onClick={() => fetchFilesAndFolders(currentFolderId)}
-          className="p-1 hover:bg-muted rounded"
+          className="icon-btn hover:bg-muted"
           disabled={loading || isImporting}
+          aria-label="Atualizar arquivos do Drive"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
@@ -173,13 +175,13 @@ export function DriveFilePicker({
             <p className="text-muted-foreground">Nenhum arquivo encontrado</p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="flex flex-col gap-1 px-2">
             {/* Folders first */}
             {folders.map((folder) => (
               <button
                 key={folder.id}
                 onClick={() => navigateToFolder(folder)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted text-left"
+                className="flex min-h-[48px] w-full items-center gap-3 rounded-[4px] px-4 py-3 text-left hover:bg-muted"
                 disabled={isImporting}
               >
                 {getFileIcon(folder.mimeType)}
@@ -193,9 +195,9 @@ export function DriveFilePicker({
               <button
                 key={file.id}
                 onClick={() => setSelectedFile(file)}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-muted text-left ${
+                className={`flex min-h-[48px] w-full items-center gap-3 rounded-[4px] px-4 py-3 text-left hover:bg-muted ${
                   selectedFile?.id === file.id
-                    ? 'bg-primary/10 border-l-2 border-primary'
+                    ? 'bg-muted outline outline-2 outline-[var(--bronze-deep)]'
                     : ''
                 }`}
                 disabled={isImporting}
@@ -217,10 +219,10 @@ export function DriveFilePicker({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-border px-4 py-3">
+      <div className="flex items-center justify-between px-4 py-3">
         <button
           onClick={onCancel}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-muted"
+          className="flex min-h-[48px] items-center gap-2 rounded-[6px] border border-border px-4 py-2 hover:bg-muted"
           disabled={isImporting}
         >
           <X className="h-4 w-4" />
@@ -229,7 +231,7 @@ export function DriveFilePicker({
         <button
           onClick={handleImport}
           disabled={!selectedFile || isImporting}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex min-h-[48px] items-center gap-2 rounded-[6px] bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isImporting ? (
             <>

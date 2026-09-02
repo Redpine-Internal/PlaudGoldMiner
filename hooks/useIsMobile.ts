@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 
-const QUERY = "(max-width: 768px)";
+// Até 900px a navegação compacta evita comprimir os filtros e o conteúdo útil
+// entre uma sidebar fixa e a borda da tela (especialmente em tablets verticais).
+const QUERY = "(max-width: 900px)";
 
 const subscribe = (cb: () => void) => {
   const mql = window.matchMedia(QUERY);

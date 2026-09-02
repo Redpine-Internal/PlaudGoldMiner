@@ -34,7 +34,7 @@ export interface InsightCardProps {
   className?: string;
 }
 
-/** "Você Sabia?" cross-insight card — gradient bg, colored left border, sparkles header, 💡 action. */
+/** Insight cruzado com hierarquia editorial, sem faixa lateral decorativa. */
 export function InsightCard({
   title,
   description,
@@ -75,7 +75,7 @@ export function InsightCard({
     <div
       className={("ds-insight " + className).trim()}
       onClick={handleCardClick}
-      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", borderLeftColor: t.color, cursor: sourceId ? "pointer" : undefined, ...style }}
+      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", cursor: sourceId ? "pointer" : undefined, ...style }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

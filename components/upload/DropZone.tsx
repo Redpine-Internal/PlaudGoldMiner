@@ -68,7 +68,7 @@ export function DropZone({ onFileSelect, disabled, className }: DropZoneProps) {
       <div
         {...getRootProps()}
         className={cn(
-          'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
+          'cursor-pointer rounded-[6px] border border-dashed p-8 text-center transition-colors',
           isDragActive && 'border-primary bg-primary/5',
           !isDragActive && 'border-muted-foreground/25 hover:border-primary/50',
           disabled && 'opacity-50 cursor-not-allowed',
@@ -92,7 +92,8 @@ export function DropZone({ onFileSelect, disabled, className }: DropZoneProps) {
                 e.stopPropagation();
                 clearFile();
               }}
-              className="p-1 hover:bg-muted rounded"
+              className="icon-btn hover:bg-muted"
+              aria-label="Remover arquivo"
             >
               <X className="h-4 w-4" />
             </button>

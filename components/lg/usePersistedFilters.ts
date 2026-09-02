@@ -27,7 +27,9 @@ export const usePersistedFilters = <T extends object>(
       if (!raw) return;
       const parsed: unknown = JSON.parse(raw);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        setState((prev) => ({ ...prev, ...(parsed as Partial<T>) }));
+        // A leitura é uma sincronização assíncrona com o armazenamento externo;
+        // a microtask evita uma atualização síncrona em cascata dentro do efeito.
+        queueMicrotask(() => setState((prev) => ({ ...prev, ...(parsed as Partial<T>) })));
       }
     } catch {
       /* storage indisponível ou JSON inválido — mantém o initial */

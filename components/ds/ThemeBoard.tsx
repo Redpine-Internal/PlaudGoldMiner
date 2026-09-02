@@ -112,7 +112,7 @@ export function ThemeBoard({
     return (
       <div style={{ display: "grid", gap: 12 }}>
         {[0, 1, 2].map((i) => (
-          <div key={i} className="ds-skeleton" style={{ height: 132, borderRadius: 12 }} />
+          <div key={i} className="ds-skeleton" style={{ height: 132, borderRadius: 6 }} />
         ))}
       </div>
     );

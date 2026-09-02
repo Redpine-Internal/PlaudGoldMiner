@@ -49,7 +49,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const panel: React.CSSProperties = {
   padding: "12px 14px",
   background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))",
-  borderRadius: 8,
+  borderRadius: 6,
   flexShrink: 0,
 };
 
@@ -455,7 +455,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
         </div>
 
         {error ? (
-          <div role="alert" style={{ padding: "8px 12px", background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: 8, font: "400 13px/18px var(--font-sans)" }}>
+          <div role="alert" style={{ padding: "8px 12px", background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: 6, font: "400 13px/18px var(--font-sans)" }}>
             {error}
           </div>
         ) : null}
@@ -467,13 +467,13 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
             {sourceType === "opportunity" && (idea.pain || idea.context) ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {idea.pain ? (
-                  <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))", borderRadius: 8, flexShrink: 0 }}>
+                  <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))", borderRadius: 6, flexShrink: 0 }}>
                     <span className="ds-label" style={{ display: "block", marginBottom: 4 }}>Dor identificada</span>
                     <p style={{ margin: 0, font: "400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>{idea.pain}</p>
                   </div>
                 ) : null}
                 {idea.context ? (
-                  <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))", borderRadius: 8, flexShrink: 0 }}>
+                  <div style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))", borderRadius: 6, flexShrink: 0 }}>
                     <span className="ds-label" style={{ display: "block", marginBottom: 4 }}>O que foi levantado na conversa</span>
                     <p style={{ margin: 0, font: "400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>{idea.context}</p>
                   </div>
@@ -496,7 +496,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
                     style={{
                       padding: "12px 14px",
                       background: "color-mix(in srgb, var(--background) 45%, var(--backgroundContainer))",
-                      borderRadius: 8,
+                      borderRadius: 6,
                       flexShrink: 0,
                       display: "flex",
                       flexDirection: "column",
@@ -639,13 +639,13 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
               {refs.filter((r) => r.kind === "image").map((r) => (
                 <div key={r.id} style={{ position: "relative" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={r.url} alt={r.title || "imagem"} style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 8, border: "1px solid var(--color-border)" }} />
+                  <img src={r.url} alt={r.title || "imagem"} style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 6, border: "1px solid var(--color-border)" }} />
                   <button type="button" onClick={() => removeRef(r.id)} title="Remover" style={{ position: "absolute", top: 2, right: 2, background: "var(--backgroundContainer)", border: "1px solid var(--color-border)", borderRadius: 999, cursor: "pointer", padding: 2 }}>
                     <Icon name="x" size={12} />
                   </button>
                 </div>
               ))}
-              <label style={{ width: 96, height: 96, display: "flex", alignItems: "center", justifyContent: "center", border: "1px dashed var(--color-border)", borderRadius: 8, cursor: "pointer" }}>
+              <label style={{ width: 96, height: 96, display: "flex", alignItems: "center", justifyContent: "center", border: "1px dashed var(--color-border)", borderRadius: 6, cursor: "pointer" }}>
                 <Icon name="add-more" size={20} color="var(--color-muted-foreground)" />
                 <input type="file" accept="image/*" style={{ display: "none" }} disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) addImage(f); e.target.value = ""; }} />
               </label>

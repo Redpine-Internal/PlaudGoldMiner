@@ -12,7 +12,7 @@ export interface MarkdownProps {
   style?: React.CSSProperties;
 }
 
-const text: React.CSSProperties = { font: "400 14px/22px var(--font-sans)", color: "var(--color-muted-foreground)" };
+const text: React.CSSProperties = { font: "400 16px/26px var(--font-text)", color: "var(--color-muted-foreground)" };
 
 /** Split a line into React nodes, honoring **bold** spans. */
 function inline(line: string, keyBase: string): React.ReactNode[] {

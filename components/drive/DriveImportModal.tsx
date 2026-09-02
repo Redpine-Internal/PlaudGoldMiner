@@ -58,25 +58,26 @@ export function DriveImportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="ds-modal-root fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50"
+        className="ds-modal-backdrop absolute inset-0"
         onClick={isImporting ? undefined : onClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-background rounded-lg shadow-xl w-full max-w-2xl mx-4">
+      <div className="ds-modal pgm-drive-modal relative w-full max-w-2xl mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <HardDrive className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">Importar do Google Drive</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-muted rounded"
+            className="icon-btn hover:bg-muted"
             disabled={isImporting}
+            aria-label="Fechar importação do Drive"
           >
             <X className="h-5 w-5" />
           </button>

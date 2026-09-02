@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { Search, HelpCircle, Bell, Sun, Moon, User, LogOut } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut, Menu, Search, User, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -15,13 +15,28 @@ const TITLES: [string, string][] = [
   ["/assuntos-interesse", "Assuntos de Interesse"],
   ["/clone", "Clone"],
   ["/configuracoes", "Configurações"],
+  ["/perfil", "Conta"],
+];
+
+const CONTEXTS: [string, string][] = [
+  ["/conversas", "Biblioteca de evidências"],
+  ["/novos-negocios", "Observatório de oportunidades"],
+  ["/conteudos", "Estúdio editorial"],
+  ["/projetos", "Portfólio de execução"],
+  ["/assuntos-interesse", "Mesa de temas acompanhados"],
+  ["/clone", "Assistente fundamentado"],
+  ["/configuracoes", "Sistema e integrações"],
   ["/perfil", "Perfil"],
 ];
 
 const titleFor = (pathname: string) => {
-  if (pathname === "/") return "";
-  const hit = TITLES.find(([p]) => pathname.startsWith(p));
-  return hit ? hit[1] : "";
+  if (pathname === "/") return "Dashboard";
+  return TITLES.find(([path]) => pathname.startsWith(path))?.[1] ?? "Plaud Gold Miner";
+};
+
+const contextFor = (pathname: string) => {
+  if (pathname === "/") return "Visão executiva";
+  return CONTEXTS.find(([path]) => pathname.startsWith(path))?.[1] ?? "Inteligência aplicada";
 };
 
 const initialsOf = (name: string) =>
@@ -29,45 +44,38 @@ const initialsOf = (name: string) =>
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
+    .map((word) => word[0].toUpperCase())
     .join("") || "?";
 
 const Toolbar = () => {
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useIsMobile();
-
-  const [q, setQ] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const [dark, setDark] = useState(false);
+  const [query, setQuery] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const avatarRef = useRef<HTMLDivElement | null>(null);
 
-  // O backdrop-filter do header cria um containing block para position:fixed,
-  // então um overlay fixo não cobre a página — fechamos por clique-fora.
   useEffect(() => {
     if (!avatarOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
-        setAvatarOpen(false);
-      }
+    const closeOutside = (event: PointerEvent) => {
+      if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) setAvatarOpen(false);
     };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
   }, [avatarOpen]);
 
   useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    void supabase.auth.getUser().then(({ data }) => {
       const email = data.user?.email ?? "";
-      const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+      const metadata = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
       const name =
-        (typeof meta.full_name === "string" && meta.full_name) ||
-        (typeof meta.name === "string" && meta.name) ||
+        (typeof metadata.full_name === "string" && metadata.full_name) ||
+        (typeof metadata.name === "string" && metadata.name) ||
         email.split("@")[0] ||
         "";
       setUserEmail(email);
@@ -75,193 +83,102 @@ const Toolbar = () => {
     });
   }, []);
 
-  const toggleDark = () => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    try {
-      localStorage.setItem("pgm-theme", next ? "dark" : "light");
-    } catch {
-      /* storage indisponível */
-    }
-  };
-
-  // Busca global fase 1: digitar leva a Conversas já filtrando.
-  const onSearch = (value: string) => {
-    setQ(value);
+  const search = (value: string) => {
+    setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       router.push(value ? `/conversas?q=${encodeURIComponent(value)}` : "/conversas");
     }, 300);
   };
 
-  const handleSignOut = async () => {
+  const signOut = async () => {
     await fetch("/auth/signout", { method: "POST" });
     router.replace("/login");
     router.refresh();
   };
 
-  const title = titleFor(pathname);
-
-  const iconBtn: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 28,
-    width: 28,
-    borderRadius: 5,
-    background: "transparent",
-    color: "var(--color-muted-foreground)",
-    border: "none",
-    cursor: "pointer",
-    padding: 0,
-  };
+  const openMobileMenu = () => window.dispatchEvent(new CustomEvent("pgm:open-more"));
 
   return (
-    <header
-      className="lg-bar lg-hairline-b"
-      style={{
-        height: 52,
-        flexShrink: 0,
-        boxSizing: "border-box",
-        display: "flex",
-        alignItems: "center",
-        padding: isMobile ? "0 16px" : "0 24px",
-        gap: 16,
-        zIndex: 20,
-        position: "relative",
-      }}
-    >
-      <h1
-        style={{
-          margin: 0,
-          fontSize: 15,
-          lineHeight: 1.4,
-          fontWeight: 600,
-          color: "var(--color-foreground)",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          letterSpacing: "-0.01em",
-        }}
-      >
-        {title}
-      </h1>
-      <div style={{ flex: 1 }} />
-
-      {isMobile ? null : (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            height: 28,
-            width: 220,
-            padding: "0 8px",
-            borderRadius: 5,
-            background: "var(--color-muted)",
-            boxSizing: "border-box",
-          }}
-        >
-          <span style={{ color: "var(--color-muted-foreground)", display: "inline-flex", flexShrink: 0 }}>
-            <Search size={14} strokeWidth={1.75} />
-          </span>
-          <input
-            value={q}
-            onChange={(e) => onSearch(e.target.value)}
-            placeholder="Buscar"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              border: "none",
-              background: "transparent",
-              fontSize: 13,
-              fontFamily: "inherit",
-              color: "var(--color-foreground)",
-              outline: "none",
-              padding: 0,
-            }}
-          />
-        </div>
-      )}
-
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <header className="pgm-toolbar">
+      {isMobile ? (
+        <button type="button" className="icon-btn" aria-label="Abrir menu completo" onClick={openMobileMenu}>
+          <Menu size={20} strokeWidth={1.75} />
+        </button>
+      ) : null}
+      <nav className="pgm-toolbar__breadcrumb" aria-label="Você está em">
         {isMobile ? null : (
-          <button type="button" aria-label="Ajuda" className="icon-btn" style={iconBtn}>
-            <HelpCircle size={18} strokeWidth={1.75} />
-          </button>
+          <>
+            <Link href={pathname === "/" ? "/" : pathname}>{titleFor(pathname)}</Link>
+            <span aria-hidden>›</span>
+          </>
         )}
-        <button type="button" aria-label="Notificações" className="icon-btn" style={iconBtn}>
-          <Bell size={18} strokeWidth={1.75} />
-        </button>
-        <button type="button" aria-label="Tema" className="icon-btn" style={iconBtn} onClick={toggleDark}>
-          {dark ? <Sun size={18} strokeWidth={1.75} /> : <Moon size={18} strokeWidth={1.75} />}
-        </button>
+        <span>{contextFor(pathname)}</span>
+      </nav>
+      <span className="pgm-toolbar__spacer" />
 
-        <div ref={avatarRef} style={{ position: "relative", marginLeft: 8, display: "inline-flex" }}>
+      {!isMobile || mobileSearchOpen ? (
+        <div className="pgm-toolbar__search" role="search">
+          <Search size={18} strokeWidth={1.75} aria-hidden />
+          <input
+            autoFocus={isMobile}
+            value={query}
+            onChange={(event) => search(event.target.value)}
+            placeholder="Buscar conversas, negócios, conteúdos"
+            aria-label="Buscar conversas, negócios, conteúdos"
+          />
+          {isMobile ? (
+            <button type="button" className="icon-btn" aria-label="Fechar busca" onClick={() => setMobileSearchOpen(false)}>
+              <X size={18} strokeWidth={1.75} />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="pgm-toolbar__actions">
+        {isMobile ? (
+          <button type="button" className="icon-btn" aria-label="Buscar" onClick={() => setMobileSearchOpen(true)}>
+            <Search size={20} strokeWidth={1.75} />
+          </button>
+        ) : null}
+
+        <Link href="/clone" className="pgm-toolbar__ask" aria-label="Perguntar à IA">
+          <span>Perguntar à IA</span>
+          <span aria-hidden>→</span>
+        </Link>
+
+        <div ref={avatarRef} style={{ position: "relative", display: "inline-flex" }}>
           <button
             type="button"
-            aria-label="Conta"
-            onClick={() => setAvatarOpen((v) => !v)}
-            style={{
-              display: "inline-flex",
-              height: 28,
-              width: 28,
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 9999,
-              background: "var(--color-brand)",
-              color: "#FFFFFF",
-              fontSize: 11,
-              fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className="pgm-avatar"
+            aria-label="Abrir conta"
+            aria-expanded={avatarOpen}
+            onClick={() => setAvatarOpen((open) => !open)}
           >
             {initialsOf(userName)}
           </button>
           {avatarOpen ? (
-            <div
-                className="menu"
-                style={{ position: "absolute", top: 36, right: 0, left: "auto", bottom: "auto", zIndex: 49, width: 200 }}
-              >
-                <div
-                  style={{
-                    padding: "8px 10px 6px",
-                    borderBottom: "1px solid var(--sb-border)",
-                    marginBottom: 4,
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{userName || "—"}</div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--color-muted-foreground)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {userEmail || "—"}
-                  </div>
+            <div className="menu" style={{ position: "absolute", top: 50, right: 0, zIndex: 49 }}>
+              <div style={{ padding: "10px 12px 8px" }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{userName || "—"}</div>
+                <div style={{ maxWidth: 196, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--app-muted)", fontSize: 12 }}>
+                  {userEmail || "—"}
                 </div>
-                <Link href="/perfil" onClick={() => setAvatarOpen(false)}>
-                  <User size={16} strokeWidth={1.75} />
-                  Perfil
-                </Link>
-                <a
-                  href="#sair"
-                  style={{ color: "var(--color-danger-600)" }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setAvatarOpen(false);
-                    void handleSignOut();
-                  }}
-                >
-                  <LogOut size={16} strokeWidth={1.75} />
-                  Sair
-                </a>
+              </div>
+              <Link href="/perfil" onClick={() => setAvatarOpen(false)}>
+                <User size={17} strokeWidth={1.75} /> Perfil
+              </Link>
+              <a
+                href="#sair"
+                style={{ color: "var(--color-danger-600)" }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setAvatarOpen(false);
+                  void signOut();
+                }}
+              >
+                <LogOut size={17} strokeWidth={1.75} /> Sair
+              </a>
             </div>
           ) : null}
         </div>

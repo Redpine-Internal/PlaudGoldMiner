@@ -38,7 +38,7 @@ export function UploadProgress({
   return (
     <div className={cn('space-y-2', className)}>
       {/* Progress bar */}
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
+      <div className="h-2 overflow-hidden rounded-[3px] bg-muted">
         <div
           className={cn(
             'h-full transition-all duration-300 ease-out',

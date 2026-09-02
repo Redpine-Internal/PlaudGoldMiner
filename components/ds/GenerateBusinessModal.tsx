@@ -79,12 +79,6 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
   }, [conversations, q]);
 
   useEffect(() => {
-    // Trocar de modo não deve carregar seleção do modo anterior.
-    setPicked([]);
-    setQ("");
-  }, [mode]);
-
-  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -166,7 +160,11 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
               type="button"
               className="ds-btn ds-btn--secondary"
               aria-pressed={mode === m.value}
-              onClick={() => setMode(m.value)}
+              onClick={() => {
+                setMode(m.value);
+                setPicked([]);
+                setQ("");
+              }}
               style={{
                 cursor: "pointer",
                 background: mode === m.value ? "rgba(120,120,128,0.24)" : undefined,
@@ -214,7 +212,7 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
                 overflowY: "auto",
                 maxHeight: "40vh",
                 border: "1px solid var(--border)",
-                borderRadius: 8,
+                borderRadius: 6,
               }}
             >
               {isLoading ? (

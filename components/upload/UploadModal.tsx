@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { X, ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { DropZone } from './DropZone';
 import { UploadProgress, type UploadStatus } from './UploadProgress';
 import { MetadataForm } from './MetadataForm';
@@ -32,7 +32,6 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [aiResult, setAiResult] = useState<AIResult | null>(null);
   const [metadata, setMetadata] = useState<Metadata>({
@@ -43,7 +42,6 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
   });
 
   const handleFileSelect = async (file: File) => {
-    setSelectedFile(file);
     setStatus('uploading');
     setProgress(0);
     setError(null);
@@ -159,7 +157,6 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
     setStatus('idle');
     setProgress(0);
     setError(null);
-    setSelectedFile(null);
     setConversationId(null);
     setAiResult(null);
     setMetadata({
@@ -184,22 +181,23 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
   const isProcessing = status === 'uploading' || status === 'processing';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="ds-modal-root fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50"
+        className="ds-modal-backdrop absolute inset-0"
         onClick={isProcessing ? undefined : handleClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-md mx-4 p-6">
+      <div className="ds-modal pgm-upload-modal relative w-full max-w-md mx-4 p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             {step === 'metadata' && (
               <button
                 onClick={handleBack}
-                className="p-1 hover:bg-muted rounded"
+                className="icon-btn"
+                aria-label="Cancelar envio"
                 title="Cancelar"
               >
                 <X className="h-4 w-4" />
@@ -214,7 +212,8 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
           <button
             onClick={handleClose}
             disabled={isProcessing}
-            className="p-1 hover:bg-muted rounded disabled:opacity-50"
+            className="icon-btn disabled:opacity-50"
+            aria-label="Fechar nova conversa"
           >
             <X className="h-5 w-5" />
           </button>
@@ -280,18 +279,18 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
                 <p className="text-sm text-destructive">{error}</p>
               )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <div className="flex justify-end gap-3 pt-4">
                 <button
                   onClick={handleClose}
                   disabled={isProcessing}
-                  className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50"
+                  className="min-h-[48px] rounded-[6px] border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSaveMetadata}
                   disabled={isProcessing || !metadata.title}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
+                  className="flex min-h-[48px] items-center gap-2 rounded-[6px] bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   <Check className="h-4 w-4" />
                   Salvar Conversa

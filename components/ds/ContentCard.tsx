@@ -30,6 +30,7 @@ export interface ContentCardProps {
   mentionCount?: number;
   relevanceScore?: number;
   status?: string;
+  createdAt?: string | null;
   onApprove?: React.MouseEventHandler<HTMLButtonElement>;
   onDiscard?: React.MouseEventHandler<HTMLButtonElement>;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
@@ -76,6 +77,7 @@ export function ContentCard({
   mentionCount = 0,
   relevanceScore = 0,
   status = "sugerido",
+  createdAt,
   onApprove,
   onDiscard,
   action,
@@ -95,6 +97,9 @@ export function ContentCard({
   const relevancePct = relevanceScore <= 1 ? Math.round(relevanceScore * 100) : Math.round(relevanceScore);
   const enrichment = useEnrichment();
   const interesting = enrichment && sourceId ? enrichment.isInteresting("content", sourceId) : false;
+  const formattedDate = createdAt
+    ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(createdAt))
+    : "não informada";
   const handleCardClick = () => {
     if (enrichment && sourceId) {
       enrichment.openEnrichment("content", sourceId, {
@@ -108,16 +113,44 @@ export function ContentCard({
       });
     }
   };
+  let primaryAction: React.ReactNode = null;
+  if (status === "sugerido" && onApprove) {
+    primaryAction = (
+      <Button size="sm" icon="check" onClick={(event) => { event.stopPropagation(); onApprove(event); }}>
+        Gerar rascunho
+      </Button>
+    );
+  } else if (status === "rascunho" && onApprove) {
+    primaryAction = (
+      <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); onApprove(event); }}>
+        Enviar para revisão
+      </Button>
+    );
+  } else if (status === "em_revisao" && onApprove) {
+    primaryAction = (
+      <Button size="sm" icon="check" onClick={(event) => { event.stopPropagation(); onApprove(event); }}>
+        Aprovar
+      </Button>
+    );
+  } else if (status === "aprovado" && onApprove) {
+    primaryAction = (
+      <Button size="sm" variant="outline" icon="check" onClick={(event) => { event.stopPropagation(); onApprove(event); }}>
+        Marcar como publicado
+      </Button>
+    );
+  }
+  const canDiscard = Boolean(onDiscard) && !["descartado", "publicado"].includes(status);
+
   return (
     <div
-      className={("ds-card " + className).trim()}
+      className={("ds-card pgm-content-card " + className).trim()}
       onClick={handleCardClick}
       style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", cursor: sourceId ? "pointer" : undefined, ...style }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="pgm-content-card__meta">
+        <div className="pgm-content-card__format">
           <Icon name={p.icon} size={20} color={p.color} />
-          <span style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+          <span>
             {sub ? `${p.label} · ${sub}` : p.label}
           </span>
           {interesting ? <Icon name="star" size={14} color="var(--brand)" /> : null}
@@ -126,23 +159,14 @@ export function ContentCard({
           {STATUS[status] || status}
         </span>
       </div>
-      <h3 style={{ font: "400 16px/24px var(--fontFamily)", marginBottom: 4 }}>{title}</h3>
-      <p style={{ margin: "0 0 8px", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{theme}</p>
+      <h2 className="pgm-content-card__title">{title}</h2>
+      <p className="pgm-content-card__theme">{theme}</p>
       {parsed ? (
-        <div
-          style={{
-            font: "400 12px/16px var(--font-sans)",
-            color: "var(--color-muted-foreground)",
-            background: "color-mix(in srgb, var(--color-muted) 50%, transparent)",
-            padding: 8,
-            borderRadius: "var(--radius)",
-            marginBottom: 12,
-          }}
-        >
+        <div className="pgm-content-card__outline">
           {parsed.angle ? <p style={{ margin: "0 0 6px", fontStyle: "italic" }}>{parsed.angle}</p> : null}
-          <p style={{ margin: "0 0 4px", fontWeight: 500 }}>Outline:</p>
+          <p className="pgm-content-card__outline-label">Outline</p>
           {parsed.points.length ? (
-            <ul style={{ margin: 0, paddingLeft: 16, display: "flex", flexDirection: "column", gap: 2 }}>
+            <ul>
               {parsed.points.map((pt, i) => (
                 <li key={i}>{pt}</li>
               ))}
@@ -152,52 +176,21 @@ export function ContentCard({
           )}
         </div>
       ) : null}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          font: "400 12px/16px var(--font-sans)",
-          color: "var(--color-muted-foreground)",
-          marginTop: "auto",
-          paddingTop: 8,
-          marginBottom: ["sugerido", "rascunho", "em_revisao", "aprovado", "producao"].includes(status) ? 12 : 0,
-        }}
-      >
+      <div className="pgm-content-card__stats">
         <span>Mencionado {mentionCount}x</span>
         <span>Relevância: {relevancePct}%</span>
+        <span>Data: {formattedDate}</span>
       </div>
-      {status === "sugerido" && (onApprove || onDiscard) ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
-          {onApprove ? <Button size="sm" icon="check" onClick={(e) => { e.stopPropagation(); onApprove(e); }} style={{ flex: 1 }}>
-            Gerar rascunho
-          </Button>
-          : null}
-          {onDiscard ? <Button size="sm" variant="outline" icon="trash-2" onClick={(e) => { e.stopPropagation(); onDiscard(e); }} /> : null}
+      {primaryAction || action || canDiscard ? (
+        <div className="pgm-content-card__actions">
+          {primaryAction}
+          {action}
+          {canDiscard ? (
+            <Button size="sm" variant="ghost" icon="trash-2" onClick={(event) => { event.stopPropagation(); onDiscard?.(event); }}>
+              Descartar
+            </Button>
+          ) : null}
         </div>
-      ) : null}
-      {status === "rascunho" && onApprove ? (
-        <div style={{ display: "flex", paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
-          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onApprove(e); }} style={{ flex: 1 }}>
-            Enviar para revisão
-          </Button>
-        </div>
-      ) : null}
-      {status === "em_revisao" && onApprove ? (
-        <div style={{ display: "flex", paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
-          <Button size="sm" icon="check" onClick={(e) => { e.stopPropagation(); onApprove(e); }} style={{ flex: 1 }}>
-            Aprovar
-          </Button>
-        </div>
-      ) : null}
-      {status === "aprovado" && onApprove ? (
-        <div style={{ display: "flex", paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
-          <Button size="sm" variant="outline" icon="check" onClick={(e) => { e.stopPropagation(); onApprove(e); }} style={{ flex: 1 }}>
-            Marcar como publicado
-          </Button>
-        </div>
-      ) : null}
-      {action ? (
-        <div style={{ paddingTop: 12, marginTop: 12, borderTop: "1px solid var(--color-border)" }}>{action}</div>
       ) : null}
     </div>
   );

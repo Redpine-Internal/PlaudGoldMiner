@@ -90,59 +90,37 @@ export function OpportunityCard({
   return (
     <div
       onClick={handleCardClick}
-      className={["ds-card ds-card--clickable", selected ? "ds-card--selected" : "", className].filter(Boolean).join(" ")}
-      style={{ display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box", ...style }}
+      className={["ds-card ds-card--clickable pgm-opportunity-card", selected ? "ds-card--selected" : "", className].filter(Boolean).join(" ")}
+      style={{ boxSizing: "border-box", ...style }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-        <h3 style={{ font: "600 16px/24px var(--fontFamily)" }}>{title}</h3>
-        {interesting ? <Icon name="star" size={16} color="var(--brand)" /> : null}
-      </div>
-      <span style={{ font: "500 12px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
-        {createdAt ? fmt(createdAt) + " · " : ""}Score {Math.round(score)}%
-        {sourceCount && sourceCount > 1
-          ? ` · ${sourceCount} conversas`
-          : conversationTitle
-            ? " · De: " + conversationTitle
-            : ""}
-      </span>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6, marginTop: "auto", paddingTop: 12 }}>
-        {subtype ? (
-          <span
-            title={subtype}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 4,
-              font: "400 12px/16px var(--font-sans)",
-              color: "var(--color-muted-foreground)",
-            }}
-          >
-            <Icon name="tag" size={12} style={{ flexShrink: 0, marginTop: 2 }} />
-            {/* A IA às vezes devolve subtipo longo; corta em 2 linhas para não
-                competir com o título. O texto inteiro fica no tooltip. */}
-            <span
-              style={{
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-                minWidth: 0,
-              }}
-            >
-              {subtype}
-            </span>
-          </span>
-        ) : null}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-          <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${type}-bg)`, color: `var(--opp-${type}-fg)` }}>
-            {TYPES[type] || type}
-          </span>
-          <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${status}-bg)`, color: `var(--opp-${status}-fg)` }}>
-            {STATUS[status] || status}
-          </span>
+      <div className="pgm-opportunity-card__main">
+        <div className="pgm-opportunity-card__heading">
+          <h2>{title}</h2>
+          {interesting ? <Icon name="star" size={15} color="var(--bronze)" /> : null}
         </div>
+        <span className="pgm-opportunity-card__meta">
+          {createdAt ? fmt(createdAt) + " · " : ""}Score {Math.round(score)}%
+          {sourceCount && sourceCount > 1
+            ? ` · ${sourceCount} conversas`
+            : conversationTitle
+              ? " · De: " + conversationTitle
+              : ""}
+        </span>
+        {subtype ? <p className="pgm-opportunity-card__subtype"><Icon name="tag" size={12} />{subtype}</p> : null}
+        {pain ? <p className="pgm-opportunity-card__pain" title={pain}>{pain}</p> : null}
+        {context ? <p className="pgm-opportunity-card__context" title={context}>{context}</p> : null}
       </div>
-      {action ? <div style={{ paddingTop: 12 }}>{action}</div> : null}
+      <div className="pgm-opportunity-card__type">
+        <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${type}-bg)`, color: `var(--opp-${type}-fg)` }}>
+          {TYPES[type] || type}
+        </span>
+      </div>
+      <div className="pgm-opportunity-card__status">
+        <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${status}-bg)`, color: `var(--opp-${status}-fg)` }}>
+          {STATUS[status] || status}
+        </span>
+      </div>
+      {action ? <div className="pgm-opportunity-card__actions">{action}</div> : null}
     </div>
   );
 }

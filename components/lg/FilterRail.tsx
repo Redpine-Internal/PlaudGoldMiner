@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   FilterRail — rail lateral de filtros do redesign Liquid Glass.
+   FilterRail — filtros do Gabinete Editorial de Inteligência.
    Desktop: aside 220px à esquerda da lista (dentro da área da view), com
    seções declarativas (status / checks / segmented) e "Limpar filtros".
    Mobile (useIsMobile): vira uma linha horizontal rolável de chips .ds-chip.
@@ -66,6 +66,7 @@ const RAIL_CSS = `
 .lgr-item:active{background:rgba(120,120,128,0.12)}
 .lgr-item--active,.lgr-item--active:hover{background:rgba(120,120,128,0.16)}
 .lgr-item:focus-visible{outline:2px solid var(--color-ring);outline-offset:-2px}
+.lgr-clear{min-height:44px}
 .lgr-clear:hover{text-decoration:underline}
 `;
 
@@ -89,8 +90,8 @@ const railItemStyle: CSSProperties = {
   alignItems: "center",
   gap: 8,
   width: "100%",
-  height: 28,
-  padding: "0 8px",
+  minHeight: 44,
+  padding: "8px",
   borderRadius: 5,
   border: "none",
   cursor: "pointer",

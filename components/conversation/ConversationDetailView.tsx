@@ -1,7 +1,6 @@
 "use client";
 import type React from "react";
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Icon, Tabs, TypeBadge, StatusBadge, EmptyState, Button, ScoreBadge, Markdown } from "@/components/ds";
@@ -96,11 +95,9 @@ export function ConversationDetailView({ id }: { id: string }) {
   );
 
   const backLink = (
-    <Link href="/conversas" style={{ textDecoration: "none" }}>
-      <Button variant="outline" icon="arrow-left" iconSize={16}>
-        Voltar
-      </Button>
-    </Link>
+    <Button variant="outline" icon="arrow-left" iconSize={16} onClick={() => router.push("/conversas")}>
+      Voltar
+    </Button>
   );
 
   if (isLoading) {
@@ -135,7 +132,7 @@ export function ConversationDetailView({ id }: { id: string }) {
       <div style={{ marginBottom: 16 }}>{backLink}</div>
 
       {/* Header */}
-      <div style={{ paddingBottom: 20, borderBottom: "1px solid var(--color-border)", marginBottom: 20 }}>
+      <div style={{ paddingBottom: 20, marginBottom: 20 }}>
         <h1 style={{ font: "400 28px/34px var(--fontFamily)", margin: "0 0 12px" }}>{c.title}</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
           <TypeBadge type={c.type} />
@@ -154,7 +151,7 @@ export function ConversationDetailView({ id }: { id: string }) {
           ) : null}
         </div>
         {c.audioUrl ? (
-          <audio controls preload="none" style={{ width: "100%", maxWidth: 560, height: 40, marginTop: 16 }}>
+          <audio controls preload="none" style={{ width: "100%", maxWidth: 560, height: 48, marginTop: 16 }}>
             {/* Plaud serves the recording as MP3 (S3 presigned). */}
             <source src={c.audioUrl} type="audio/mpeg" />
             Seu navegador não suporta reprodução de áudio.
@@ -224,7 +221,7 @@ export function ConversationDetailView({ id }: { id: string }) {
                 </h4>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {topics.slice(0, 15).map((t) => (
-                    <span key={t} style={{ ...chip, background: "var(--brand)", color: "var(--textButtonPrimary)" }}>
+                    <span key={t} style={{ ...chip, background: "var(--brand)", color: "var(--app-on-ink)" }}>
                       {t}
                     </span>
                   ))}
@@ -254,7 +251,7 @@ export function ConversationDetailView({ id }: { id: string }) {
                   {opps.slice(0, 3).map((o) => (
                     <div
                       key={o.id}
-                      style={{ padding: 14, background: "color-mix(in srgb, var(--color-muted) 50%, transparent)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)" }}
+                      style={{ padding: 14, background: "color-mix(in srgb, var(--color-muted) 50%, transparent)", borderRadius: "var(--radius-lg)" }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
                         <span style={{ font: "500 14px/20px var(--font-sans)" }}>{o.title}</span>
@@ -269,7 +266,7 @@ export function ConversationDetailView({ id }: { id: string }) {
           </div>
         ) : tab === "transcricao" ? (
           c.transcription ? (
-            <p style={{ margin: 0, font: "400 15px/24px var(--font-sans)", color: "var(--color-foreground)", whiteSpace: "pre-wrap" }}>
+            <p style={{ margin: 0, font: "400 16px/26px var(--font-text)", color: "var(--color-foreground)", whiteSpace: "pre-wrap" }}>
               {c.transcription}
             </p>
           ) : (
@@ -281,7 +278,7 @@ export function ConversationDetailView({ id }: { id: string }) {
             {opps.map((o) => (
               <div
                 key={o.id}
-                style={{ padding: 16, background: "color-mix(in srgb, var(--color-muted) 50%, transparent)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)" }}
+                style={{ padding: 16, background: "color-mix(in srgb, var(--color-muted) 50%, transparent)", borderRadius: "var(--radius-lg)" }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
                   <span style={{ font: "500 16px/24px var(--font-sans)" }}>{o.title}</span>
@@ -289,7 +286,7 @@ export function ConversationDetailView({ id }: { id: string }) {
                 </div>
                 <p style={{ margin: "0 0 8px", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{o.pain}</p>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <span style={{ ...chip, background: "var(--brand)", color: "var(--textButtonPrimary)" }}>{o.type}</span>
+                  <span style={{ ...chip, background: "var(--brand)", color: "var(--app-on-ink)" }}>{o.type}</span>
                   <span style={chip}>{o.status}</span>
                 </div>
               </div>

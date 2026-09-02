@@ -1,3 +1,12 @@
+/* Plaud Gold Miner — fontes editoriais licenciadas fornecidas pelo operador. */
+@font-face{font-family:'Tiempos Fine';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/tiempos-fine-light.woff2') format('woff2')}
+@font-face{font-family:'Tiempos Fine';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/tiempos-fine-regular.woff2') format('woff2')}
+@font-face{font-family:'Tiempos Text';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/tiempos-text-regular.woff2') format('woff2')}
+@font-face{font-family:'Soehne';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/soehne-buch.woff2') format('woff2')}
+@font-face{font-family:'Soehne';font-style:italic;font-weight:400;font-display:swap;src:url('/fonts/soehne-buch-kursiv.woff2') format('woff2')}
+@font-face{font-family:'Soehne';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/soehne-kraftig.woff2') format('woff2')}
+@font-face{font-family:'Soehne';font-style:normal;font-weight:600;font-display:swap;src:url('/fonts/soehne-halbfett.woff2') format('woff2')}
+
 /* Mística webfonts — binaries copied from Telefonica/mistica-web@master (.storybook/css/fonts). One family per skin; --fontFamily in each skin file picks the right one. */
 @font-face{font-family:'Telefonica Sans';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/Telefonica_Sans_Light.woff2') format('woff2')}
 @font-face{font-family:'Telefonica Sans';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/Telefonica_Sans_Regular.woff2') format('woff2')}

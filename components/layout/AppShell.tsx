@@ -22,23 +22,12 @@ const AppShell = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        background: "var(--color-background)",
-        color: "var(--color-foreground)",
-        overflow: "hidden",
-      }}
-    >
+    <div className="pgm-shell">
       {isMobile ? null : <Sidebar />}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+      <div className="pgm-workspace">
         <Toolbar />
-        <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-          <main
-            style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 16px 108px" : "32px", minWidth: 0 }}
-            data-screen-label={pathname}
-          >
+        <div className="pgm-workspace-row">
+          <main className={`pgm-main${pathname.startsWith("/clone") ? " pgm-main--clone" : ""}`} data-screen-label={pathname}>
             <EnrichmentProvider>{children}</EnrichmentProvider>
           </main>
           {showPanel ? <OutputPanel /> : null}

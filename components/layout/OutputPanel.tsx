@@ -140,7 +140,7 @@ const OutputPanel = () => {
           ) : null}
         </div>
         {c.audioUrl ? (
-          <audio controls preload="none" style={{ width: "100%", height: 36, marginTop: 12 }}>
+          <audio controls preload="none" style={{ width: "100%", height: 48, marginTop: 12 }}>
             {/* Plaud serve the recording as MP3 (S3 presigned, content-type generic). */}
             <source src={c.audioUrl} type="audio/mpeg" />
             Seu navegador não suporta reprodução de áudio.
@@ -194,7 +194,7 @@ const OutputPanel = () => {
                 </h4>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {topics.slice(0, 15).map((t) => (
-                    <span key={t} style={{ ...chip, background: "var(--brand)", color: "var(--textButtonPrimary)" }}>
+                    <span key={t} style={{ ...chip, background: "var(--brand)", color: "var(--app-on-ink)" }}>
                       {t}
                     </span>
                   ))}
@@ -230,7 +230,6 @@ const OutputPanel = () => {
                         padding: 12,
                         background: "color-mix(in srgb, var(--color-muted) 50%, transparent)",
                         borderRadius: "var(--radius-lg)",
-                        border: "1px solid var(--color-border)",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
@@ -246,7 +245,7 @@ const OutputPanel = () => {
           </div>
         ) : tab === "transcricao" ? (
           c.transcription ? (
-            <p style={{ margin: 0, font: "400 14px/22px var(--font-sans)", color: "var(--color-muted-foreground)", whiteSpace: "pre-wrap" }}>
+            <p style={{ margin: 0, font: "400 16px/26px var(--font-text)", color: "var(--color-muted-foreground)", whiteSpace: "pre-wrap" }}>
               {c.transcription}
             </p>
           ) : (
@@ -262,7 +261,6 @@ const OutputPanel = () => {
                   padding: 16,
                   background: "color-mix(in srgb, var(--color-muted) 50%, transparent)",
                   borderRadius: "var(--radius-lg)",
-                  border: "1px solid var(--color-border)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
@@ -271,7 +269,7 @@ const OutputPanel = () => {
                 </div>
                 <p style={{ margin: "0 0 8px", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{o.pain}</p>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <span style={{ ...chip, background: "var(--brand)", color: "var(--textButtonPrimary)" }}>{o.type}</span>
+                  <span style={{ ...chip, background: "var(--brand)", color: "var(--app-on-ink)" }}>{o.type}</span>
                   <span style={chip}>{o.status}</span>
                 </div>
               </div>
