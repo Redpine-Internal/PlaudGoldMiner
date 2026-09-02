@@ -1,0 +1,30 @@
+# Ambiente local em container — espelha o runtime do Cloud Run (build standalone).
+#
+# Uso:
+#   docker compose up -d --build     # sobe (reconstrói se o código mudou)
+#   docker compose logs -f           # acompanha
+#   docker compose down              # derruba
+#
+# As NEXT_PUBLIC_* são lidas do .env e passadas como build-arg porque o Next
+# as embute no bundle no momento do build. Os demais segredos entram só em
+# runtime via env_file — a imagem nunca os contém (ver .dockerignore).
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    image: plaud-goldminer:local
+    container_name: plaud-local
+    # 8080 do host costuma estar ocupada por outros projetos; 8090 é a porta local.
+    ports:
+      - "8090:8080"
+    env_file:
+      - .env
+    environment:
+      PORT: 8080
+      # URL pública deste ambiente — o Auth.js monta os callbacks a partir dela.
+      AUTH_URL: http://localhost:8090
+    restart: unless-stopped

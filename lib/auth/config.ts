@@ -17,6 +17,10 @@ interface ExtendedJWT {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Em produção o Auth.js exige host confiável; atrás do proxy do Cloud Run
+  // (e no container local) o Host recebido não é o da URL pública, então sem
+  // isto toda rota /api/auth/* responde 500 (UntrustedHost).
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
