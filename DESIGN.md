@@ -19,133 +19,133 @@ colors:
   error: "#963E35"
 typography:
   display:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "2.5rem"
     fontWeight: 300
     lineHeight: 1.1875
     letterSpacing: "-0.012em"
   headline:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "1.5rem"
     fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "-0.005em"
   prose:
-    fontFamily: "Tiempos Text, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Text, Georgia, serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.625
     letterSpacing: "normal"
   title:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "1.125rem"
     fontWeight: 600
     lineHeight: 1.333
     letterSpacing: "normal"
   body:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "normal"
   label:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 600
     lineHeight: 1.428
     letterSpacing: "0.08em"
   brand:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "17px"
     fontWeight: 400
     lineHeight: 1.294
     letterSpacing: "normal"
   compact-headline:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "18px"
     fontWeight: 600
     lineHeight: 1.35
     letterSpacing: "-0.005em"
   compact-body:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "15px"
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: "normal"
   nav:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "15px"
     fontWeight: 500
     lineHeight: 1.481
     letterSpacing: "normal"
   ui-small:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "14px"
     fontWeight: 500
     lineHeight: 1.5
     letterSpacing: "normal"
   metadata:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "13px"
     fontWeight: 500
     lineHeight: 1.565
     letterSpacing: "normal"
   eyebrow:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "13px"
     fontWeight: 700
     lineHeight: 1.454
     letterSpacing: "0.09em"
   column-label:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "13px"
     fontWeight: 600
     lineHeight: 1.523
     letterSpacing: "0.08em"
   micro:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "12px"
     fontWeight: 500
     lineHeight: 1.4
     letterSpacing: "normal"
   mobile-micro:
-    fontFamily: "Soehne, Archivo, Arial, sans-serif"
+    fontFamily: "Soehne, Arial, sans-serif"
     fontSize: "10px"
     fontWeight: 500
     lineHeight: 1.333
     letterSpacing: "normal"
   mobile-display:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "2rem"
     fontWeight: 300
     lineHeight: 1.15
     letterSpacing: "-0.012em"
   mobile-headline:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "1.375rem"
     fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "-0.005em"
   metric-large:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "52px"
     fontWeight: 300
     lineHeight: 0.95
     letterSpacing: "normal"
   metric:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "48px"
     fontWeight: 300
     lineHeight: 1
     letterSpacing: "normal"
   metric-small:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "20px"
     fontWeight: 400
     lineHeight: 1.2
     letterSpacing: "normal"
   mobile-metric:
-    fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
+    fontFamily: "Tiempos Fine, Georgia, serif"
     fontSize: "30px"
     fontWeight: 300
     lineHeight: 1
@@ -259,11 +259,11 @@ A paleta é restrita: neutros levemente aquecidos sem aparência bege, tinta qua
 
 ## Typography
 
-**Display Font:** Tiempos Fine, Tiempos Headline ou Newsreader, com Georgia como fallback.
+**Display Font:** Tiempos Fine, com Georgia como fallback.
 
-**Text Font:** Tiempos Text, com Newsreader e Georgia como fallback, para resumos, transcrições e leitura editorial.
+**Text Font:** Tiempos Text, com Georgia como fallback, para resumos, transcrições e leitura editorial.
 
-**Interface Font:** Soehne ou Archivo, com Arial e sans-serif como fallback.
+**Interface Font:** Soehne, com Arial e sans-serif como fallback.
 
 **Character:** títulos têm voz editorial e humana; interface, dados e controles permanecem precisos e discretos. O contraste entre as famílias cria personalidade sem comprometer a familiaridade operacional.
 
@@ -276,7 +276,7 @@ A paleta é restrita: neutros levemente aquecidos sem aparência bege, tinta qua
 - **Body** (400, 1rem, 1.5): leitura, formulários e transcrições. Prosa permanece entre 45 e 75 caracteres por linha.
 - **Label** (600, 0.875rem, 0.08em): botões, tabs e eyebrows curtos. Caixa alta é permitida somente em rótulos breves.
 
-**The Two-Voice Rule.** Tiempos Fine aparece nos títulos e Tiempos Text na leitura editorial; Soehne ou Archivo governa toda a interface. Fonte de display em botões, labels ou dados é proibida.
+**The Two-Voice Rule.** Tiempos Fine aparece nos títulos e Tiempos Text na leitura editorial; Soehne governa toda a interface. Fonte de display em botões, labels ou dados é proibida.
 
 **The Fixed Product Scale Rule.** Tamanhos usam `rem` fixo. Não use `clamp()` para tipografia de produto.
 
@@ -325,7 +325,7 @@ Bottom sheets e drawers podem usar um backdrop sólido atenuado e separação po
 
 ### Navigation
 
-- **Desktop:** sidebar em tinta editorial, grupos `Principal` e `Inteligência`, rótulos completos e item ativo com superfície clara translúcida, sem faixa lateral colorida.
+- **Desktop:** sidebar de 232 px em tinta editorial, grupos `Principal` e `Inteligência`, rótulos completos, itens de 40 px e item ativo com superfície clara translúcida, sem faixa lateral colorida. Recolhida, a navegação vira um rail de 64 px, usa o favicon PGM de 22 px no topo e mantém alvos de navegação de 48 × 40 px, com ícones, item ativo, configurações e expansão equivalentes ao Claude Design.
 - **Tablet:** navegação compacta preserva ícones, rótulos acessíveis e acesso à arquitetura completa.
 - **Mobile:** topbar de 56 px com menu, contexto, busca e perfil; tab bar inferior de 60 px com Dashboard, Conversas, Negócios, Clone e Mais. `Mais` abre o menu completo com os nomes e destinos conhecidos.
 - **Safe area:** tab bar e footers usam `env(safe-area-inset-bottom)` e o conteúdo recebe padding inferior equivalente.
