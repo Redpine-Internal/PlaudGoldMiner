@@ -286,7 +286,13 @@ const ConversasView = () => {
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8 }}>
           <SearchInput value={q} onChange={setQ} placeholder="Buscar por título ou resumo" style={{ flex: 1, maxWidth: 264, minWidth: 160 }} />
-          <FilterChip active={showFilters || types.length > 0 || content.length > 0} onClick={() => setShowFilters(!showFilters)} count={types.length + content.length || undefined}>
+          <FilterChip
+            active={showFilters || types.length > 0 || content.length > 0}
+            onClick={() => setShowFilters(!showFilters)}
+            count={types.length + content.length || undefined}
+            aria-expanded={showFilters}
+            aria-controls="conversation-filters"
+          >
             Filtros
           </FilterChip>
           {hasFilters ? (
@@ -306,6 +312,7 @@ const ConversasView = () => {
         </div>
         {showFilters ? (
           <div
+            id="conversation-filters"
             style={{
               padding: 16,
               border: "1px solid var(--color-border)",

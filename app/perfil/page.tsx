@@ -5,15 +5,21 @@ import { Input, Button } from "@/components/ds";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+const DEFAULT_PROFILE = {
+  name: "Fabio Marques",
+  email: "fabio.marques@ehsbrasil.com",
+  bio: "Atuação em segurança do trabalho com foco em prevenção de eventos graves, leitura de energia e controles críticos. Trabalho com liderança de primeira linha e com a diferença entre cumprir norma e controlar risco.",
+};
+
 const PerfilPage = () => {
   const { data, mutate } = useSWR<{ data: { name: string; email: string; bio: string | null } }>(
     "/api/profile",
     fetcher
   );
 
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [bio, setBio] = useState("");
+  const [nome, setNome] = useState(DEFAULT_PROFILE.name);
+  const [email, setEmail] = useState(DEFAULT_PROFILE.email);
+  const [bio, setBio] = useState(DEFAULT_PROFILE.bio);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -21,9 +27,9 @@ const PerfilPage = () => {
   // Hydrate form once the profile loads.
   useEffect(() => {
     if (data?.data) {
-      setNome(data.data.name ?? "");
-      setEmail(data.data.email ?? "");
-      setBio(data.data.bio ?? "");
+      setNome(data.data.name?.trim() || DEFAULT_PROFILE.name);
+      setEmail(data.data.email?.trim() || DEFAULT_PROFILE.email);
+      setBio(data.data.bio?.trim() || DEFAULT_PROFILE.bio);
     }
   }, [data]);
 

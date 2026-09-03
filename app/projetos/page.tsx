@@ -126,7 +126,9 @@ export default function ProjetosPage() {
           className="ds-card"
           style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, padding: "12px 14px" }}
         >
+          <label htmlFor="new-project-title" className="sr-only">Nome do projeto</label>
           <input
+            id="new-project-title"
             autoFocus
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -178,9 +180,11 @@ export default function ProjetosPage() {
                   <strong>{p.title}</strong>
                   {p.description ? <p>{p.description}</p> : null}
                 </div>
-                <span className="ds-badge pgm-project-row__status" style={{ background: "var(--badge-bg)", color: statusFg[p.status] }}>{statusLabels[p.status]}</span>
-                <span className="pgm-project-row__origin">Origem: {p.sourceType ? sourceLabels[p.sourceType] || p.sourceType : "Não informada"}</span>
-                <span className="pgm-project-row__date">criado em {new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>
+                <div className="pgm-project-row__meta">
+                  <span className="ds-badge pgm-project-row__status" style={{ background: "var(--badge-bg)", color: statusFg[p.status] }}>{statusLabels[p.status]}</span>
+                  <span className="pgm-project-row__origin">Origem: {p.sourceType ? sourceLabels[p.sourceType] || p.sourceType : "Não informada"}</span>
+                  <span className="pgm-project-row__date">Criado em {new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>
+                </div>
                 <div className="pgm-project-row__actions">
                   {p.status !== "arquivado" ? (
                     <button type="button" onClick={(event) => { event.stopPropagation(); void setProjectStatus(p.id, "arquivado"); }}>Arquivar</button>

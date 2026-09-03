@@ -151,7 +151,7 @@ export default function ProjetoPage() {
           <div style={{ display: "flex", gap: 6, marginTop: 12 }}><input aria-label={`Nova tarefa em ${column.name}`} value={taskNames[column.id] || ""} onChange={(e) => setTaskNames((current) => ({ ...current, [column.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addTask(column.id); }} placeholder="Nova tarefa" style={fieldStyle} /><Button variant="outline" icon="add-more" onClick={() => addTask(column.id)}>Adicionar</Button></div>
         </div>;
       })}
-      <div className="pgm-kanban-new-column"><div style={{ display: "flex", gap: 6 }}><input aria-label="Nome da nova coluna" value={columnName} onChange={(e) => setColumnName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addColumn(); }} placeholder="Nome da coluna" style={fieldStyle} /><Button variant="outline" icon="add-more" onClick={addColumn}>Coluna</Button></div></div>
+      <div className="pgm-kanban-new-column"><div style={{ display: "flex", gap: 6 }}><input aria-label="Nome da nova coluna" value={columnName} onChange={(e) => setColumnName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addColumn(); }} placeholder="Nome da coluna" style={fieldStyle} /><Button variant="outline" icon="add-more" aria-label="Adicionar coluna" title="Adicionar coluna" disabled={!columnName.trim()} onClick={addColumn} /></div></div>
     </div>
   </div>;
 }
