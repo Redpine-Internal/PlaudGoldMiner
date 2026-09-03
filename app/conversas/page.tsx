@@ -127,7 +127,7 @@ type ConvFilters = {
 const INITIAL_FILTERS: ConvFilters = { types: [], period: "all", content: [] };
 
 const filterLabelStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 13,
   fontWeight: 600,
   letterSpacing: "0.12em",
   textTransform: "uppercase",
@@ -299,7 +299,7 @@ const ConversasView = () => {
               Limpar filtros
             </button>
           ) : null}
-          <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--color-muted-foreground)" }}>
+          <span style={{ marginLeft: "auto", fontSize: 15, color: "var(--color-muted-foreground)" }}>
             {list.length} conversa{list.length !== 1 ? "s" : ""}
             {pendingCount ? ` · verificando ${pendingCount}…` : ""}
           </span>
@@ -420,7 +420,7 @@ const ConversasView = () => {
 
 /**
  * Linha da lista de conversas dentro do vidro único (GlassListRow).
- * Título 13px 600 + badges de tipo/status; resumo em 1 linha; data/duração na
+ * Título 16px 600 + badges de tipo/status; resumo em 1 linha; data/duração na
  * coluna direita no desktop e inline no mobile (sem colunas extras). Os badges
  * de conteúdo (resumo/transcrição/insights) aparecem só com filtro de conteúdo
  * ativo, alimentados pelo fetch central rate-limited da página.
@@ -463,7 +463,7 @@ function ConversationRow({
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: isMobile ? "wrap" : "nowrap" }}>
           <span
             style={{
-              fontSize: 13,
+              fontSize: 16,
               fontWeight: 600,
               letterSpacing: "-0.01em",
               minWidth: 0,
@@ -480,7 +480,7 @@ function ConversationRow({
         {c.summary ? (
           <span
             style={{
-              fontSize: 13,
+              fontSize: 15,
               color: "var(--color-muted-foreground)",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -491,7 +491,7 @@ function ConversationRow({
           </span>
         ) : null}
         {isMobile ? (
-          <span style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>
+          <span style={{ fontSize: 14, color: "var(--color-muted-foreground)" }}>
             {dateFmt}
             {c.duration ? ` · ${c.duration}` : ""}
           </span>
@@ -506,9 +506,9 @@ function ConversationRow({
       </div>
       {!isMobile ? (
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
-          <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>{dateFmt}</span>
+          <span style={{ fontSize: 14, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>{dateFmt}</span>
           {c.duration ? (
-            <span style={{ fontSize: 12, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>{c.duration}</span>
+            <span style={{ fontSize: 14, color: "var(--color-muted-foreground)", whiteSpace: "nowrap" }}>{c.duration}</span>
           ) : null}
         </div>
       ) : null}
@@ -529,7 +529,7 @@ function IndicatorBadge({ icon, label, shortLabel, on, loading }: { icon: string
         padding: "2px 8px",
         borderRadius: 5,
         fontFamily: "inherit",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: 600,
         lineHeight: "16px",
         background: "var(--badge-bg, var(--color-muted))",
@@ -537,7 +537,7 @@ function IndicatorBadge({ icon, label, shortLabel, on, loading }: { icon: string
         opacity: loading ? 0.5 : 1,
       }}
     >
-      <Icon name={loading ? "reload" : active ? "check" : icon} size={11} className={loading ? "ds-spin" : undefined} />
+      <Icon name={loading ? "reload" : active ? "check" : icon} size={13} className={loading ? "ds-spin" : undefined} />
       {shortLabel || label}
     </span>
   );

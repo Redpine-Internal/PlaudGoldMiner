@@ -168,8 +168,8 @@ const Toolbar = () => {
           {avatarOpen ? (
             <div className="menu" style={{ position: "absolute", top: 50, right: 0, zIndex: 49 }}>
               <div style={{ padding: "10px 12px 8px" }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{userName || "—"}</div>
-                <div style={{ maxWidth: 196, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--app-muted)", fontSize: 12 }}>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>{userName || "—"}</div>
+                <div style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--app-muted)", fontSize: 14 }}>
                   {userEmail || "—"}
                 </div>
               </div>

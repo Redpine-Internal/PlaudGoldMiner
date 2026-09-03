@@ -62,9 +62,9 @@ export type FilterRailProps = {
 // React 19 deduplica e eleva este <style> pelo par href+precedence.
 const RAIL_CSS = `
 .lgr-item{background:transparent}
-.lgr-item:hover{background:rgba(120,120,128,0.08)}
-.lgr-item:active{background:rgba(120,120,128,0.12)}
-.lgr-item--active,.lgr-item--active:hover{background:rgba(120,120,128,0.16)}
+.lgr-item:hover{background:var(--app-surface-subtle)}
+.lgr-item:active{background:var(--app-surface-soft)}
+.lgr-item--active,.lgr-item--active:hover{background:var(--app-surface-soft)}
 .lgr-item:focus-visible{outline:2px solid var(--color-ring);outline-offset:-2px}
 .lgr-clear{min-height:44px}
 .lgr-clear:hover{text-decoration:underline}
@@ -77,7 +77,7 @@ const RailStyle = () => (
 );
 
 const railTitleStyle: CSSProperties = {
-  fontSize: 11,
+  fontSize: 13,
   fontWeight: 700,
   letterSpacing: "0.06em",
   textTransform: "uppercase",
@@ -96,7 +96,7 @@ const railItemStyle: CSSProperties = {
   border: "none",
   cursor: "pointer",
   fontFamily: "inherit",
-  fontSize: 13,
+  fontSize: 15,
   textAlign: "left",
   color: "var(--color-foreground)",
   boxSizing: "border-box",
@@ -125,7 +125,7 @@ const StatusRows = ({ section }: { section: FilterStatusSection }) => (
             {opt.label}
           </span>
           {opt.count !== undefined ? (
-            <span style={{ fontSize: 11, color: "var(--color-muted-foreground)", flexShrink: 0 }}>{opt.count}</span>
+            <span style={{ fontSize: 13, color: "var(--color-muted-foreground)", flexShrink: 0 }}>{opt.count}</span>
           ) : null}
         </button>
       );
@@ -169,7 +169,7 @@ const CheckRows = ({ section }: { section: FilterChecksSection }) => (
             {opt.label}
           </span>
           {opt.count !== undefined ? (
-            <span style={{ fontSize: 11, color: "var(--color-muted-foreground)", flexShrink: 0 }}>{opt.count}</span>
+            <span style={{ fontSize: 13, color: "var(--color-muted-foreground)", flexShrink: 0 }}>{opt.count}</span>
           ) : null}
         </button>
       );
@@ -251,7 +251,7 @@ const MobileChips = ({ sections, onClear, clearLabel }: Pick<FilterRailProps, "s
           background: "transparent",
           cursor: "pointer",
           fontFamily: "inherit",
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: 500,
           color: "var(--color-brand)",
           padding: "0 8px",
@@ -317,7 +317,7 @@ export const FilterRail = ({
             background: "transparent",
             cursor: "pointer",
             fontFamily: "inherit",
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: 500,
             color: "var(--color-brand)",
             padding: "0 8px",

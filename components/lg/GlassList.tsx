@@ -16,8 +16,8 @@ const LGL_CSS = `
 .lgl-row{background:transparent}
 .lgl-list>.lgl-row+.lgl-row,.lgl-list>.lgl-section+.lgl-section,.lgl-list>.lgl-row+.lgl-section{box-shadow:inset 0 1px 0 color-mix(in srgb,var(--color-border) 45%,transparent)}
 .lgl-row--clickable{cursor:pointer}
-.lgl-row--clickable:hover{background:rgba(120,120,128,0.08)}
-.lgl-row--clickable:active{background:rgba(120,120,128,0.12)}
+.lgl-row--clickable:hover{background:var(--app-surface-subtle)}
+.lgl-row--clickable:active{background:var(--app-surface-soft)}
 .lgl-row--clickable:focus-visible{outline:2px solid var(--color-ring);outline-offset:-2px}
 `;
 
@@ -132,12 +132,12 @@ export const GlassListSection = ({ children, inset = false, className, style }: 
   <div
     className={`lgl-section${className ? ` ${className}` : ""}`}
     style={{
-      fontSize: 11,
+      fontSize: 13,
       fontWeight: 600,
       letterSpacing: "0.06em",
       textTransform: "uppercase",
       color: "var(--color-muted-foreground)",
-      padding: inset ? "14px 16px 6px" : "0 4px 8px",
+      padding: inset ? "14px 16px 8px" : "0 4px 10px",
       ...style,
     }}
   >

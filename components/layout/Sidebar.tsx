@@ -41,8 +41,8 @@ const NavLink = ({ def, active, collapsed }: { def: NavDef; active: boolean; col
     >
       <span
         style={{
-          width: 20,
-          height: 20,
+          width: 22,
+          height: 22,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -50,7 +50,7 @@ const NavLink = ({ def, active, collapsed }: { def: NavDef; active: boolean; col
           color: active ? "var(--bronze)" : "var(--sb-icon)",
         }}
       >
-        <NavigationIcon name={def.icon} />
+        <NavigationIcon name={def.icon} size={20} />
       </span>
       {collapsed ? null : (
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{def.label}</span>

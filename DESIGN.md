@@ -62,55 +62,55 @@ typography:
     letterSpacing: "normal"
   compact-headline:
     fontFamily: "Tiempos Fine, Tiempos Headline, Newsreader, Georgia, serif"
-    fontSize: "15px"
+    fontSize: "18px"
     fontWeight: 600
     lineHeight: 1.35
     letterSpacing: "-0.005em"
   compact-body:
     fontFamily: "Soehne, Archivo, Arial, sans-serif"
-    fontSize: "13px"
+    fontSize: "15px"
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: "normal"
   nav:
     fontFamily: "Soehne, Archivo, Arial, sans-serif"
-    fontSize: "13.5px"
+    fontSize: "15px"
     fontWeight: 500
     lineHeight: 1.481
     letterSpacing: "normal"
   ui-small:
     fontFamily: "Soehne, Archivo, Arial, sans-serif"
-    fontSize: "12px"
+    fontSize: "14px"
     fontWeight: 500
     lineHeight: 1.5
     letterSpacing: "normal"
   metadata:
     fontFamily: "Soehne, Archivo, Arial, sans-serif"
-    fontSize: "11.5px"
+    fontSize: "13px"
     fontWeight: 500
     lineHeight: 1.565
     letterSpacing: "normal"
   eyebrow:
     fontFamily: "Soehne, Archivo, Arial, sans-serif"
-    fontSize: "11px"
+    fontSize: "13px"
     fontWeight: 700
     lineHeight: 1.454
     letterSpacing: "0.09em"
   column-label:
     fontFamily: "Soehne, Archivo, Arial, sans-serif"
-    fontSize: "10.5px"
+    fontSize: "13px"
     fontWeight: 600
     lineHeight: 1.523
     letterSpacing: "0.08em"
   micro:
     fontFamily: "Soehne, Archivo, Arial, sans-serif"
-    fontSize: "10px"
+    fontSize: "12px"
     fontWeight: 500
     lineHeight: 1.4
     letterSpacing: "normal"
   mobile-micro:
     fontFamily: "Soehne, Archivo, Arial, sans-serif"
-    fontSize: "9px"
+    fontSize: "10px"
     fontWeight: 500
     lineHeight: 1.333
     letterSpacing: "normal"
@@ -170,15 +170,15 @@ components:
     textColor: "{colors.ink-deep}"
     typography: "{typography.label}"
     rounded: "{rounded.control}"
-    padding: "12px 18px"
-    height: "40px"
+    padding: "11px 16px"
+    height: "44px"
   button-secondary:
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.ink}"
     typography: "{typography.label}"
     rounded: "{rounded.control}"
-    padding: "10px 14px"
-    height: "40px"
+    padding: "11px 16px"
+    height: "44px"
   input:
     backgroundColor: "{colors.surface-subtle}"
     textColor: "{colors.ink}"
@@ -280,6 +280,8 @@ A paleta é restrita: neutros levemente aquecidos sem aparência bege, tinta qua
 
 **The Fixed Product Scale Rule.** Tamanhos usam `rem` fixo. Não use `clamp()` para tipografia de produto.
 
+**The Legible Product Scale Rule.** Corpo e conteúdo operacional usam 1rem; navegação, botões e metadados ficam entre 0.8125rem e 0.9375rem. Tamanhos de 0.75rem são reservados a microanotações de gráficos e nunca carregam informação principal.
+
 ## Elevation
 
 O sistema é plano por padrão. Profundidade vem de contraste entre `ink`, `canvas` e superfícies sutis, além de espaço, agrupamento e sobreposição funcional. Sombras decorativas não fazem parte da linguagem.
@@ -295,8 +297,8 @@ Bottom sheets e drawers podem usar um backdrop sólido atenuado e separação po
 ### Buttons
 
 - **Shape:** retângulo com curvatura discreta (6 px), nunca totalmente quadrado nem em cápsula.
-- **Primary:** azul-céu funcional, texto em tinta profunda, 40 px de altura no desktop, padding horizontal de 18 px e rótulo sans-serif semibold. Em superfícies de toque, a área interativa mínima é 44 px.
-- **Secondary:** papel branco ou superfície sutil, texto em tinta, 40 px de altura no desktop e borda estrutural de 1 px somente quando necessária. Em superfícies de toque, a área interativa mínima é 44 px.
+- **Primary:** azul-céu funcional, texto em tinta profunda, 44 px de altura, padding horizontal de 16 px e rótulo sans-serif semibold.
+- **Secondary:** papel branco ou superfície sutil, texto em tinta, 44 px de altura e borda estrutural de 1 px somente quando necessária.
 - **Hover / Focus / Active:** transição de 180 ms com `cubic-bezier(0.165, 0.84, 0.44, 1)`. Foco visível de 2 px com offset de 2 px. Active reduz contraste ou desloca no máximo 1 px; nunca anima layout.
 - **Disabled / Loading:** preserve o rótulo, explique indisponibilidade e não dependa somente de opacidade. Loading anuncia estado com `aria-live` quando houver mudança assíncrona.
 - **Destructive:** isolado por pelo menos 24 px das ações normais, acompanhado de rótulo e confirmação ou desfazer quando apropriado.
@@ -357,7 +359,7 @@ Bottom sheets e drawers podem usar um backdrop sólido atenuado e separação po
 - **Do** usar `accent-sky` apenas para ação, foco ou seleção.
 - **Do** preservar todos os campos, rotas, transcrições, evidências e os 11 blocos do Dashboard.
 - **Do** manter títulos longos com largura confortável e `text-wrap: balance`.
-- **Do** usar controles de 40 px no desktop e áreas interativas mínimas de 44 px no mobile.
+- **Do** usar controles de 44 px nas ações principais; 40 px fica reservado a controles compactos secundários.
 - **Do** oferecer alternativa visível a drag, swipe, hover e gestos ocultos.
 - **Do** separar hierarquia com espaço, escala tipográfica e ordem antes de adicionar linhas.
 - **Do** manter o menu completo e seus rótulos conhecidos acessíveis no mobile.
