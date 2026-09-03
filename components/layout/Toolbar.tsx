@@ -47,6 +47,14 @@ const initialsOf = (name: string) =>
     .map((word) => word[0].toUpperCase())
     .join("") || "?";
 
+const nameFromEmail = (email: string) =>
+  email
+    .split("@")[0]
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toLocaleUpperCase("pt-BR") + part.slice(1).toLocaleLowerCase("pt-BR"))
+    .join(" ");
+
 const Toolbar = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -76,7 +84,7 @@ const Toolbar = () => {
       const name =
         (typeof metadata.full_name === "string" && metadata.full_name) ||
         (typeof metadata.name === "string" && metadata.name) ||
-        email.split("@")[0] ||
+        nameFromEmail(email) ||
         "";
       setUserEmail(email);
       setUserName(name);
