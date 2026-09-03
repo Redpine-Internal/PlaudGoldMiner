@@ -267,7 +267,7 @@ const ConversasView = () => {
   };
 
   return (
-    <div className="pgm-conversations-page" style={{ maxWidth: 1280, margin: "0 auto" }}>
+    <div className="pgm-conversations-page">
       <header className="pgm-page-intro">
         <p className="pgm-page-eyebrow">Biblioteca de evidências · Plaud (principal) · Drive (alternativa)</p>
         <h1>Conversas</h1>

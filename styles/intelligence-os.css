@@ -100,8 +100,9 @@
   --sb-icon: var(--app-on-ink-muted);
   --sb-border: rgb(247 245 241 / 12%);
   --sb-hover: rgb(247 245 241 / 7%);
-  --sb-active-bg: rgb(247 245 241 / 11%);
+  --sb-active-bg: rgb(247 245 241 / 9%);
   --sb-active-fg: var(--app-on-ink);
+  --app-content-max: 1360px;
 
   --badge-bg: transparent;
   --badge-green: #2f6f4e;
@@ -245,12 +246,13 @@ main h2 {
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 32px clamp(24px, 4vw, 48px) 56px;
+  padding: 32px clamp(24px, 3vw, 40px) 56px;
   background: var(--app-canvas);
 }
 .pgm-main--clone { padding: 0; overflow: hidden; }
 
 .pgm-sidebar {
+  --navigation-icon-surface: var(--app-ink);
   width: 248px;
   flex: 0 0 auto;
   display: flex;
@@ -290,7 +292,7 @@ main h2 {
   letter-spacing: .08em;
   text-align: center;
 }
-.pgm-sidebar--collapsed .pgm-sidebar__brand { padding-inline: 18px; }
+.pgm-sidebar--collapsed .pgm-sidebar__brand { min-height: 64px; padding: 18px; }
 .pgm-sidebar__nav { flex: 1; overflow-y: auto; padding: 8px 8px 12px; }
 .pgm-sidebar__group + .pgm-sidebar__group { margin-top: 20px; }
 .pgm-sidebar__label {
@@ -356,7 +358,7 @@ main h2 {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 0 clamp(24px, 4vw, 48px);
+  padding: 0 clamp(24px, 3vw, 40px);
   background: var(--app-canvas);
   position: relative;
   z-index: 20;
@@ -528,7 +530,7 @@ main h2 {
 .pgm-collection-toolbar { justify-content: flex-start; gap: 12px; flex-wrap: wrap; }
 
 /* Conteúdos — paridade com o estúdio editorial aprovado no Claude Design. */
-.pgm-content-page { width: 100%; max-width: 1200px; margin: 0 auto; }
+.pgm-content-page { width: 100%; max-width: var(--app-content-max); margin: 0 auto; }
 .pgm-content-hero {
   position: relative;
   display: grid;
@@ -691,7 +693,7 @@ main h2 {
 }
 
 /* Assuntos de Interesse — mesa de acompanhamento com todos os campos. */
-.pgm-topics-page { max-width: 1200px; margin: 0 auto; }
+.pgm-topics-page { width: 100%; max-width: var(--app-content-max); margin: 0 auto; }
 .pgm-topics-hero { margin-bottom: 18px; }
 .pgm-topics-hero h1 { margin: 8px 0 8px; }
 .pgm-topics-hero > span { display: block; margin-bottom: 14px; color: var(--app-muted); font-size: 11.5px; }
@@ -747,7 +749,7 @@ main h2 {
 .pgm-clone-send:disabled { cursor: default; opacity: .5; }
 
 /* Configurações — seções horizontais em vez de cartões empilhados. */
-.pgm-settings-page { max-width: 1200px; margin: 0 auto; }
+.pgm-settings-page { width: 100%; max-width: var(--app-content-max); margin: 0 auto; }
 .pgm-settings-hero { margin-bottom: 18px; }
 .pgm-settings-hero h1 { margin: 8px 0 0; }
 .pgm-settings-sections { border-top: 1px solid var(--app-hair); }
@@ -769,7 +771,7 @@ main h2 {
 .pgm-settings-section .pgm-settings-controls > div:first-child { margin-top: 0; }
 
 /* Profile — editorial account sheet, never a floating settings card. */
-.pgm-profile-page { max-width: 1120px; margin: 0 auto; }
+.pgm-profile-page { width: 100%; max-width: var(--app-content-max); margin: 0 auto; }
 .pgm-profile-hero { margin-bottom: 18px; }
 .pgm-profile-hero h1 { margin: 8px 0 0; }
 .pgm-profile-identity {
@@ -874,7 +876,15 @@ main h2 {
 .pgm-kanban-move select { width: 100%; min-height: 48px; padding: 10px 36px 10px 12px; border: 0; border-radius: 4px; background: var(--app-surface-soft); color: var(--app-ink); }
 
 /* Dashboard: ordem única e comparável em todas as larguras. */
-.dashboard-page { max-width: 1180px; margin: 0 auto; }
+.dashboard-page,
+.pgm-conversations-page,
+.pgm-opportunities-page,
+.pgm-projects-page,
+.pgm-topics-page {
+  width: 100%;
+  max-width: var(--app-content-max);
+  margin-inline: auto;
+}
 .dashboard-hero { max-width: 760px; margin-bottom: 28px; }
 .dashboard-hero h1 { margin: 6px 0 8px; }
 .dashboard-hero > p:last-child { max-width: 640px; margin: 0; color: var(--app-muted); font-size: 15px; }

@@ -2,49 +2,37 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  MessageCircle,
-  Target,
-  FileText,
-  ClipboardList,
-  BookOpen,
-  Sparkles,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  type LucideIcon,
-} from "lucide-react";
+import { NavigationIcon, type NavigationIconName } from "@/components/layout/navigation-icon";
 import { useAppStore } from "@/stores/appStore";
 
-type NavDef = { icon: LucideIcon; label: string; path: string };
+type NavDef = { icon: NavigationIconName; label: string; path: string };
 
 const GROUPS: { label: string; items: NavDef[] }[] = [
   {
     label: "Principal",
     items: [
-      { icon: Home, label: "Dashboard", path: "/" },
-      { icon: MessageCircle, label: "Conversas", path: "/conversas" },
-      { icon: Target, label: "Novos Negócios", path: "/novos-negocios" },
-      { icon: FileText, label: "Conteúdos", path: "/conteudos" },
+      { icon: "dashboard", label: "Dashboard", path: "/" },
+      { icon: "conversations", label: "Conversas", path: "/conversas" },
+      { icon: "opportunities", label: "Novos Negócios", path: "/novos-negocios" },
+      { icon: "contents", label: "Conteúdos", path: "/conteudos" },
     ],
   },
   {
     label: "Inteligência",
     items: [
-      { icon: ClipboardList, label: "Projetos", path: "/projetos" },
-      { icon: BookOpen, label: "Assuntos de Interesse", path: "/assuntos-interesse" },
-      { icon: Sparkles, label: "Clone", path: "/clone" },
+      { icon: "projects", label: "Projetos", path: "/projetos" },
+      { icon: "topics", label: "Assuntos de Interesse", path: "/assuntos-interesse" },
+      { icon: "clone", label: "Clone", path: "/clone" },
     ],
   },
 ];
 
 const NavLink = ({ def, active, collapsed }: { def: NavDef; active: boolean; collapsed: boolean }) => {
-  const IconCmp = def.icon;
   return (
     <Link
       href={def.path}
       title={def.label}
+      aria-label={collapsed ? def.label : undefined}
       aria-current={active ? "page" : undefined}
       className={"nav-item" + (active ? " nav-item--active" : "")}
       style={{
@@ -62,7 +50,7 @@ const NavLink = ({ def, active, collapsed }: { def: NavDef; active: boolean; col
           color: active ? "var(--bronze)" : "var(--sb-icon)",
         }}
       >
-        <IconCmp size={18} strokeWidth={1.75} />
+        <NavigationIcon name={def.icon} />
       </span>
       {collapsed ? null : (
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{def.label}</span>
@@ -109,7 +97,7 @@ const Sidebar = () => {
 
       <div className="pgm-sidebar__footer" style={{ paddingInline: collapsed ? 8 : undefined }}>
         <NavLink
-          def={{ icon: Settings, label: "Configurações", path: "/configuracoes" }}
+          def={{ icon: "settings", label: "Configurações", path: "/configuracoes" }}
           active={isActive("/configuracoes")}
           collapsed={collapsed}
         />
@@ -120,7 +108,7 @@ const Sidebar = () => {
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           onClick={toggle}
         >
-          {collapsed ? <ChevronRight size={18} strokeWidth={1.75} /> : <ChevronLeft size={18} strokeWidth={1.75} />}
+          <NavigationIcon name={collapsed ? "expand" : "collapse"} />
           {collapsed ? null : <span>Recolher</span>}
         </button>
       </div>

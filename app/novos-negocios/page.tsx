@@ -295,7 +295,7 @@ const NovosNegociosPage = () => {
   };
 
   return (
-    <div className="pgm-opportunities-page" style={{ maxWidth: 1280, margin: "0 auto" }}>
+    <div className="pgm-opportunities-page">
       <ol className="pgm-process-strip" aria-label="Etapas do fluxo de inteligência">
         <li><span>1</span>Capturar conversas</li>
         <li><span>2</span>Revisar evidências</li>
