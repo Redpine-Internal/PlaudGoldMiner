@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .tile { fill: #161412; }
+    .monogram { fill: #f5f2ed; }
+    .accent { fill: #c49e74; }
+
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #f5f2ed; }
+      .monogram { fill: #161412; }
+      .accent { fill: #9c6e42; }
+    }
+  </style>
+  <rect class="tile" width="32" height="32" rx="6" />
+  <path
+    class="monogram"
+    fill-rule="evenodd"
+    d="M8 6H18A7 7 0 0 1 18 20H14V26H8ZM14 11H18A2 2 0 0 1 18 15H14Z"
+  />
+  <rect class="accent" x="21" y="21" width="5" height="5" rx="1" />
+</svg>

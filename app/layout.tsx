@@ -6,6 +6,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Plaud Gold Miner",
   description: "Gestão de conversas e insights.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({
