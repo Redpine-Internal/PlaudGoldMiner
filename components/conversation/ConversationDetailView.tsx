@@ -176,6 +176,8 @@ export function ConversationDetailView({ id }: { id: string }) {
       </div>
 
       <Tabs
+        idBase="conversation-detail"
+        aria-label="Conteúdo da conversa"
         tabs={[
           { id: "resumo", label: "Resumo" },
           { id: "transcricao", label: "Transcrição" },
@@ -185,7 +187,13 @@ export function ConversationDetailView({ id }: { id: string }) {
         onChange={(id) => setTab(id as Tab)}
       />
 
-      <div style={{ paddingTop: 24 }}>
+      <div
+        id={`conversation-detail-panel-${tab}`}
+        role="tabpanel"
+        aria-labelledby={`conversation-detail-tab-${tab}`}
+        tabIndex={0}
+        style={{ paddingTop: 24 }}
+      >
         {tab === "resumo" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             <div>

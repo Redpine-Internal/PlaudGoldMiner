@@ -5,6 +5,7 @@ import { X, Check } from 'lucide-react';
 import { DropZone } from './DropZone';
 import { UploadProgress, type UploadStatus } from './UploadProgress';
 import { MetadataForm } from './MetadataForm';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -176,9 +177,14 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
     }
   };
 
-  if (!isOpen) return null;
-
   const isProcessing = status === 'uploading' || status === 'processing';
+  const dialogRef = useModalDialog({
+    isOpen,
+    onClose: handleClose,
+    canClose: !isProcessing,
+  });
+
+  if (!isOpen) return null;
 
   return (
     <div className="ds-modal-root fixed inset-0 z-50 flex items-center justify-center">
@@ -189,7 +195,14 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
       />
 
       {/* Modal */}
-      <div className="ds-modal pgm-upload-modal relative w-full max-w-md mx-4 p-6">
+      <div
+        ref={dialogRef}
+        className="ds-modal pgm-upload-modal relative w-full max-w-md mx-4 p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-dialog-title"
+        tabIndex={-1}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -203,7 +216,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
                 <X className="h-4 w-4" />
               </button>
             )}
-            <h2 className="text-xl font-semibold">
+            <h2 id="upload-dialog-title" className="text-xl font-semibold">
               {step === 'upload' && 'Nova Conversa'}
               {step === 'metadata' && 'Informações da Conversa'}
               {step === 'processing' && 'Salvando...'}

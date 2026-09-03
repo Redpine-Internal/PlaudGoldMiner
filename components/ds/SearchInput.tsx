@@ -6,6 +6,7 @@ export interface SearchInputProps {
   value?: string;
   onChange?: (value: string) => void;
   placeholder?: string;
+  "aria-label"?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
   className?: string;
@@ -16,6 +17,7 @@ export function SearchInput({
   value = "",
   onChange,
   placeholder = "Buscar...",
+  "aria-label": ariaLabel,
   disabled = false,
   style,
   className = "",
@@ -29,10 +31,16 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange && onChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={ariaLabel || placeholder}
         disabled={disabled}
       />
       {value ? (
-        <button type="button" className="ds-search-clear" onClick={() => onChange && onChange("")}>
+        <button
+          type="button"
+          className="ds-search-clear"
+          aria-label={`Limpar ${ariaLabel || placeholder}`}
+          onClick={() => onChange && onChange("")}
+        >
           <Icon name="x" size={16} />
         </button>
       ) : null}

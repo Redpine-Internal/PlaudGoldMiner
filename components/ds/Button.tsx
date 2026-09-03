@@ -20,6 +20,7 @@ export interface ButtonProps {
   children?: React.ReactNode;
   disabled?: boolean;
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  "aria-label"?: string;
   title?: string;
   style?: React.CSSProperties;
   className?: string;
@@ -35,6 +36,7 @@ export function Button({
   children,
   disabled = false,
   onClick,
+  "aria-label": ariaLabel,
   title,
   style,
   className = "",
@@ -50,7 +52,7 @@ export function Button({
     .join(" ");
   const iSize = iconSize || (size === "sm" ? 14 : 18);
   return (
-    <button type="button" className={cls} disabled={disabled} onClick={onClick} title={title} style={style}>
+    <button type="button" className={cls} disabled={disabled} onClick={onClick} aria-label={ariaLabel} title={title} style={style}>
       {icon ? <Icon name={icon} size={iSize} className={iconSpin ? "ds-spin" : ""} /> : null}
       {children ? <span>{children}</span> : null}
     </button>

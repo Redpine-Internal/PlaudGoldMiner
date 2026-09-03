@@ -52,7 +52,7 @@
        Referências via var(): o .dark redefine os tokens acima e todo o app
        (inclusive cantos ainda não migrados) flui junto. ── */
 :root{
-  --fontFamily:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --fontFamily:Soehne,Arial,sans-serif;
   --background:var(--color-background);
   --backgroundAlternative:var(--color-neutral-50);
   --backgroundContainer:var(--color-card);

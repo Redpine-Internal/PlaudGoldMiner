@@ -149,6 +149,8 @@ const OutputPanel = () => {
       </div>
 
       <Tabs
+        idBase="conversation-output"
+        aria-label="Conteúdo da conversa selecionada"
         tabs={[
           { id: "resumo", label: "Resumo" },
           { id: "transcricao", label: "Transcrição" },
@@ -158,7 +160,13 @@ const OutputPanel = () => {
         onChange={(id) => setTab(id as Tab)}
       />
 
-      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+      <div
+        id={`conversation-output-panel-${tab}`}
+        role="tabpanel"
+        aria-labelledby={`conversation-output-tab-${tab}`}
+        tabIndex={0}
+        style={{ flex: 1, overflowY: "auto", padding: 16 }}
+      >
         {tab === "resumo" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             <div>

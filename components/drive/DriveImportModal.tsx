@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, HardDrive } from 'lucide-react';
 import { DriveFilePicker } from './DriveFilePicker';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 
 interface DriveFile {
   id: string;
@@ -24,8 +25,6 @@ export function DriveImportModal({
 }: DriveImportModalProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const handleFileSelect = async (file: DriveFile) => {
     setIsImporting(true);
@@ -57,6 +56,14 @@ export function DriveImportModal({
     }
   };
 
+  const dialogRef = useModalDialog({
+    isOpen,
+    onClose,
+    canClose: !isImporting,
+  });
+
+  if (!isOpen) return null;
+
   return (
     <div className="ds-modal-root fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
@@ -66,12 +73,19 @@ export function DriveImportModal({
       />
 
       {/* Modal */}
-      <div className="ds-modal pgm-drive-modal relative w-full max-w-2xl mx-4">
+      <div
+        ref={dialogRef}
+        className="ds-modal pgm-drive-modal relative w-full max-w-2xl mx-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drive-import-dialog-title"
+        tabIndex={-1}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <HardDrive className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Importar do Google Drive</h2>
+            <h2 id="drive-import-dialog-title" className="text-lg font-semibold">Importar do Google Drive</h2>
           </div>
           <button
             onClick={onClose}

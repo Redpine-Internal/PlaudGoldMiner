@@ -66,14 +66,46 @@ const Toolbar = () => {
   const [userName, setUserName] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const avatarRef = useRef<HTMLDivElement | null>(null);
+  const avatarButtonRef = useRef<HTMLButtonElement | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!avatarOpen) return;
     const closeOutside = (event: PointerEvent) => {
       if (avatarRef.current && !avatarRef.current.contains(event.target as Node)) setAvatarOpen(false);
     };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setAvatarOpen(false);
+        avatarButtonRef.current?.focus();
+        return;
+      }
+
+      const items = Array.from(accountMenuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+      const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+      let nextIndex: number | null = null;
+      if (event.key === "ArrowDown") nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+      if (event.key === "ArrowUp") nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = items.length - 1;
+      if (nextIndex != null && items[nextIndex]) {
+        event.preventDefault();
+        items[nextIndex].focus();
+      } else if (event.key === "Tab") {
+        setAvatarOpen(false);
+      }
+    };
+    const focusFrame = window.requestAnimationFrame(() => {
+      accountMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    });
     document.addEventListener("pointerdown", closeOutside);
-    return () => document.removeEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, [avatarOpen]);
 
   useEffect(() => {
@@ -157,27 +189,39 @@ const Toolbar = () => {
 
         <div ref={avatarRef} style={{ position: "relative", display: "inline-flex" }}>
           <button
+            ref={avatarButtonRef}
             type="button"
             className="pgm-avatar"
             aria-label="Abrir conta"
             aria-expanded={avatarOpen}
+            aria-haspopup="menu"
+            aria-controls="account-menu"
             onClick={() => setAvatarOpen((open) => !open)}
           >
             {initialsOf(userName)}
           </button>
           {avatarOpen ? (
-            <div className="menu" style={{ position: "absolute", top: 50, right: 0, zIndex: 49 }}>
+            <div
+              ref={accountMenuRef}
+              id="account-menu"
+              className="menu"
+              role="menu"
+              aria-label={`Conta de ${userName || "usuário"}`}
+              style={{ position: "absolute", top: 50, right: 0, zIndex: 49 }}
+            >
               <div style={{ padding: "10px 12px 8px" }}>
                 <div style={{ fontSize: 16, fontWeight: 600 }}>{userName || "—"}</div>
                 <div style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--app-muted)", fontSize: 14 }}>
                   {userEmail || "—"}
                 </div>
               </div>
-              <Link href="/perfil" onClick={() => setAvatarOpen(false)}>
+              <Link href="/perfil" role="menuitem" tabIndex={-1} onClick={() => setAvatarOpen(false)}>
                 <User size={17} strokeWidth={1.75} /> Perfil
               </Link>
               <a
                 href="#sair"
+                role="menuitem"
+                tabIndex={-1}
                 style={{ color: "var(--color-danger-600)" }}
                 onClick={(event) => {
                   event.preventDefault();

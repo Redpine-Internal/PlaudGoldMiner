@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavigationIcon, type NavigationIconName } from "@/components/layout/navigation-icon";
@@ -71,7 +72,14 @@ const Sidebar = () => {
       <div className="pgm-sidebar__brand">
         <Link href="/" title="Plaud Gold Miner" className="pgm-sidebar__brand-link">
           {collapsed ? (
-            <span className="pgm-sidebar__abbreviation">PGM</span>
+            <Image
+              src="/icon.svg"
+              alt="PGM"
+              width={22}
+              height={22}
+              className="pgm-sidebar__mark"
+              priority
+            />
           ) : (
             <span className="pgm-sidebar__name">Plaud Gold Miner</span>
           )}
@@ -80,7 +88,7 @@ const Sidebar = () => {
 
       <nav className="pgm-sidebar__nav" style={{ paddingInline: collapsed ? 8 : undefined }}>
         {GROUPS.map((g, gi) => (
-          <div key={g.label} className="pgm-sidebar__group" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div key={g.label} className="pgm-sidebar__group" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             {collapsed ? (
               gi > 0 ? <div style={{ height: 12 }} /> : null
             ) : (
