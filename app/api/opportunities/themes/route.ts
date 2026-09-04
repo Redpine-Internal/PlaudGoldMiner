@@ -57,12 +57,14 @@ const SELECT_THEMES = `
     SELECT m.theme_id, m.opportunity_id, o.score
       FROM app_business_theme_members m
       JOIN app_opportunities o ON o.id = m.opportunity_id
+     WHERE o.status IS DISTINCT FROM 'descartada'
   ),
   conversas AS (
     SELECT m.theme_id, c.id AS conversation_id, c.title, c.date
-      FROM app_business_theme_members m
+      FROM membros m
       JOIN app_opportunity_sources s ON s.opportunity_id = m.opportunity_id
       JOIN conversations c ON c.id::text = s.conversation_id
+     WHERE c.status = 'processado'
      GROUP BY m.theme_id, c.id, c.title, c.date
   )
   SELECT t.id, t.name, t.rationale, t.updated_at::text AS updated_at,
@@ -86,7 +88,8 @@ const SELECT_THEMES = `
 const COUNT_UNGROUPED = `
   SELECT count(*)::int AS n
     FROM app_opportunities o
-   WHERE NOT EXISTS (
+   WHERE o.status IS DISTINCT FROM 'descartada'
+     AND NOT EXISTS (
      SELECT 1 FROM app_business_theme_members m WHERE m.opportunity_id = o.id
    )`;
 
@@ -113,7 +116,10 @@ export async function POST() {
   const client = await pool.connect();
   try {
     const candidates = await client.query<ThemeCandidate>(
-      `SELECT id, title, type, subtype FROM app_opportunities ORDER BY created_at ASC`
+      `SELECT id, title, type, subtype
+         FROM app_opportunities
+        WHERE status IS DISTINCT FROM 'descartada'
+        ORDER BY created_at ASC`
     );
 
     if (!candidates.rowCount) {

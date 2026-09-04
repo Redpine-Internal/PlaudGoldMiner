@@ -73,9 +73,9 @@ type ContentFlags = { hasSummary: boolean; hasTranscription: boolean; hasInsight
 type CardStatus = ContentFlags | "loading";
 // The three content filters, keyed to the flag they gate on.
 const CONTENT: [keyof ContentFlags, string][] = [
-  ["hasSummary", "Resumo"],
+  ["hasSummary", "Resumo do Plaud"],
   ["hasTranscription", "Transcrição"],
-  ["hasInsights", "Insights"],
+  ["hasInsights", "Negócios"],
 ];
 
 // Busca insensível a acentos: "seguranca" deve casar com "Segurança".
@@ -380,7 +380,7 @@ const ConversasView = () => {
               <span>Status</span>
               <span>Data</span>
               <span>Duração</span>
-              <span>Conteúdo</span>
+              <span>Disponibilidade</span>
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -452,9 +452,9 @@ function ConversationRow({
         <span className="pgm-conversation-row__muted">{dateFmt}</span>
         <span className="pgm-conversation-row__muted">{c.duration || "—"}</span>
         <div className="pgm-conversation-row__content">
-          <IndicatorBadge icon="file-text" label="Resumo" shortLabel="RES" on={flags?.hasSummary} loading={!flags} />
-          <IndicatorBadge icon="documents" label="Transcrição" shortLabel="TRA" on={flags?.hasTranscription} loading={!flags} />
-          <IndicatorBadge icon="lightbulb" label="Insights" shortLabel="INS" on={flags?.hasInsights} loading={!flags} />
+          <IndicatorBadge icon="file-text" label="Resumo do Plaud" on={flags?.hasSummary} loading={!flags} />
+          <IndicatorBadge icon="documents" label="Transcrição" on={flags?.hasTranscription} loading={!flags} />
+          <IndicatorBadge icon="lightbulb" label="Negócios" on={flags?.hasInsights} loading={!flags} />
         </div>
       </GlassListRow>
     );
@@ -501,9 +501,9 @@ function ConversationRow({
         ) : null}
         {status ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
-            <IndicatorBadge icon="file-text" label="Resumo" on={flags?.hasSummary} loading={!flags} />
+            <IndicatorBadge icon="file-text" label="Resumo do Plaud" on={flags?.hasSummary} loading={!flags} />
             <IndicatorBadge icon="documents" label="Transcrição" on={flags?.hasTranscription} loading={!flags} />
-            <IndicatorBadge icon="lightbulb" label="Insights" on={flags?.hasInsights} loading={!flags} />
+            <IndicatorBadge icon="lightbulb" label="Negócios" on={flags?.hasInsights} loading={!flags} />
           </div>
         ) : null}
       </div>
@@ -519,8 +519,8 @@ function ConversationRow({
   );
 }
 
-/** Cápsula neutra indicando se um conteúdo existe (texto verde semântico) ou não (muted). */
-function IndicatorBadge({ icon, label, shortLabel, on, loading }: { icon: string; label: string; shortLabel?: string; on?: boolean; loading?: boolean }) {
+/** Indicador neutro mostrando se cada conteúdo está disponível. */
+function IndicatorBadge({ icon, label, on, loading }: { icon: string; label: string; on?: boolean; loading?: boolean }) {
   const active = Boolean(on) && !loading;
   return (
     <span
@@ -541,7 +541,7 @@ function IndicatorBadge({ icon, label, shortLabel, on, loading }: { icon: string
       }}
     >
       <Icon name={loading ? "reload" : active ? "check" : icon} size={13} className={loading ? "ds-spin" : undefined} />
-      {shortLabel || label}
+      {label}
     </span>
   );
 }

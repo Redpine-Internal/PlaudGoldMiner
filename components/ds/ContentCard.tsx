@@ -31,6 +31,8 @@ export interface ContentCardProps {
   onDiscard?: React.MouseEventHandler<HTMLButtonElement>;
   /** Slot de ação renderizado dentro do card (ex.: botão de projeto). */
   action?: React.ReactNode;
+  /** Conteúdo complementar que deve permanecer dentro dos limites visuais do card. */
+  footer?: React.ReactNode;
   sourceId?: string;
   enrichText?: string;
   /** Texto do artigo já gerado — abre dentro do modal, editável. */
@@ -39,31 +41,7 @@ export interface ContentCardProps {
   className?: string;
 }
 
-interface ParsedOutline {
-  angle: string;
-  points: string[];
-  text: string;
-}
-
-/** Parse the outline field, which may be JSON ({ angle, points[] }) or plain text. */
-function parseOutline(outline?: string): ParsedOutline | null {
-  if (!outline) return null;
-  try {
-    const o = JSON.parse(outline);
-    if (o && typeof o === "object" && (Array.isArray(o.points) || typeof o.angle === "string")) {
-      return {
-        angle: typeof o.angle === "string" ? o.angle : "",
-        points: Array.isArray(o.points) ? o.points.map(String) : [],
-        text: "",
-      };
-    }
-  } catch {
-    // Not JSON — fall through to plain-text rendering.
-  }
-  return { angle: "", points: [], text: outline };
-}
-
-/** Content-suggestion card — structure and actions from app/conteudos. */
+/** Content-suggestion card — compact summary and actions from app/conteudos. */
 export function ContentCard({
   title,
   platform = "artigo",
@@ -77,6 +55,7 @@ export function ContentCard({
   onApprove,
   onDiscard,
   action,
+  footer,
   sourceId,
   enrichText,
   draft,
@@ -85,9 +64,6 @@ export function ContentCard({
 }: ContentCardProps) {
   const p = P[platform] || P.artigo;
   const sub = subtype?.trim();
-  // outline is stored as JSON ({ angle, points[] }) by the generator, but may be
-  // a plain string for legacy/mock rows — handle both gracefully.
-  const parsed = parseOutline(outline);
   // relevanceScore comes through as 0-100 from the generator; older rows may be
   // 0-1. Normalise so we never render "9800%".
   const relevancePct = relevanceScore <= 1 ? Math.round(relevanceScore * 100) : Math.round(relevanceScore);
@@ -157,21 +133,6 @@ export function ContentCard({
       </div>
       <h2 className="pgm-content-card__title">{title}</h2>
       <p className="pgm-content-card__theme">{theme}</p>
-      {parsed ? (
-        <div className="pgm-content-card__outline">
-          {parsed.angle ? <p style={{ margin: "0 0 6px", fontStyle: "italic" }}>{parsed.angle}</p> : null}
-          <p className="pgm-content-card__outline-label">Estrutura</p>
-          {parsed.points.length ? (
-            <ul>
-              {parsed.points.map((pt, i) => (
-                <li key={i}>{pt}</li>
-              ))}
-            </ul>
-          ) : (
-            <p style={{ margin: 0 }}>{parsed.text}</p>
-          )}
-        </div>
-      ) : null}
       <div className="pgm-content-card__stats">
         <span>Mencionado {mentionCount}x</span>
         <span>Relevância: {relevancePct}%</span>
@@ -186,6 +147,11 @@ export function ContentCard({
               Descartar
             </Button>
           ) : null}
+        </div>
+      ) : null}
+      {footer ? (
+        <div className="pgm-content-card__footer" onClick={(event) => event.stopPropagation()}>
+          {footer}
         </div>
       ) : null}
     </div>

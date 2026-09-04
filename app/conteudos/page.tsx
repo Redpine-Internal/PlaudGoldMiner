@@ -305,13 +305,13 @@ const ConteudosPage = () => {
                       style={{ alignSelf: "flex-start" }}
                     />
                   }
+                  footer={c.draft ? (
+                    <details>
+                      <summary style={{ font: "500 12px/16px var(--fontFamily)", cursor: "pointer" }}>Editar / regerar rascunho</summary>
+                      <DraftEditor id={c.id} draft={c.draft} onSaved={mutate} onRegenerate={() => generateDraft(c.id)} regenerating={drafting === c.id} />
+                    </details>
+                  ) : undefined}
                 />
-                {c.draft ? (
-                  <details style={{ marginTop: 8 }}>
-                    <summary style={{ font: "500 12px/16px var(--fontFamily)", cursor: "pointer" }}>Editar / regerar rascunho</summary>
-                    <DraftEditor id={c.id} draft={c.draft} onSaved={mutate} onRegenerate={() => generateDraft(c.id)} regenerating={drafting === c.id} />
-                  </details>
-                ) : null}
               </div>
             ))}
           </div>

@@ -18,9 +18,18 @@ interface PipelineRow {
   score: number | null;
 }
 
-interface ThemeSourceRow {
-  topics: string | null;
-  current_period: boolean;
+interface BusinessThemeRow {
+  name: string;
+  rationale: string | null;
+  updated_at: string;
+  opportunities: number;
+  conversations: number;
+}
+
+interface ThemeCoverageRow {
+  total: number;
+  mapped: number;
+  updated_at: string | null;
 }
 
 interface ProjectRow {
@@ -63,6 +72,8 @@ interface EvidenceRow {
 interface WeekActivityRow {
   conversations: number;
   opportunities: number;
+  source_conversations: number;
+  recent_source_conversations: number;
   suggested_contents: number;
   top_type: string | null;
   top_type_count: number;
@@ -83,7 +94,8 @@ export async function GET() {
       weekActivityRes,
       recentRes,
       pipelineRes,
-      themesSourceRes,
+      themesRes,
+      themeCoverageRes,
       lastProjectRes,
       profileRes,
       demandRes,
@@ -106,7 +118,7 @@ export async function GET() {
       ),
       pool.query<WeekActivityRow>(
         `WITH weekly_opportunities AS (
-           SELECT type
+           SELECT id, type
              FROM app_opportunities
             WHERE status IS DISTINCT FROM 'descartada'
               AND created_at >= now() - interval '7 days'
@@ -116,11 +128,23 @@ export async function GET() {
             GROUP BY type
             ORDER BY count DESC, type
             LIMIT 1
+         ), weekly_sources AS (
+           SELECT s.conversation_id, c.date
+             FROM weekly_opportunities o
+             JOIN app_opportunity_sources s ON s.opportunity_id = o.id
+             JOIN conversations c
+               ON c.id::text = s.conversation_id
+              AND c.status = 'processado'
+            GROUP BY s.conversation_id, c.date
          )
          SELECT (SELECT COUNT(*)::int FROM conversations
                   WHERE status = 'processado'
                     AND date BETWEEN current_date - interval '6 days' AND current_date) AS conversations,
                 (SELECT COUNT(*)::int FROM weekly_opportunities) AS opportunities,
+                (SELECT COUNT(*)::int FROM weekly_sources) AS source_conversations,
+                (SELECT COUNT(*)::int FROM weekly_sources
+                  WHERE date BETWEEN current_date - interval '6 days' AND current_date)
+                  AS recent_source_conversations,
                 (SELECT COUNT(*)::int FROM app_contents
                   WHERE status = 'sugerido'
                     AND created_at >= now() - interval '7 days') AS suggested_contents,
@@ -130,6 +154,7 @@ export async function GET() {
       pool.query<ConversationRow>(
         `SELECT COALESCE(NULLIF(source_file_id, ''), id::text) AS id, title, date
            FROM conversations
+          WHERE status = 'processado'
           ORDER BY date DESC NULLS LAST
           LIMIT 4`
       ),
@@ -139,12 +164,53 @@ export async function GET() {
           ORDER BY score DESC NULLS LAST
           LIMIT 4`
       ),
-      pool.query<ThemeSourceRow>(
-        `SELECT topics,
-                (date >= current_date - interval '29 days') AS current_period
-           FROM conversations
-          WHERE topics IS NOT NULL
-            AND date BETWEEN current_date - interval '59 days' AND current_date`
+      // Temas são uma leitura semântica da IA sobre os negócios, não palavras
+      // soltas extraídas de reuniões. O resultado é cacheado para abrir o
+      // dashboard sem custo nem latência de modelo.
+      pool.query<BusinessThemeRow>(
+        `WITH active_members AS (
+           SELECT m.theme_id, m.opportunity_id
+             FROM app_business_theme_members m
+             JOIN app_opportunities o ON o.id = m.opportunity_id
+            WHERE o.status IS DISTINCT FROM 'descartada'
+         ), theme_conversations AS (
+           SELECT m.theme_id, s.conversation_id
+             FROM active_members m
+             JOIN app_opportunity_sources s ON s.opportunity_id = m.opportunity_id
+             JOIN conversations c
+               ON c.id::text = s.conversation_id
+              AND c.status = 'processado'
+            GROUP BY m.theme_id, s.conversation_id
+         )
+         SELECT t.name,
+                t.rationale,
+                t.updated_at::text AS updated_at,
+                (SELECT COUNT(*)::int FROM active_members m WHERE m.theme_id = t.id)
+                  AS opportunities,
+                (SELECT COUNT(*)::int FROM theme_conversations c WHERE c.theme_id = t.id)
+                  AS conversations
+           FROM app_business_themes t
+          WHERE EXISTS (SELECT 1 FROM active_members m WHERE m.theme_id = t.id)
+          ORDER BY conversations DESC, opportunities DESC, t.name
+          LIMIT 4`
+      ),
+      pool.query<ThemeCoverageRow>(
+        `WITH active_opportunities AS (
+           SELECT id
+             FROM app_opportunities
+            WHERE status IS DISTINCT FROM 'descartada'
+         )
+         SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE EXISTS (
+                  SELECT 1
+                    FROM app_business_theme_members m
+                   WHERE m.opportunity_id = o.id
+                ))::int AS mapped,
+                (SELECT MAX(t.updated_at)::text
+                   FROM app_business_themes t
+                   JOIN app_business_theme_members m ON m.theme_id = t.id
+                   JOIN active_opportunities a ON a.id = m.opportunity_id) AS updated_at
+           FROM active_opportunities o`
       ),
       pool.query<ProjectRow>(
         `SELECT id, title, description FROM app_projects
@@ -161,13 +227,16 @@ export async function GET() {
       pool.query<DemandRow>(
         `SELECT o.type,
                 COUNT(DISTINCT o.id)::int AS count,
-                COUNT(DISTINCT s.conversation_id)::int AS conversations,
+                COUNT(DISTINCT c.id)::int AS conversations,
                 ROUND(AVG(o.score))::int AS avg_score,
                 (SELECT t.title FROM app_opportunities t
                   WHERE t.type = o.type AND t.status IS DISTINCT FROM 'descartada'
                   ORDER BY t.score DESC NULLS LAST LIMIT 1) AS top_title
            FROM app_opportunities o
            LEFT JOIN app_opportunity_sources s ON s.opportunity_id = o.id
+           LEFT JOIN conversations c
+             ON c.id::text = s.conversation_id
+            AND c.status = 'processado'
           WHERE o.status IS DISTINCT FROM 'descartada'
           GROUP BY o.type
           ORDER BY conversations DESC, count DESC`
@@ -194,9 +263,12 @@ export async function GET() {
       pool.query<EvidenceRow>(
         `SELECT n_fontes AS sources, COUNT(*)::int AS opportunities
            FROM (
-             SELECT o.id, COUNT(s.conversation_id)::int AS n_fontes
+             SELECT o.id, COUNT(DISTINCT c.id)::int AS n_fontes
                FROM app_opportunities o
                LEFT JOIN app_opportunity_sources s ON s.opportunity_id = o.id
+               LEFT JOIN conversations c
+                 ON c.id::text = s.conversation_id
+                AND c.status = 'processado'
               WHERE o.status IS DISTINCT FROM 'descartada'
               GROUP BY o.id
            ) t
@@ -208,6 +280,9 @@ export async function GET() {
         `SELECT (SELECT COUNT(DISTINCT s.conversation_id)::int
                    FROM app_opportunity_sources s
                    INNER JOIN app_opportunities o ON o.id = s.opportunity_id
+                   INNER JOIN conversations c
+                     ON c.id::text = s.conversation_id
+                    AND c.status = 'processado'
                   WHERE o.status IS DISTINCT FROM 'descartada') AS linked,
                 (SELECT COUNT(*)::int FROM conversations
                   WHERE status = 'processado') AS total`
@@ -229,46 +304,23 @@ export async function GET() {
       score: row.score ?? 0,
     }));
 
-    // themes: menções por tópico em duas janelas fechadas de 30 dias.
-    const themeMap = new Map<
-      string,
-      { name: string; current: number; previous: number }
-    >();
-    for (const row of themesSourceRes.rows) {
-      if (!row.topics) continue;
+    const themes = themesRes.rows.map((row) => ({
+      name: row.name,
+      rationale: row.rationale,
+      opportunities: row.opportunities,
+      conversations: row.conversations,
+    }));
 
-      let topics: unknown;
-      try {
-        topics = JSON.parse(row.topics);
-      } catch {
-        continue;
-      }
-      if (!Array.isArray(topics)) continue;
-
-      for (const rawTopic of topics) {
-        if (typeof rawTopic !== 'string') continue;
-        const name = rawTopic.trim();
-        if (!name) continue;
-        const key = name.toLowerCase();
-        let entry = themeMap.get(key);
-        if (!entry) {
-          entry = { name, current: 0, previous: 0 };
-          themeMap.set(key, entry);
-        }
-        if (row.current_period) entry.current += 1;
-        else entry.previous += 1;
-      }
-    }
-    const themes = Array.from(themeMap.values())
-      .filter((t) => t.current > 0)
-      .sort((a, b) => b.current - a.current)
-      .slice(0, 4)
-      .map((t) => ({
-        name: t.name,
-        count: t.current,
-        previous: t.previous,
-        change: t.current - t.previous,
-      }));
+    const themeCoverageRow = themeCoverageRes.rows[0];
+    const themeTotal = themeCoverageRow?.total ?? 0;
+    const themeMapped = themeCoverageRow?.mapped ?? 0;
+    const themeCoverage = {
+      total: themeTotal,
+      mapped: themeMapped,
+      ungrouped: Math.max(themeTotal - themeMapped, 0),
+      percent: themeTotal > 0 ? Math.round((themeMapped / themeTotal) * 100) : 0,
+      updatedAt: themeCoverageRow?.updated_at ?? null,
+    };
 
     // "Continuar" só pode apontar para trabalho realmente ativo.
     const projectRow: ProjectRow | null = lastProjectRes.rows[0] ?? null;
@@ -280,15 +332,19 @@ export async function GET() {
         }
       : null;
 
-    const demandTotal = demandRes.rows.reduce((acc, r) => acc + (r.conversations ?? 0), 0);
+    const linkedConversations = coverageRes.rows[0]?.linked ?? 0;
     const demand = demandRes.rows.map((r) => ({
       type: r.type,
       count: r.count,
       conversations: r.conversations,
       avgScore: r.avg_score ?? 0,
       topTitle: r.top_title ?? null,
-      // Participação sobre o total de conversas-evidência, para a barra da UI.
-      share: demandTotal > 0 ? Math.round((r.conversations / demandTotal) * 100) : 0,
+      // Alcance sobre conversas únicas vinculadas. Tipos se sobrepõem, então
+      // somar as barras não representa 100% — e a API explicita isso.
+      reach:
+        linkedConversations > 0
+          ? Math.round((r.conversations / linkedConversations) * 100)
+          : 0,
     }));
 
     const volume = volumeRes.rows.map((r) => {
@@ -323,6 +379,7 @@ export async function GET() {
           : 0,
       withoutSources: evidenceRes.rows.find((r) => r.sources === 0)?.opportunities ?? 0,
       single: evidenceRes.rows.find((r) => r.sources === 1)?.opportunities ?? 0,
+      sourceLinks: evidenceWeighted,
     };
 
     const coverageRow = coverageRes.rows[0];
@@ -349,10 +406,14 @@ export async function GET() {
       suggestedContents: suggestedRes.rows[0]?.count ?? 0,
     };
 
-    // Leitura executiva: todos os fatos usam a mesma janela móvel de 7 dias.
+    // Leitura executiva: separa a data do registro feito pela IA da data das
+    // conversas usadas como evidência; misturar as duas cria uma falsa ideia
+    // de que todos os negócios vieram de reuniões da semana.
     const weekActivity = weekActivityRes.rows[0] ?? {
       conversations: 0,
       opportunities: 0,
+      source_conversations: 0,
+      recent_source_conversations: 0,
       suggested_contents: 0,
       top_type: null,
       top_type_count: 0,
@@ -361,18 +422,33 @@ export async function GET() {
     if (weekActivity.conversations > 0) {
       sentences.push(
         weekActivity.conversations === 1
-          ? 'O acervo contém 1 conversa realizada nos últimos 7 dias.'
-          : `O acervo contém ${weekActivity.conversations} conversas realizadas nos últimos 7 dias.`
+          ? 'Há 1 conversa no acervo com data nos últimos 7 dias.'
+          : `Há ${weekActivity.conversations} conversas no acervo com data nos últimos 7 dias.`
       );
     } else if (kpis.conversations > 0) {
       sentences.push('Não há conversa com data dos últimos 7 dias no acervo.');
     }
     if (weekActivity.opportunities > 0) {
-      sentences.push(
-        weekActivity.opportunities === 1
-          ? 'A IA identificou 1 novo negócio no período.'
-          : `A IA identificou ${weekActivity.opportunities} novos negócios no período.`
-      );
+      const businessLabel = weekActivity.opportunities === 1 ? 'novo negócio' : 'novos negócios';
+      if (weekActivity.source_conversations > 0) {
+        const sourceLabel = weekActivity.source_conversations === 1
+          ? '1 conversa do acervo'
+          : `${weekActivity.source_conversations} conversas do acervo`;
+        const historicalSources = Math.max(
+          weekActivity.source_conversations - weekActivity.recent_source_conversations,
+          0
+        );
+        const historicalNote = historicalSources > 0
+          ? `; ${historicalSources === 1 ? '1 delas é anterior' : `${historicalSources} delas são anteriores`} a essa janela`
+          : '';
+        sentences.push(
+          `Nesse período, a IA registrou ${weekActivity.opportunities} ${businessLabel} a partir de ${sourceLabel}${historicalNote}.`
+        );
+      } else {
+        sentences.push(
+          `Nesse período, a IA registrou ${weekActivity.opportunities} ${businessLabel}, mas eles ainda não possuem conversas de origem vinculadas.`
+        );
+      }
     }
     if (weekActivity.top_type && weekActivity.top_type_count > 0) {
       const label = DEMAND_LABEL[weekActivity.top_type] || weekActivity.top_type;
@@ -395,6 +471,7 @@ export async function GET() {
         recentConversations,
         pipeline,
         themes,
+        themeCoverage,
         demand,
         volume,
         volumeMax,

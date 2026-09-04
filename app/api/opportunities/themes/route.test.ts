@@ -68,6 +68,9 @@ describe('GET /api/opportunities/themes', () => {
     expect(groupBusinessThemes).not.toHaveBeenCalled();
     expect(body.data[0].conversationCount).toBe(9);
     expect(body.data[0].opportunityIds).toEqual(['o1', 'o2']);
+    expect(calls[0].sql).toContain("status IS DISTINCT FROM 'descartada'");
+    expect(calls[0].sql).toContain("c.status = 'processado'");
+    expect(calls[1].sql).toContain("status IS DISTINCT FROM 'descartada'");
   });
 
   it('informa quantos negócios ficaram fora dos temas', async () => {
@@ -123,6 +126,7 @@ describe('POST /api/opportunities/themes', () => {
     // O DELETE precisa vir DEPOIS do sucesso da IA: apagar antes deixaria a tela
     // vazia se o modelo falhasse.
     expect(sqls.indexOf('BEGIN')).toBeGreaterThan(0);
+    expect(calls[0].sql).toContain("status IS DISTINCT FROM 'descartada'");
     expect(body.message).toContain('1 tema');
     expect(release).toHaveBeenCalled();
   });

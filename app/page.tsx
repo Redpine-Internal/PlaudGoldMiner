@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import {
@@ -14,14 +15,26 @@ interface DashboardData {
   queue: { pendingConversations: number; suggestedContents: number };
   recentConversations: { id: string; title: string; date: string }[];
   pipeline: { id: string; title: string; status: string; score: number }[];
-  themes: { name: string; count: number; previous: number; change: number }[];
+  themes: {
+    name: string;
+    rationale: string | null;
+    opportunities: number;
+    conversations: number;
+  }[];
+  themeCoverage: {
+    total: number;
+    mapped: number;
+    ungrouped: number;
+    percent: number;
+    updatedAt: string | null;
+  };
   demand: {
     type: string;
     count: number;
     conversations: number;
     avgScore: number;
     topTitle: string | null;
-    share: number;
+    reach: number;
   }[];
   volume: { month: string; label: string; year: number; total: number }[];
   volumeMax: number;
@@ -33,6 +46,7 @@ interface DashboardData {
     avgSources: number;
     withoutSources: number;
     single: number;
+    sourceLinks: number;
   };
   coverage: { linked: number; total: number; percent: number };
   lastProject: { id: string; title: string; description: string | null } | null;
@@ -50,12 +64,44 @@ const formatDate = (value: string) => {
     : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 };
 
+const formatDecimal = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value);
+
+const formatUpdatedAt = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+};
+
 const DashboardPage = () => {
   const router = useRouter();
-  const { data: response, isLoading } = useSWR<{ data: DashboardData }>("/api/dashboard", fetcher, {
+  const { data: response, isLoading, mutate } = useSWR<{ data: DashboardData }>("/api/dashboard", fetcher, {
     revalidateOnFocus: false,
   });
+  const [isRefreshingThemes, setIsRefreshingThemes] = useState(false);
+  const [themeRefreshError, setThemeRefreshError] = useState<string | null>(null);
   const data = response?.data;
+
+  const refreshThemes = async () => {
+    setIsRefreshingThemes(true);
+    setThemeRefreshError(null);
+    try {
+      const response = await fetch("/api/opportunities/themes", { method: "POST" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || "Não foi possível atualizar a inteligência.");
+      }
+      await mutate();
+    } catch (error) {
+      setThemeRefreshError(
+        error instanceof Error ? error.message : "Não foi possível atualizar a inteligência."
+      );
+    } finally {
+      setIsRefreshingThemes(false);
+    }
+  };
 
   const now = new Date();
   const period = now.toLocaleDateString("pt-BR", {
@@ -212,15 +258,17 @@ const DashboardPage = () => {
         <section className="ds-card dashboard-demand" aria-labelledby="demand-title">
           <p className="dashboard-section-kicker">Sinais comerciais</p>
           <h2 id="demand-title">Demanda acumulada por tipo</h2>
-          <p className="dashboard-muted">Base: negócios ativos e as conversas vinculadas como evidência.</p>
+          <p className="dashboard-muted">
+            Base: {data?.coverage.linked ?? 0} conversas vinculadas a negócios ativos. Uma conversa pode sustentar mais de um tipo.
+          </p>
           <div className="dashboard-demand-grid">
             {data?.demand.length ? data.demand.map((item) => (
               <button key={item.type} type="button" className="dashboard-demand-item" onClick={() => router.push("/novos-negocios")}>
                 <span>{formatOpportunityType(item.type)}</span>
-                <strong>{item.conversations} conversa{item.conversations === 1 ? "" : "s"}</strong>
-                <small>{item.count} negócio{item.count === 1 ? "" : "s"} · score médio {item.avgScore}%</small>
+                <strong>{item.reach}% do acervo vinculado</strong>
+                <small>{item.conversations} conversa{item.conversations === 1 ? "" : "s"} · {item.count} negócio{item.count === 1 ? "" : "s"} · confiança média da IA {item.avgScore}%</small>
                 {item.topTitle ? <em>{item.topTitle}</em> : null}
-                <i><b style={{ width: `${Math.max(item.share, 2)}%` }} /></i>
+                <i><b style={{ width: `${Math.max(item.reach, 2)}%` }} /></i>
               </button>
             )) : <p className="dashboard-muted">Sem demanda agrupada disponível.</p>}
           </div>
@@ -229,7 +277,10 @@ const DashboardPage = () => {
         <section className="ds-card dashboard-evidence" aria-labelledby="evidence-title">
           <p className="dashboard-section-kicker">Rastreabilidade</p>
           <h2 id="evidence-title">Evidência por negócio</h2>
-          <div className="dashboard-evidence-hero"><strong>{data?.evidence.avgSources ?? 0}</strong><span>conversas por negócio, em média</span></div>
+          <div className="dashboard-evidence-hero"><strong>{formatDecimal(data?.evidence.avgSources ?? 0)}</strong><span>conversas por negócio, em média</span></div>
+          <p className="dashboard-muted dashboard-evidence-basis">
+            {data?.evidence.total ?? 0} negócios ativos · {data?.evidence.sourceLinks ?? 0} vínculos de evidência
+          </p>
           <div className="dashboard-evidence-bars" aria-label="Distribuição das fontes por oportunidade">
             {data?.evidence.buckets.length ? data.evidence.buckets.map((bucket) => {
               const width = data.evidence.max ? Math.max((bucket.opportunities / data.evidence.max) * 100, 2) : 2;
@@ -249,35 +300,65 @@ const DashboardPage = () => {
         </section>
 
         <section className="ds-card dashboard-coverage" aria-labelledby="coverage-title">
-          <p className="dashboard-section-kicker">Rastreabilidade do acervo</p>
-          <h2 id="coverage-title">Cobertura de evidências</h2>
-          <div className="dashboard-coverage-value">{data?.coverage.percent ?? 0}%</div>
-          <p className="dashboard-muted">{data?.coverage.linked ?? 0} de {data?.coverage.total ?? 0} conversas sustentam negócios ativos</p>
-          <div className="dashboard-meter" aria-hidden><span style={{ width: `${data?.coverage.percent ?? 0}%` }} /></div>
           {(data?.coverage.total ?? 0) > 0 ? (
-            <p className="dashboard-muted">
-              {(data?.coverage.total ?? 0) - (data?.coverage.linked ?? 0)} conversa{(data?.coverage.total ?? 0) - (data?.coverage.linked ?? 0) === 1 ? " ainda não está vinculada" : "s ainda não estão vinculadas"} a negócios ativos.
-            </p>
-          ) : <p className="dashboard-muted">Ainda não há conversas processadas para avaliar.</p>}
+            <>
+              <p className="dashboard-section-kicker">Aproveitamento comercial</p>
+              <h2 id="coverage-title">Conversas usadas em negócios</h2>
+              <div className="dashboard-coverage-value">
+                {data?.coverage.linked ?? 0}<span> de {data?.coverage.total ?? 0}</span>
+              </div>
+              <p className="dashboard-muted dashboard-coverage-lead">
+                <strong>As {data?.coverage.total ?? 0} conversas deste indicador já foram processadas.</strong>{" "}
+                Destas, {data?.coverage.linked ?? 0} foram vinculadas como evidência a pelo menos um negócio ativo.
+              </p>
+              <div className="dashboard-meter" aria-hidden><span style={{ width: `${data?.coverage.percent ?? 0}%` }} /></div>
+              <p className="dashboard-muted">
+                <strong>{data?.coverage.percent ?? 0}% do acervo possui vínculo com negócios ativos.</strong>{" "}
+                {(data?.coverage.total ?? 0) - (data?.coverage.linked ?? 0)} conversa{(data?.coverage.total ?? 0) - (data?.coverage.linked ?? 0) === 1 ? " processada ainda não possui" : "s processadas ainda não possuem"} esse vínculo.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="dashboard-section-kicker">Aproveitamento comercial</p>
+              <h2 id="coverage-title">Conversas usadas em negócios</h2>
+              <p className="dashboard-muted">Ainda não há conversas processadas para avaliar.</p>
+            </>
+          )}
         </section>
 
         <section className="ds-card dashboard-themes" aria-labelledby="themes-title">
-          <p className="dashboard-section-kicker">Recorrência</p>
-          <h2 id="themes-title">Temas recorrentes</h2>
+          <div className="dashboard-section-heading">
+            <div><p className="dashboard-section-kicker">Inteligência da base</p><h2 id="themes-title">Temas de negócios</h2></div>
+            {(data?.themeCoverage?.total ?? 0) > 0 ? (
+              <button
+                type="button"
+                className="dashboard-text-action"
+                onClick={refreshThemes}
+                disabled={isRefreshingThemes}
+              >
+                {isRefreshingThemes ? "Atualizando…" : "Atualizar inteligência"}
+              </button>
+            ) : null}
+          </div>
+          <p className="dashboard-muted dashboard-theme-coverage">
+            A IA agrupou {data?.themeCoverage?.mapped ?? 0} de {data?.themeCoverage?.total ?? 0} negócios ativos ({data?.themeCoverage?.percent ?? 0}%).
+            {(data?.themeCoverage?.ungrouped ?? 0) > 0
+              ? ` ${data?.themeCoverage?.ungrouped} aguardam reagrupamento.`
+              : " A leitura está completa para a base atual."}
+            {formatUpdatedAt(data?.themeCoverage?.updatedAt)
+              ? ` Atualizada em ${formatUpdatedAt(data?.themeCoverage?.updatedAt)}.`
+              : ""}
+          </p>
+          {themeRefreshError ? <p className="dashboard-inline-error" role="alert">{themeRefreshError}</p> : null}
           <div className="dashboard-stack">
             {data?.themes.length ? data.themes.map((theme) => (
               <div key={theme.name} className="dashboard-theme-row">
                 <strong>{theme.name}</strong>
-                <span>{theme.count} {theme.count === 1 ? "menção" : "menções"}</span>
-                <span className={theme.change > 0 ? "dashboard-delta dashboard-delta--up" : "dashboard-delta"}>
-                  {theme.previous === 0
-                    ? "Novo"
-                    : theme.change === 0
-                      ? "Estável"
-                      : `${theme.change > 0 ? "+" : "−"}${Math.abs(theme.change)} vs. 30 dias anteriores`}
-                </span>
+                <span>{theme.conversations} conversa{theme.conversations === 1 ? "" : "s"}</span>
+                <span>{theme.opportunities} negócio{theme.opportunities === 1 ? "" : "s"}</span>
+                {theme.rationale ? <small>{theme.rationale}</small> : null}
               </div>
-            )) : <p className="dashboard-muted">Ainda não há recorrência suficiente.</p>}
+            )) : <p className="dashboard-muted">Ainda não há temas calculados para os negócios ativos.</p>}
           </div>
         </section>
 
@@ -291,7 +372,7 @@ const DashboardPage = () => {
               <button key={opportunity.id} type="button" className="dashboard-list-row dashboard-list-row--three" onClick={() => router.push("/novos-negocios")}>
                 <strong>{opportunity.title}</strong>
                 <span>{formatOpportunityStatus(opportunity.status)}</span>
-                <span className="dashboard-score">{Math.round(opportunity.score)}%</span>
+                <span className="dashboard-score" title="Confiança da classificação feita pela IA">Confiança {Math.round(opportunity.score)}%</span>
               </button>
             )) : <p className="dashboard-muted">Nenhuma oportunidade no pipeline.</p>}
           </div>

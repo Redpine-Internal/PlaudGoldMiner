@@ -99,7 +99,7 @@ function ContentDetails({ idea }: { idea: IdeaData }) {
       ) : null}
       {outline ? (
         <div style={panel}>
-          <span className="ds-label" style={{ display: "block", marginBottom: 4 }}>Roteiro</span>
+          <span className="ds-label" style={{ display: "block", marginBottom: 4 }}>Estrutura</span>
           {outline.angle ? (
             <p style={{ margin: "0 0 6px", font: "italic 400 14px/20px var(--font-sans)", color: "var(--textPrimary)" }}>
               {outline.angle}
@@ -428,7 +428,6 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
         className="ds-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "min(max(60vw, 720px), 100%)",
           maxHeight: "90vh",
           overflowY: "auto",
           display: "flex",

@@ -34,6 +34,8 @@ describe('GET /api/dashboard', () => {
         rows: [{
           conversations: 1,
           opportunities: 7,
+          source_conversations: 6,
+          recent_source_conversations: 1,
           suggested_contents: 3,
           top_type: 'consultoria',
           top_type_count: 4,
@@ -48,12 +50,15 @@ describe('GET /api/dashboard', () => {
       },
       { rows: [{ id: 'o1', title: 'Diagnóstico', status: 'nova', score: 81 }] },
       {
-        rows: [
-          { topics: '["Cultura"]', current_period: true },
-          { topics: '["Cultura"]', current_period: true },
-          { topics: '["Cultura"]', current_period: false },
-        ],
+        rows: [{
+          name: 'Cultura e liderança',
+          rationale: 'O tema reúne decisões sobre comportamento seguro.',
+          updated_at: '2026-09-01T12:00:00.000Z',
+          opportunities: 8,
+          conversations: 14,
+        }],
       },
+      { rows: [{ total: 42, mapped: 20, updated_at: '2026-09-01T12:00:00.000Z' }] },
       { rows: [] },
       { rows: [{ name: '   ' }] },
       {
@@ -83,8 +88,8 @@ describe('GET /api/dashboard', () => {
     expect(body.data.kpis).toEqual({ conversations: 258, opportunities: 42, contents: 19 });
     expect(body.data.queue.suggestedContents).toBe(19);
     expect(body.data.weekSummary).toBe(
-      'O acervo contém 1 conversa realizada nos últimos 7 dias. ' +
-      'A IA identificou 7 novos negócios no período. ' +
+      'Há 1 conversa no acervo com data nos últimos 7 dias. ' +
+      'Nesse período, a IA registrou 7 novos negócios a partir de 6 conversas do acervo; 5 delas são anteriores a essa janela. ' +
       'Consultoria lidera as novas oportunidades, com 4 registros. ' +
       '3 conteúdos sugeridos aguardam revisão.'
     );
@@ -94,9 +99,22 @@ describe('GET /api/dashboard', () => {
       date: '2026-09-02',
     });
     expect(body.data.themes).toEqual([
-      { name: 'Cultura', count: 2, previous: 1, change: 1 },
+      {
+        name: 'Cultura e liderança',
+        rationale: 'O tema reúne decisões sobre comportamento seguro.',
+        opportunities: 8,
+        conversations: 14,
+      },
     ]);
-    expect(body.data.evidence).toMatchObject({ withoutSources: 2, single: 5 });
+    expect(body.data.themeCoverage).toEqual({
+      total: 42,
+      mapped: 20,
+      ungrouped: 22,
+      percent: 48,
+      updatedAt: '2026-09-01T12:00:00.000Z',
+    });
+    expect(body.data.demand[0]).toMatchObject({ conversations: 30, reach: 83 });
+    expect(body.data.evidence).toMatchObject({ withoutSources: 2, single: 5, sourceLinks: 5 });
     expect(body.data.coverage).toEqual({ linked: 36, total: 258, percent: 14 });
     expect(body.data.lastProject).toBeNull();
 
@@ -104,9 +122,12 @@ describe('GET /api/dashboard', () => {
     expect(calls[3].sql).toContain("status = 'sugerido'");
     expect(calls[4].sql).toContain("BETWEEN current_date - interval '6 days' AND current_date");
     expect(calls[5].sql).toContain("COALESCE(NULLIF(source_file_id, ''), id::text) AS id");
-    expect(calls[7].sql).toContain("BETWEEN current_date - interval '59 days' AND current_date");
-    expect(calls[8].sql).toContain("WHERE status = 'ativo'");
-    expect(calls[13].sql).toContain('INNER JOIN app_opportunities');
+    expect(calls[5].sql).toContain("status = 'processado'");
+    expect(calls[7].sql).toContain('FROM app_business_themes');
+    expect(calls[8].sql).toContain('FROM active_opportunities');
+    expect(calls[9].sql).toContain("WHERE status = 'ativo'");
+    expect(calls[14].sql).toContain('INNER JOIN app_opportunities');
+    expect(calls[14].sql).toContain('INNER JOIN conversations');
     expect(calls.filter((call) => call.sql.includes('FROM app_projects'))).toHaveLength(1);
   });
 });

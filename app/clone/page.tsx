@@ -81,7 +81,7 @@ function CloneChat({
   const greeting: CloneMsg = {
     role: "clone",
     text:
-      "Oi! Eu sou o seu Clone — aprendi com " +
+      "Oi! Eu sou o Plaud Gold Miner! Aprendi com " +
       data.conversations.length +
       " conversas, " +
       data.opportunities.length +
