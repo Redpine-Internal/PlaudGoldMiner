@@ -49,6 +49,7 @@ const ClonePage = () => {
     opportunities: oppData?.data || [],
     contents: ctData?.data || [],
   };
+  const dataReady = convData !== undefined && oppData !== undefined && ctData !== undefined;
 
   return (
     <div className="pgm-clone-layout">
@@ -64,30 +65,33 @@ const ClonePage = () => {
         </div>
         <Link href="/configuracoes">Configurações</Link>
       </aside>
-      <CloneChat key={chat.id} data={data} chat={chat} onMsgs={saveChatMsgs} />
+      <CloneChat key={chat.id} data={data} dataReady={dataReady} chat={chat} onMsgs={saveChatMsgs} />
     </div>
   );
 };
 
 function CloneChat({
   data,
+  dataReady,
   chat,
   onMsgs,
 }: {
   data: CloneData;
+  dataReady: boolean;
   chat: { id: number; seed: string | null; msgs: CloneMsg[] | null };
   onMsgs: (id: number, msgs: CloneMsg[], autoTitle?: string) => void;
 }) {
+  const greetingText =
+    "Oi! Eu sou o Plaud Gold Miner! Aprendi com " +
+    data.conversations.length +
+    " conversas, " +
+    data.opportunities.length +
+    " novos negócios e " +
+    data.contents.length +
+    " sugestões de conteúdo. O que você quer explorar?";
   const greeting: CloneMsg = {
     role: "clone",
-    text:
-      "Oi! Eu sou o Plaud Gold Miner! Aprendi com " +
-      data.conversations.length +
-      " conversas, " +
-      data.opportunities.length +
-      " novos negócios e " +
-      data.contents.length +
-      " sugestões de conteúdo. O que você quer explorar?",
+    text: greetingText,
   };
   const [msgs, setMsgs] = useState<CloneMsg[]>(chat.msgs || [greeting]);
   const seeded = useRef(false);
@@ -98,6 +102,12 @@ function CloneChat({
   useEffect(() => {
     if (endRef.current) endRef.current.scrollTop = endRef.current.scrollHeight;
   }, [msgs, thinking]);
+
+  useEffect(() => {
+    const isUntouchedGreeting = !chat.msgs && msgs.length === 1 && msgs[0]?.role === "clone";
+    if (!dataReady || !isUntouchedGreeting || msgs[0].text === greetingText) return;
+    setMsgs([{ role: "clone", text: greetingText }]);
+  }, [chat.msgs, dataReady, greetingText, msgs]);
 
   useEffect(() => {
     if (onMsgs && msgs.length > 1) {
