@@ -5,8 +5,9 @@ import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 import { processTranscription } from '@/lib/ai/services/transcription-processor';
 import { persistTranscriptionResult, markConversationError } from '@/lib/ai/persist-result';
 import { db } from '@/lib/db';
-import { conversations } from '@/lib/db/schema';
+import { conversations, opportunities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { getConversationAiAnalysisById } from '@/lib/ai/conversation-analysis-store';
 
 // Plaud recording ids are 32-hex; they don't exist in our DB until analyzed.
 const analyzeRequestSchema = z.object({
@@ -49,6 +50,29 @@ export async function POST(request: NextRequest) {
       .where(eq(conversations.sourceFileId, fileId))
       .limit(1);
 
+    // A operação é idempotente. Se esta gravação já foi analisada, devolvemos
+    // o resultado persistido (inclusive o formato legado) em vez de consumir
+    // IA novamente e duplicar oportunidades.
+    if (existing) {
+      const persisted = await getConversationAiAnalysisById(existing.id);
+      if (persisted?.analysis) {
+        const existingOpportunities = await db
+          .select()
+          .from(opportunities)
+          .where(eq(opportunities.conversationId, existing.id));
+
+        return Response.json({
+          data: {
+            conversationId: existing.id,
+            conversation: existing,
+            opportunities: existingOpportunities,
+            problems: persisted.analysis.problems,
+            aiAnalysis: persisted.analysis,
+          },
+        });
+      }
+    }
+
     let conversationId: string;
     if (existing) {
       conversationId = existing.id;
@@ -88,7 +112,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { conversation, opportunities } = await persistTranscriptionResult(
+    const { conversation, opportunities: createdOpportunities, aiAnalysis } = await persistTranscriptionResult(
       conversationId,
       result.data,
       existing?.title || file.name
@@ -98,8 +122,9 @@ export async function POST(request: NextRequest) {
       data: {
         conversationId,
         conversation,
-        opportunities,
+        opportunities: createdOpportunities,
         problems: result.data.problems,
+        aiAnalysis,
       },
     });
   } catch (error) {

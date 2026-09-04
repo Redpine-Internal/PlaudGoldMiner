@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (!processed.success) {
       return NextResponse.json(
-        { error: processed.error?.message || 'Failed to process transcription' },
+        { error: processed.error?.message || 'Falha ao processar a transcrição' },
         { status: 500 }
       );
     }

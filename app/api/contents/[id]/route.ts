@@ -85,7 +85,7 @@ export async function PATCH(
     if (typeof body?.status === 'string') {
       if (!ALLOWED_STATUS.has(body.status)) {
         return NextResponse.json(
-          { error: `status inválido; use um de: ${[...ALLOWED_STATUS].join(', ')}` },
+          { error: `Status inválido; use um de: ${[...ALLOWED_STATUS].join(', ')}` },
           { status: 400 }
         );
       }

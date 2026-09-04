@@ -2,15 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { userProfile } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { DEFAULT_PROFILE } from '@/lib/profile/default-profile';
 
-const PROFILE_ID = 'default'; // single-user app: one fixed row
-
-const DEFAULT_PROFILE = {
-  id: PROFILE_ID,
-  name: 'Fabio Marques',
-  email: 'fabio.marques@ehsbrasil.com',
-  bio: 'Atuação em segurança do trabalho com foco em prevenção de eventos graves, leitura de energia e controles críticos. Trabalho com liderança de primeira linha e com a diferença entre cumprir norma e controlar risco.',
-};
+const PROFILE_ID = DEFAULT_PROFILE.id; // single-user app: one fixed row
 
 export async function GET() {
   try {
@@ -26,7 +20,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
-    return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
+    return NextResponse.json({ error: 'Falha ao carregar o perfil' }, { status: 500 });
   }
 }
 
@@ -57,6 +51,6 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error saving profile:', error);
-    return NextResponse.json({ error: 'Failed to save profile' }, { status: 500 });
+    return NextResponse.json({ error: 'Falha ao salvar o perfil' }, { status: 500 });
   }
 }

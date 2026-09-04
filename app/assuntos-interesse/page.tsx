@@ -2,6 +2,7 @@
 import useSWR from "swr";
 import { useEnrichment, EmptyState } from "@/components/ds";
 import { GlassList, GlassListRow } from "@/components/lg/GlassList";
+import { formatEnrichmentSourceType } from "@/lib/presentation/labels";
 
 interface InterestingItem {
   enrichmentId: string;
@@ -16,12 +17,6 @@ interface InterestingItem {
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
-const TYPE_LABEL: Record<string, string> = {
-  opportunity: "Novo Negócio",
-  insight: "Insight",
-  content: "Conteúdo",
-};
 
 const TYPE_FG: Record<string, string> = {
   opportunity: "var(--badge-navy)",
@@ -67,7 +62,7 @@ export default function AssuntosInteressePage() {
               key={it.enrichmentId}
               className="pgm-topic-row"
               hideChevron
-              aria-label={it.title || "(sem título)"}
+              aria-label={it.title || "(Sem título)"}
               onClick={() =>
                 enrichment?.openEnrichment(it.sourceType, it.sourceId, {
                   title: it.title ?? "Ideia",
@@ -76,16 +71,16 @@ export default function AssuntosInteressePage() {
               }
             >
               <div className="pgm-topic-row__source">
-                <span style={{ color: TYPE_FG[it.sourceType] || "var(--badge-gray)" }}>{TYPE_LABEL[it.sourceType] || it.sourceType}</span>
+                <span style={{ color: TYPE_FG[it.sourceType] || "var(--badge-gray)" }}>{formatEnrichmentSourceType(it.sourceType)}</span>
                 <small>{it.sourceId.slice(0, 8)}</small>
               </div>
               <div className="pgm-topic-row__main">
-                <strong>{it.title || "(sem título)"}</strong>
+                <strong>{it.title || "(Sem título)"}</strong>
                 {it.subtitle ? <span>{it.subtitle}</span> : null}
               </div>
               <span className="pgm-topic-row__updated">Atualizado: {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString("pt-BR") : "não informado"}</span>
               <span className="pgm-topic-row__refs">{it.refCount} referência{it.refCount !== 1 ? "s" : ""}</span>
-              <span className="pgm-topic-row__notes">{it.notes || "sem observações"}</span>
+              <span className="pgm-topic-row__notes">{it.notes || "Sem observações"}</span>
             </GlassListRow>
           ))}
         </GlassList>

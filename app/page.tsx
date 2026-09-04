@@ -6,6 +6,7 @@ import {
   ArrowRight,
   ClipboardCheck,
 } from "lucide-react";
+import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
 
 interface DashboardData {
   greetingName: string;
@@ -13,7 +14,7 @@ interface DashboardData {
   queue: { pendingConversations: number; suggestedContents: number };
   recentConversations: { id: string; title: string; date: string }[];
   pipeline: { id: string; title: string; status: string; score: number }[];
-  themes: { name: string; count: number; delta: number }[];
+  themes: { name: string; count: number; previous: number; change: number }[];
   demand: {
     type: string;
     count: number;
@@ -30,31 +31,20 @@ interface DashboardData {
     total: number;
     max: number;
     avgSources: number;
+    withoutSources: number;
     single: number;
   };
-  coverage: { analyzed: number; total: number; percent: number };
+  coverage: { linked: number; total: number; percent: number };
   lastProject: { id: string; title: string; description: string | null } | null;
   weekSummary: string | null;
 }
 
 const fetcher = (url: string) => fetch(url).then((response) => response.json());
 
-const STATUS_LABEL: Record<string, string> = {
-  nova: "Nova",
-  analise: "Em análise",
-  qualificada: "Qualificada",
-  descartada: "Descartada",
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  treinamento: "Treinamento",
-  consultoria: "Consultoria",
-  sistema: "Sistema",
-  produto: "Produto",
-};
-
 const formatDate = (value: string) => {
-  const date = new Date(value);
+  // Datas de conversa não têm horário. Meio-dia local evita que 02/set vire
+  // 01/set em fusos negativos ao interpretar o DATE retornado pela API.
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value);
   return Number.isNaN(date.getTime())
     ? "—"
     : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
@@ -75,7 +65,7 @@ const DashboardPage = () => {
   });
   const hour = now.getHours();
   const salutation = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-  const greeting = `${salutation}${data?.greetingName ? `, ${data.greetingName}` : ""} — aqui está o que suas conversas revelaram.`;
+  const greeting = `${salutation}${data?.greetingName ? `, ${data.greetingName}` : ""}. Aqui está o que suas conversas revelaram.`;
 
   const queue = data
     ? [
@@ -98,7 +88,7 @@ const DashboardPage = () => {
 
   const kpis = [
     { label: "Conversas processadas", value: data?.kpis.conversations ?? 0, href: "/conversas" },
-    { label: "Novos negócios", value: data?.kpis.opportunities ?? 0, href: "/novos-negocios" },
+    { label: "Negócios ativos", value: data?.kpis.opportunities ?? 0, href: "/novos-negocios" },
     { label: "Conteúdos sugeridos", value: data?.kpis.contents ?? 0, href: "/conteudos" },
   ];
 
@@ -182,10 +172,10 @@ const DashboardPage = () => {
         </section>
 
         <section className="ds-card dashboard-summary" aria-labelledby="week-summary-title">
-          <p className="dashboard-section-kicker">Leitura executiva</p>
-          <h2 id="week-summary-title">Resumo da semana</h2>
+          <p className="dashboard-section-kicker">Movimento recente</p>
+          <h2 id="week-summary-title">Últimos 7 dias</h2>
           <p className="dashboard-prose">
-            {data?.weekSummary || "Ainda não há conversas processadas o suficiente para compor o resumo desta semana."}
+            {data?.weekSummary || "Não houve atividade registrada nos últimos 7 dias."}
           </p>
         </section>
 
@@ -221,11 +211,12 @@ const DashboardPage = () => {
 
         <section className="ds-card dashboard-demand" aria-labelledby="demand-title">
           <p className="dashboard-section-kicker">Sinais comerciais</p>
-          <h2 id="demand-title">Demanda por tipo de serviço</h2>
+          <h2 id="demand-title">Demanda acumulada por tipo</h2>
+          <p className="dashboard-muted">Base: negócios ativos e as conversas vinculadas como evidência.</p>
           <div className="dashboard-demand-grid">
             {data?.demand.length ? data.demand.map((item) => (
               <button key={item.type} type="button" className="dashboard-demand-item" onClick={() => router.push("/novos-negocios")}>
-                <span>{TYPE_LABEL[item.type] || item.type}</span>
+                <span>{formatOpportunityType(item.type)}</span>
                 <strong>{item.conversations} conversa{item.conversations === 1 ? "" : "s"}</strong>
                 <small>{item.count} negócio{item.count === 1 ? "" : "s"} · score médio {item.avgScore}%</small>
                 {item.topTitle ? <em>{item.topTitle}</em> : null}
@@ -240,7 +231,7 @@ const DashboardPage = () => {
           <h2 id="evidence-title">Evidência por negócio</h2>
           <div className="dashboard-evidence-hero"><strong>{data?.evidence.avgSources ?? 0}</strong><span>conversas por negócio, em média</span></div>
           <div className="dashboard-evidence-bars" aria-label="Distribuição das fontes por oportunidade">
-            {data?.evidence.buckets.map((bucket) => {
+            {data?.evidence.buckets.length ? data.evidence.buckets.map((bucket) => {
               const width = data.evidence.max ? Math.max((bucket.opportunities / data.evidence.max) * 100, 2) : 2;
               return (
                 <div key={bucket.sources}>
@@ -249,32 +240,41 @@ const DashboardPage = () => {
                   <strong>{bucket.opportunities}</strong>
                 </div>
               );
-            })}
+            }) : <p className="dashboard-muted">Ainda não há negócios ativos para avaliar.</p>}
           </div>
-          {data?.evidence.single ? <p className="dashboard-muted">{data.evidence.single} negócio{data.evidence.single === 1 ? "" : "s"} ainda depende{data.evidence.single === 1 ? "" : "m"} de uma única conversa.</p> : null}
+          <div className="dashboard-evidence-notes">
+            {data?.evidence.withoutSources ? <p className="dashboard-muted">{data.evidence.withoutSources} negócio{data.evidence.withoutSources === 1 ? " ainda não tem" : "s ainda não têm"} conversa de origem vinculada.</p> : null}
+            {data?.evidence.single ? <p className="dashboard-muted">{data.evidence.single} negócio{data.evidence.single === 1 ? " ainda depende" : "s ainda dependem"} de uma única conversa.</p> : null}
+          </div>
         </section>
 
         <section className="ds-card dashboard-coverage" aria-labelledby="coverage-title">
-          <p className="dashboard-section-kicker">Qualidade do acervo</p>
-          <h2 id="coverage-title">Cobertura do acervo</h2>
+          <p className="dashboard-section-kicker">Rastreabilidade do acervo</p>
+          <h2 id="coverage-title">Cobertura de evidências</h2>
           <div className="dashboard-coverage-value">{data?.coverage.percent ?? 0}%</div>
-          <p className="dashboard-muted">{data?.coverage.analyzed ?? 0} de {data?.coverage.total ?? 0} conversas analisadas</p>
-          <div className="dashboard-meter" aria-hidden><span style={{ width: `${Math.max(data?.coverage.percent ?? 0, 1)}%` }} /></div>
-          <p className="dashboard-muted">
-            {(data?.coverage.total ?? 0) - (data?.coverage.analyzed ?? 0)} conversa{(data?.coverage.total ?? 0) - (data?.coverage.analyzed ?? 0) === 1 ? "" : "s"} aguardando análise.
-          </p>
+          <p className="dashboard-muted">{data?.coverage.linked ?? 0} de {data?.coverage.total ?? 0} conversas sustentam negócios ativos</p>
+          <div className="dashboard-meter" aria-hidden><span style={{ width: `${data?.coverage.percent ?? 0}%` }} /></div>
+          {(data?.coverage.total ?? 0) > 0 ? (
+            <p className="dashboard-muted">
+              {(data?.coverage.total ?? 0) - (data?.coverage.linked ?? 0)} conversa{(data?.coverage.total ?? 0) - (data?.coverage.linked ?? 0) === 1 ? " ainda não está vinculada" : "s ainda não estão vinculadas"} a negócios ativos.
+            </p>
+          ) : <p className="dashboard-muted">Ainda não há conversas processadas para avaliar.</p>}
         </section>
 
         <section className="ds-card dashboard-themes" aria-labelledby="themes-title">
           <p className="dashboard-section-kicker">Recorrência</p>
-          <h2 id="themes-title">Temas em ascensão</h2>
+          <h2 id="themes-title">Temas recorrentes</h2>
           <div className="dashboard-stack">
             {data?.themes.length ? data.themes.map((theme) => (
               <div key={theme.name} className="dashboard-theme-row">
                 <strong>{theme.name}</strong>
-                <span>{theme.count} menções</span>
-                <span className={theme.delta >= 0 ? "dashboard-delta dashboard-delta--up" : "dashboard-delta"}>
-                  {theme.delta >= 0 ? "+" : ""}{theme.delta}%
+                <span>{theme.count} {theme.count === 1 ? "menção" : "menções"}</span>
+                <span className={theme.change > 0 ? "dashboard-delta dashboard-delta--up" : "dashboard-delta"}>
+                  {theme.previous === 0
+                    ? "Novo"
+                    : theme.change === 0
+                      ? "Estável"
+                      : `${theme.change > 0 ? "+" : "−"}${Math.abs(theme.change)} vs. 30 dias anteriores`}
                 </span>
               </div>
             )) : <p className="dashboard-muted">Ainda não há recorrência suficiente.</p>}
@@ -290,7 +290,7 @@ const DashboardPage = () => {
             {data?.pipeline.length ? data.pipeline.map((opportunity) => (
               <button key={opportunity.id} type="button" className="dashboard-list-row dashboard-list-row--three" onClick={() => router.push("/novos-negocios")}>
                 <strong>{opportunity.title}</strong>
-                <span>{STATUS_LABEL[opportunity.status] || opportunity.status}</span>
+                <span>{formatOpportunityStatus(opportunity.status)}</span>
                 <span className="dashboard-score">{Math.round(opportunity.score)}%</span>
               </button>
             )) : <p className="dashboard-muted">Nenhuma oportunidade no pipeline.</p>}

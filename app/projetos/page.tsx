@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Button, EmptyState, Pagination, SearchInput, Skeleton } from "@/components/ds";
 import { GlassList, GlassListRow } from "@/components/lg/GlassList";
+import { PROJECT_STATUS_LABELS } from "@/lib/presentation/labels";
 
 const PAGE_SIZE = 20;
 
@@ -25,11 +26,7 @@ interface ApiResponse {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const statusLabels: Record<Project["status"], string> = {
-  ativo: "Ativo",
-  pausado: "Pausado",
-  arquivado: "Arquivado",
-};
+const statusLabels: Record<Project["status"], string> = PROJECT_STATUS_LABELS;
 
 // Cápsula neutra + texto em cor semântica escurecida (protótipo Liquid Glass).
 const statusFg: Record<Project["status"], string> = {

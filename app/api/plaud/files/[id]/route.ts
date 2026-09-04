@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getFileContent } from '@/lib/plaud/client';
 import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
+import { getConversationAiAnalysisByPlaudFileId } from '@/lib/ai/conversation-analysis-store';
 
 function formatDuration(ms: number): string {
   const totalMin = Math.round(ms / 60000);
@@ -20,7 +21,10 @@ function formatDuration(ms: number): string {
 export async function GET(_request: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   try {
-    const { file, transcript, summary, topics } = await getFileContent(id);
+    const [{ file, transcript, summary, topics }, persisted] = await Promise.all([
+      getFileContent(id),
+      getConversationAiAnalysisByPlaudFileId(id),
+    ]);
     return NextResponse.json({
       data: {
         id: file.id,
@@ -37,6 +41,8 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
         tags: null,
         audioUrl: file.presigned_url ?? null,
         source: 'plaud',
+        localConversationId: persisted?.localConversationId ?? null,
+        aiAnalysis: persisted?.analysis ?? null,
       },
     });
   } catch (error) {

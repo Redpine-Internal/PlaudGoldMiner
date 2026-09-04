@@ -21,7 +21,7 @@ export async function POST(
 
   if (typeof body.action !== 'string' || !actions.includes(body.action as ProjectAction)) {
     return NextResponse.json(
-      { error: 'Ação inválida. Use aprofundar, plano, riscos ou conteudo.' },
+      { error: 'Ação inválida. Use aprofundar, plano, riscos ou conteúdo.' },
       { status: 400 }
     );
   }

@@ -8,6 +8,10 @@ import { Button, SearchInput, OpportunityCard, EmptyState, Pagination, StartProj
 import { FilterRail } from "@/components/lg/FilterRail";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import {
+  formatOpportunityStatus,
+  formatOpportunityType,
+} from "@/lib/presentation/labels";
 
 const PAGE_SIZE = 20;
 
@@ -47,10 +51,10 @@ interface ThemesResponse {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const OPP_STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
 // Taxonomia atual. "servico" era um tipo legado; a purga de 2026-08-28 zerou a
 // tabela e o gerador não o produz mais, então saiu do rail.
-const OPP_TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto" };
+const OPP_STATUS = ["nova", "analise", "qualificada", "descartada"] as const;
+const OPP_TYPES = ["treinamento", "consultoria", "sistema", "produto"] as const;
 
 type OppFilters = {
   status: string;
@@ -256,7 +260,7 @@ const NovosNegociosPage = () => {
           onChange: (v) => setF({ status: v }),
           options: [
             { value: "", label: "Todas", count: opps.length },
-            ...Object.entries(OPP_STATUS).map(([value, label]) => ({ value, label, count: counts[value] || 0 })),
+            ...OPP_STATUS.map((value) => ({ value, label: formatOpportunityStatus(value), count: counts[value] || 0 })),
           ],
         },
         {
@@ -264,7 +268,7 @@ const NovosNegociosPage = () => {
           title: "Tipo",
           values: f.types,
           onChange: (vs) => setF({ types: vs }),
-          options: Object.entries(OPP_TYPES).map(([value, label]) => ({ value, label })),
+          options: OPP_TYPES.map((value) => ({ value, label: formatOpportunityType(value) })),
         },
         {
           kind: "segmented",

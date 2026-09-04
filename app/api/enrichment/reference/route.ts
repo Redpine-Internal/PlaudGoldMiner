@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'sourceType e sourceId são obrigatórios' }, { status: 400 });
     }
     if (!inList(KINDS, kind)) {
-      return NextResponse.json({ error: "kind deve ser 'link' ou 'image'" }, { status: 400 });
+      return NextResponse.json({ error: "O tipo deve ser 'link' ou 'image'" }, { status: 400 });
     }
     if (typeof url !== 'string' || !url.trim()) {
       return NextResponse.json({ error: 'url é obrigatória' }, { status: 400 });

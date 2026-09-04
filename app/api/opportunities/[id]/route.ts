@@ -87,7 +87,7 @@ export async function PATCH(
 
     if (priority === undefined) {
       return NextResponse.json(
-        { error: `priority deve ser ${PRIORITIES.join(', ')} ou null.` },
+        { error: `A prioridade deve ser ${PRIORITIES.join(', ')} ou nula.` },
         { status: 400 }
       );
     }

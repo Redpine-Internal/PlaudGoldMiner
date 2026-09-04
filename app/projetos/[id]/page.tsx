@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { useParams, useRouter } from "next/navigation";
 import { Button, EmptyState, Markdown } from "@/components/ds";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { formatProjectStatus, formatProjectTaskKind } from "@/lib/presentation/labels";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -87,7 +88,7 @@ export default function ProjetoPage() {
         {editing ? <textarea aria-label="Descrição do projeto" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} style={{ ...fieldStyle, marginTop: 4, resize: "vertical" }} /> : board.project.description ? <p style={{ margin: 0, color: "var(--color-muted-foreground)", font: "400 14px/20px var(--font-sans)" }}>{board.project.description}</p> : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ padding: "6px 10px", borderRadius: 5, background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 13px/18px var(--font-sans)" }}>{board.project.status}</span>
+        <span style={{ padding: "6px 10px", borderRadius: 5, background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 13px/18px var(--font-sans)" }}>{formatProjectStatus(board.project.status)}</span>
         {editing ? <Button variant="primary" onClick={saveProject}>Salvar</Button> : <Button variant="outline" icon="square-pen" onClick={() => { setTitle(board.project.title); setDescription(board.project.description || ""); setEditing(true); }}>Editar</Button>}
       </div>
     </div>
@@ -127,7 +128,7 @@ export default function ProjetoPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 32 }}>
             {tasks.map((task) => <div key={task.id} draggable={!isMobile} onDragStart={(event) => { setDraggingId(task.id); event.dataTransfer.setData("text/plain", task.id); }} className="pgm-kanban-task">
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><strong style={{ flex: 1, font: "500 14px/20px var(--font-sans)" }}>{task.title}</strong><Button variant="link" icon="trash-can" title="Excluir tarefa" onClick={async () => { try { await request(`/api/tasks/${task.id}`, "DELETE"); await mutate(); } catch (err) { setMessage(err instanceof Error ? err.message : "Não foi possível excluir a tarefa."); } }} /></div>
-              {task.kind.startsWith("ai:") ? <span style={{ display: "inline-block", marginTop: 8, padding: "2px 6px", borderRadius: 5, background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 11px/16px var(--font-sans)" }}>{task.kind.slice(3)}</span> : null}
+              {task.kind.startsWith("ai:") ? <span style={{ display: "inline-block", marginTop: 8, padding: "2px 6px", borderRadius: 5, background: "var(--type-informal-bg)", color: "var(--color-primary)", font: "500 11px/16px var(--font-sans)" }}>{formatProjectTaskKind(task.kind)}</span> : null}
               {task.detail ? <Markdown style={{ maxHeight: 70, overflow: "hidden", marginTop: 8 }}>{task.detail.slice(0, 240) + (task.detail.length > 240 ? "..." : "")}</Markdown> : null}
               {isMobile && board.columns.length > 1 ? (
                 <label className="pgm-kanban-move">

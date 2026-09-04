@@ -6,6 +6,7 @@ import { FilterRail } from "@/components/lg/FilterRail";
 import type { FilterRailSection, FilterOption } from "@/components/lg/FilterRail";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { formatContentFormat, formatContentStatus } from "@/lib/presentation/labels";
 
 const PAGE_SIZE = 20;
 
@@ -33,13 +34,10 @@ interface ApiResponse {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const CT_STATUS: Record<string, string> = {
-  sugerido: "Sugerido", rascunho: "Rascunho", em_revisao: "Em revisão",
-  aprovado: "Aprovado", publicado: "Publicado", descartado: "Descartado", producao: "Em produção",
-};
+const CT_STATUS = ["sugerido", "rascunho", "em_revisao", "aprovado", "publicado", "descartado", "producao"] as const;
 // Formatos de conteúdo (taxonomia 2026-08-28). O filtro é por formato; o
 // subtipo é texto livre e aparece no card, não no rail.
-const CT_PLATFORMS: Record<string, string> = { artigo: "Artigo", post: "Post", carrossel: "Carrossel", roteiro: "Roteiro" };
+const CT_PLATFORMS = ["artigo", "post", "carrossel", "roteiro"] as const;
 
 type ConteudoFilters = { status: string; platforms: string[]; railOpen: boolean };
 
@@ -150,9 +148,9 @@ const ConteudosPage = () => {
     for (const c of statusBase) counts[c.status] = (counts[c.status] ?? 0) + 1;
     return [
       { value: "", label: "Todos", count: statusBase.length },
-      ...Object.keys(CT_STATUS)
+      ...CT_STATUS
         .filter((s) => s !== "producao" || counts.producao || f.status === "producao")
-        .map((s) => ({ value: s, label: CT_STATUS[s], count: counts[s] ?? 0 })),
+        .map((s) => ({ value: s, label: formatContentStatus(s), count: counts[s] ?? 0 })),
     ];
   }, [statusBase, f.status]);
 
@@ -160,9 +158,9 @@ const ConteudosPage = () => {
     const present = new Set<string>(items.map((c) => c.platform));
     for (const p of f.platforms) present.add(p);
     return [
-      ...Object.keys(CT_PLATFORMS),
-      ...[...present].filter((p) => !(p in CT_PLATFORMS)),
-    ].map((p) => ({ value: p, label: CT_PLATFORMS[p] ?? p }));
+      ...CT_PLATFORMS,
+      ...[...present].filter((p) => !CT_PLATFORMS.includes(p as (typeof CT_PLATFORMS)[number])),
+    ].map((p) => ({ value: p, label: formatContentFormat(p) }));
   }, [items, f.platforms]);
 
   const sections = useMemo<FilterRailSection[]>(() => {

@@ -270,13 +270,13 @@ const ConfiguracoesPage = () => {
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
             <span className="ds-badge" style={{ background: "var(--badge-bg)", color: "var(--accent-success)" }}>
-              processado
+              Processado
             </span>
             <span className="ds-badge" style={{ background: "var(--badge-bg)", color: "var(--accent-warning)" }}>
-              pendente
+              Pendente
             </span>
             <span className="ds-badge" style={{ background: "var(--badge-bg)", color: "var(--accent-error)" }}>
-              erro
+              Erro
             </span>
             <span className="ds-badge" style={{ background: "var(--badge-bg)", color: "var(--accent-promo)" }}>
               Qualificada

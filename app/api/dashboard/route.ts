@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import { profileFirstName } from '@/lib/profile/default-profile';
 
 // GET /api/dashboard - Agregado do Dashboard "Resumo".
 // "conversations" é uma VIEW; somente leitura aqui (nunca .returning()).
@@ -18,8 +19,8 @@ interface PipelineRow {
 }
 
 interface ThemeSourceRow {
-  date: Date | string | null;
   topics: string | null;
+  current_period: boolean;
 }
 
 interface ProjectRow {
@@ -59,6 +60,14 @@ interface EvidenceRow {
   opportunities: number;
 }
 
+interface WeekActivityRow {
+  conversations: number;
+  opportunities: number;
+  suggested_contents: number;
+  top_type: string | null;
+  top_type_count: number;
+}
+
 const MONTH_ABBR = [
   'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
   'jul', 'ago', 'set', 'out', 'nov', 'dez',
@@ -69,10 +78,9 @@ export async function GET() {
     const [
       processedRes,
       opportunitiesRes,
-      contentsRes,
       pendingRes,
       suggestedRes,
-      weekConversationsRes,
+      weekActivityRes,
       recentRes,
       pipelineRes,
       themesSourceRes,
@@ -87,10 +95,8 @@ export async function GET() {
         `SELECT COUNT(*)::int AS count FROM conversations WHERE status = 'processado'`
       ),
       pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM app_opportunities`
-      ),
-      pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM app_contents`
+        `SELECT COUNT(*)::int AS count FROM app_opportunities
+          WHERE status IS DISTINCT FROM 'descartada'`
       ),
       pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM conversations WHERE status = 'pendente'`
@@ -98,12 +104,32 @@ export async function GET() {
       pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM app_contents WHERE status = 'sugerido'`
       ),
-      pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM conversations
-          WHERE status = 'processado' AND date >= now() - interval '7 days'`
+      pool.query<WeekActivityRow>(
+        `WITH weekly_opportunities AS (
+           SELECT type
+             FROM app_opportunities
+            WHERE status IS DISTINCT FROM 'descartada'
+              AND created_at >= now() - interval '7 days'
+         ), top_type AS (
+           SELECT type, COUNT(*)::int AS count
+             FROM weekly_opportunities
+            GROUP BY type
+            ORDER BY count DESC, type
+            LIMIT 1
+         )
+         SELECT (SELECT COUNT(*)::int FROM conversations
+                  WHERE status = 'processado'
+                    AND date BETWEEN current_date - interval '6 days' AND current_date) AS conversations,
+                (SELECT COUNT(*)::int FROM weekly_opportunities) AS opportunities,
+                (SELECT COUNT(*)::int FROM app_contents
+                  WHERE status = 'sugerido'
+                    AND created_at >= now() - interval '7 days') AS suggested_contents,
+                (SELECT type FROM top_type) AS top_type,
+                COALESCE((SELECT count FROM top_type), 0)::int AS top_type_count`
       ),
       pool.query<ConversationRow>(
-        `SELECT id, title, date FROM conversations
+        `SELECT COALESCE(NULLIF(source_file_id, ''), id::text) AS id, title, date
+           FROM conversations
           ORDER BY date DESC NULLS LAST
           LIMIT 4`
       ),
@@ -114,8 +140,11 @@ export async function GET() {
           LIMIT 4`
       ),
       pool.query<ThemeSourceRow>(
-        `SELECT date, topics FROM conversations
-          WHERE topics IS NOT NULL AND date >= now() - interval '60 days'`
+        `SELECT topics,
+                (date >= current_date - interval '29 days') AS current_period
+           FROM conversations
+          WHERE topics IS NOT NULL
+            AND date BETWEEN current_date - interval '59 days' AND current_date`
       ),
       pool.query<ProjectRow>(
         `SELECT id, title, description FROM app_projects
@@ -175,9 +204,11 @@ export async function GET() {
           ORDER BY n_fontes`
       ),
       // Cobertura: quanto do acervo processado já virou evidência de negócio.
-      pool.query<{ analyzed: number; total: number }>(
-        `SELECT (SELECT COUNT(DISTINCT conversation_id)::int
-                   FROM app_opportunity_sources) AS analyzed,
+      pool.query<{ linked: number; total: number }>(
+        `SELECT (SELECT COUNT(DISTINCT s.conversation_id)::int
+                   FROM app_opportunity_sources s
+                   INNER JOIN app_opportunities o ON o.id = s.opportunity_id
+                  WHERE o.status IS DISTINCT FROM 'descartada') AS linked,
                 (SELECT COUNT(*)::int FROM conversations
                   WHERE status = 'processado') AS total`
       ),
@@ -186,7 +217,9 @@ export async function GET() {
     const recentConversations = recentRes.rows.map((row) => ({
       id: row.id,
       title: row.title,
-      date: row.date ? new Date(row.date).toISOString() : '',
+      // DATE não deve virar meia-noite UTC no cliente: em fusos negativos isso
+      // fazia 02/set aparecer como 01/set.
+      date: row.date ? new Date(row.date).toISOString().slice(0, 10) : '',
     }));
 
     const pipeline = pipelineRes.rows.map((row) => ({
@@ -196,17 +229,13 @@ export async function GET() {
       score: row.score ?? 0,
     }));
 
-    // themes: menções por tópico em duas janelas (0-30d e 30-60d)
-    const now = Date.now();
-    const currentCutoff = now - 30 * 24 * 60 * 60 * 1000;
+    // themes: menções por tópico em duas janelas fechadas de 30 dias.
     const themeMap = new Map<
       string,
       { name: string; current: number; previous: number }
     >();
     for (const row of themesSourceRes.rows) {
-      if (!row.date || !row.topics) continue;
-      const ts = new Date(row.date).getTime();
-      if (!Number.isFinite(ts)) continue;
+      if (!row.topics) continue;
 
       let topics: unknown;
       try {
@@ -216,7 +245,6 @@ export async function GET() {
       }
       if (!Array.isArray(topics)) continue;
 
-      const isCurrent = ts >= currentCutoff;
       for (const rawTopic of topics) {
         if (typeof rawTopic !== 'string') continue;
         const name = rawTopic.trim();
@@ -227,7 +255,7 @@ export async function GET() {
           entry = { name, current: 0, previous: 0 };
           themeMap.set(key, entry);
         }
-        if (isCurrent) entry.current += 1;
+        if (row.current_period) entry.current += 1;
         else entry.previous += 1;
       }
     }
@@ -238,19 +266,12 @@ export async function GET() {
       .map((t) => ({
         name: t.name,
         count: t.current,
-        delta: t.current - t.previous,
+        previous: t.previous,
+        change: t.current - t.previous,
       }));
 
-    // lastProject: fallback sem filtro de status; tabela vazia -> null
-    let projectRow: ProjectRow | null = lastProjectRes.rows[0] ?? null;
-    if (!projectRow) {
-      const fallback = await pool.query<ProjectRow>(
-        `SELECT id, title, description FROM app_projects
-          ORDER BY created_at DESC
-          LIMIT 1`
-      );
-      projectRow = fallback.rows[0] ?? null;
-    }
+    // "Continuar" só pode apontar para trabalho realmente ativo.
+    const projectRow: ProjectRow | null = lastProjectRes.rows[0] ?? null;
     const lastProject = projectRow
       ? {
           id: projectRow.id,
@@ -300,28 +321,27 @@ export async function GET() {
         evidenceTotal > 0
           ? Math.round((evidenceWeighted / evidenceTotal) * 10) / 10
           : 0,
-      // Negócios apoiados numa única conversa: o padrão que o sistema abandonou.
-      single: evidenceRes.rows.find((r) => r.sources <= 1)?.opportunities ?? 0,
+      withoutSources: evidenceRes.rows.find((r) => r.sources === 0)?.opportunities ?? 0,
+      single: evidenceRes.rows.find((r) => r.sources === 1)?.opportunities ?? 0,
     };
 
     const coverageRow = coverageRes.rows[0];
     const coverageTotal = coverageRow?.total ?? 0;
     const coverage = {
-      analyzed: coverageRow?.analyzed ?? 0,
+      linked: coverageRow?.linked ?? 0,
       total: coverageTotal,
       percent:
         coverageTotal > 0
-          ? Math.round(((coverageRow?.analyzed ?? 0) / coverageTotal) * 100)
+          ? Math.round(((coverageRow?.linked ?? 0) / coverageTotal) * 100)
           : 0,
     };
 
-    const greetingName =
-      profileRes.rows[0]?.name?.trim().split(' ')[0] ?? '';
+    const greetingName = profileFirstName(profileRes.rows[0]?.name);
 
     const kpis = {
       conversations: processedRes.rows[0]?.count ?? 0,
       opportunities: opportunitiesRes.rows[0]?.count ?? 0,
-      contents: contentsRes.rows[0]?.count ?? 0,
+      contents: suggestedRes.rows[0]?.count ?? 0,
     };
 
     const queue = {
@@ -329,29 +349,40 @@ export async function GET() {
       suggestedContents: suggestedRes.rows[0]?.count ?? 0,
     };
 
-    // weekSummary: frases determinísticas em pt-BR
-    const weekConversations = weekConversationsRes.rows[0]?.count ?? 0;
+    // Leitura executiva: todos os fatos usam a mesma janela móvel de 7 dias.
+    const weekActivity = weekActivityRes.rows[0] ?? {
+      conversations: 0,
+      opportunities: 0,
+      suggested_contents: 0,
+      top_type: null,
+      top_type_count: 0,
+    };
     const sentences: string[] = [];
-    if (weekConversations > 0) {
+    if (weekActivity.conversations > 0) {
       sentences.push(
-        weekConversations === 1
-          ? 'Foi processada 1 conversa nos últimos 7 dias.'
-          : `Foram processadas ${weekConversations} conversas nos últimos 7 dias.`
+        weekActivity.conversations === 1
+          ? 'O acervo contém 1 conversa realizada nos últimos 7 dias.'
+          : `O acervo contém ${weekActivity.conversations} conversas realizadas nos últimos 7 dias.`
       );
     } else if (kpis.conversations > 0) {
-      sentences.push('Nenhuma conversa nova foi processada nos últimos 7 dias.');
+      sentences.push('Não há conversa com data dos últimos 7 dias no acervo.');
     }
-    // A demanda por tipo diz mais que o título do card mais bem pontuado — o
-    // sistema existe para ler o conjunto, não para destacar uma oportunidade.
-    if (demand[0] && demand[0].conversations > 0) {
-      const label = DEMAND_LABEL[demand[0].type] || demand[0].type;
+    if (weekActivity.opportunities > 0) {
       sentences.push(
-        `A maior demanda é por ${label.toLowerCase()}: ${demand[0].conversations} ${demand[0].conversations === 1 ? 'conversa aponta' : 'conversas apontam'} nessa direção.`
+        weekActivity.opportunities === 1
+          ? 'A IA identificou 1 novo negócio no período.'
+          : `A IA identificou ${weekActivity.opportunities} novos negócios no período.`
       );
     }
-    if (themes[0]) {
+    if (weekActivity.top_type && weekActivity.top_type_count > 0) {
+      const label = DEMAND_LABEL[weekActivity.top_type] || weekActivity.top_type;
       sentences.push(
-        `O tema mais recorrente do mês é "${themes[0].name}", com ${themes[0].count} ${themes[0].count === 1 ? 'menção' : 'menções'}.`
+        `${label} lidera as novas oportunidades, com ${weekActivity.top_type_count} ${weekActivity.top_type_count === 1 ? 'registro' : 'registros'}.`
+      );
+    }
+    if (weekActivity.suggested_contents > 0) {
+      sentences.push(
+        `${weekActivity.suggested_contents} ${weekActivity.suggested_contents === 1 ? 'conteúdo sugerido aguarda' : 'conteúdos sugeridos aguardam'} revisão.`
       );
     }
     const weekSummary = sentences.length > 0 ? sentences.join(' ') : null;

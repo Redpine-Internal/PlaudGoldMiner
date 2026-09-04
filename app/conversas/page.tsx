@@ -9,6 +9,7 @@ import { Button, SearchInput, FilterChip, EmptyState, Icon, Pagination, Skeleton
 import { GlassList, GlassListRow, GlassListSection } from "@/components/lg/GlassList";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { CONVERSATION_TYPE_LABELS } from "@/lib/presentation/labels";
 
 const PAGE_SIZE = 20;
 
@@ -58,12 +59,7 @@ const statusFetcher = (url: string): Promise<{ data: ContentFlags }> =>
     runNext();
   });
 
-const TYPES: [string, string][] = [
-  ["reuniao", "Reunião"],
-  ["treinamento", "Treinamento"],
-  ["informal", "Informal"],
-  ["outro", "Outro"],
-];
+const TYPES = Object.entries(CONVERSATION_TYPE_LABELS);
 const PERIODS: [string, string][] = [
   ["all", "Todos"],
   ["today", "Hoje"],
