@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Icon, Tabs, TypeBadge, StatusBadge, EmptyState, Button, ScoreBadge, Markdown } from "@/components/ds";
+import type { ConversationAiAnalysis } from "@/lib/ai/conversation-analysis-store";
+import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
 
 interface ConversationDetail {
   id: string;
@@ -19,6 +21,8 @@ interface ConversationDetail {
   tags: string | null;
   audioUrl?: string | null;
   source: string;
+  localConversationId?: string | null;
+  aiAnalysis?: ConversationAiAnalysis | null;
 }
 
 interface Opportunity {
@@ -32,7 +36,7 @@ interface Opportunity {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-type Tab = "resumo" | "transcricao" | "insights";
+type Tab = "resumo" | "analise" | "transcricao" | "insights";
 
 const h4: React.CSSProperties = { font: "500 15px/22px var(--font-sans)", margin: "0 0 10px", display: "flex", alignItems: "center", gap: 8 };
 const chip: React.CSSProperties = {
@@ -62,6 +66,17 @@ export function ConversationDetailView({ id }: { id: string }) {
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const plaud = isPlaudId(id);
 
+  const { data: conversationData, isLoading, mutate: mutateConversation } = useSWR<{ data: ConversationDetail }>(
+    plaud ? `/api/plaud/files/${id}` : `/api/conversations/${id}`,
+    fetcher
+  );
+  const opportunityConversationId = plaud ? conversationData?.data.localConversationId : id;
+  const { data: opportunitiesData } = useSWR<{ data: Opportunity[] }>(
+    opportunityConversationId ? `/api/conversations/${opportunityConversationId}/opportunities` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
   const analyze = async () => {
     setAnalyzing(true);
     setAnalyzeError(null);
@@ -75,24 +90,20 @@ export function ConversationDetailView({ id }: { id: string }) {
       if (!res.ok) {
         throw new Error(json?.error || "Falha ao analisar a conversa.");
       }
-      // Navigate to the local (UUID) conversation that now holds the opportunities.
-      router.push(`/conversas/${json.data.conversationId}`);
+      await mutateConversation((current) => current ? {
+        data: {
+          ...current.data,
+          localConversationId: json.data.conversationId,
+          aiAnalysis: json.data.aiAnalysis,
+        },
+      } : current, { revalidate: false });
+      setTab("analise");
+      setAnalyzing(false);
     } catch (e) {
       setAnalyzeError(e instanceof Error ? e.message : "Falha ao analisar a conversa.");
       setAnalyzing(false);
     }
   };
-
-  const { data: conversationData, isLoading } = useSWR<{ data: ConversationDetail }>(
-    plaud ? `/api/plaud/files/${id}` : `/api/conversations/${id}`,
-    fetcher
-  );
-  // Opportunities only exist for locally-processed (seed) conversations.
-  const { data: opportunitiesData } = useSWR<{ data: Opportunity[] }>(
-    plaud ? null : `/api/conversations/${id}/opportunities`,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
 
   const backLink = (
     <Button variant="outline" icon="arrow-left" iconSize={16} onClick={() => router.push("/conversas")}>
@@ -159,7 +170,7 @@ export function ConversationDetailView({ id }: { id: string }) {
         ) : null}
         {/* Bridge: turn a real Plaud recording into local opportunities. Only for
             Plaud conversations that already have a transcription to analyze. */}
-        {plaud && c.transcription ? (
+        {plaud && c.transcription && !c.aiAnalysis ? (
           <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
             <Button icon={analyzing ? "reload" : "sparkles"} iconSpin={analyzing} disabled={analyzing} onClick={analyze} style={{ alignSelf: "flex-start" }}>
               {analyzing ? "Analisando..." : "Analisar conversa"}
@@ -168,7 +179,7 @@ export function ConversationDetailView({ id }: { id: string }) {
               <span style={{ font: "400 13px/18px var(--font-sans)", color: "var(--accent-error)" }}>{analyzeError}</span>
             ) : (
               <span style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
-                Gera resumo e novos negócios a partir desta gravação com IA.
+                Gera uma análise própria e novos negócios sem substituir o resumo original do Plaud.
               </span>
             )}
           </div>
@@ -179,10 +190,12 @@ export function ConversationDetailView({ id }: { id: string }) {
         idBase="conversation-detail"
         aria-label="Conteúdo da conversa"
         tabs={[
-          { id: "resumo", label: "Resumo" },
+          { id: "resumo", label: plaud ? "Resumo do Plaud" : "Resumo" },
+          ...(c.aiAnalysis ? [{ id: "analise", label: "Análise da IA" }] : []),
           { id: "transcricao", label: "Transcrição" },
           { id: "insights", label: "Negócios" },
         ]}
+        style={{ overflowX: "auto" }}
         active={tab}
         onChange={(id) => setTab(id as Tab)}
       />
@@ -272,6 +285,45 @@ export function ConversationDetailView({ id }: { id: string }) {
               </div>
             ) : null}
           </div>
+        ) : tab === "analise" && c.aiAnalysis ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+            <div>
+              <h4 style={h4}>
+                <Icon name="sparkles" size={16} />
+                Análise da IA
+              </h4>
+              <Markdown>{c.aiAnalysis.summary}</Markdown>
+            </div>
+            {c.aiAnalysis.problems.length ? (
+              <div>
+                <h4 style={h4}>Problemas e dores identificados</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {c.aiAnalysis.problems.map((problem, index) => (
+                    <div
+                      key={`${problem.description}-${index}`}
+                      style={{ padding: 14, background: "color-mix(in srgb, var(--color-muted) 50%, transparent)", borderRadius: "var(--radius-lg)" }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <span style={{ font: "500 14px/20px var(--font-sans)" }}>{problem.description}</span>
+                        <span style={chip}>Severidade {problem.severity}</span>
+                      </div>
+                      <p style={{ margin: "4px 0 0", font: "400 13px/18px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+                        {problem.mentions} {problem.mentions === 1 ? "menção" : "menções"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {c.aiAnalysis.topics.length ? (
+              <div>
+                <h4 style={h4}>Tópicos identificados pela IA</h4>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {c.aiAnalysis.topics.map((topic) => <span key={topic} style={chip}>{topic}</span>)}
+                </div>
+              </div>
+            ) : null}
+          </div>
         ) : tab === "transcricao" ? (
           c.transcription ? (
             <p style={{ margin: 0, font: "400 16px/26px var(--font-text)", color: "var(--color-foreground)", whiteSpace: "pre-wrap" }}>
@@ -294,8 +346,8 @@ export function ConversationDetailView({ id }: { id: string }) {
                 </div>
                 <p style={{ margin: "0 0 8px", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{o.pain}</p>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <span style={{ ...chip, background: "var(--brand)", color: "var(--app-on-ink)" }}>{o.type}</span>
-                  <span style={chip}>{o.status}</span>
+                  <span style={{ ...chip, background: "var(--brand)", color: "var(--app-on-ink)" }}>{formatOpportunityType(o.type)}</span>
+                  <span style={chip}>{formatOpportunityStatus(o.status)}</span>
                 </div>
               </div>
             ))}

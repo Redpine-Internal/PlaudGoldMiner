@@ -82,7 +82,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
 
       if (!processResponse.ok) {
         const data = await processResponse.json();
-        throw new Error(data.error || 'Processing failed');
+        throw new Error(data.error || 'Falha ao processar o arquivo');
       }
 
       const processResult = await processResponse.json();
@@ -102,7 +102,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
       }, 500);
     } catch (err) {
       setStatus('error');
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Ocorreu um erro');
     }
   };
 
@@ -133,7 +133,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to save metadata');
+        throw new Error(data.error || 'Falha ao salvar os dados da conversa');
       }
 
       setProgress(100);
@@ -145,7 +145,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
       }, 1000);
     } catch (err) {
       setStatus('error');
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Ocorreu um erro');
       setStep('metadata');
     }
   };

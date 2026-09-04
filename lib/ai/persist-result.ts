@@ -3,11 +3,16 @@ import { conversations, opportunities, opportunitySources } from '@/lib/db/schem
 import { marcarProcedencia } from '@/lib/ai/excerpt-provenance';
 import { eq } from 'drizzle-orm';
 import type { TranscriptionResult } from './prompts/process-transcription';
+import {
+  createConversationAiAnalysis,
+  saveConversationAiAnalysis,
+} from './conversation-analysis-store';
 
 /**
  * Persist a successful AI transcription result against an existing conversation:
- * updates the conversation row (summary/topics/participants/type/status) and
- * inserts one opportunity row per detected opportunity.
+ * updates the conversation and inserts one opportunity per detected item. For
+ * Plaud sources, its original summary stays untouched and the application AI
+ * result is persisted independently in meetings.metadata.ai_analysis.
  *
  * Shared by POST /api/process (seed/upload conversations) and
  * POST /api/plaud/analyze (Plaud recordings persisted on demand) so the two
@@ -20,13 +25,38 @@ export async function persistTranscriptionResult(
   aiResult: TranscriptionResult,
   currentTitle?: string | null
 ) {
+  const [currentConversation] = await db
+    .select({ source: conversations.source })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+
+  if (!currentConversation) {
+    throw new Error(`Conversation not found while persisting AI result: ${conversationId}`);
+  }
+
+  const isPlaudConversation = currentConversation.source === 'plaud';
+  const aiAnalysis = isPlaudConversation
+    ? createConversationAiAnalysis(aiResult)
+    : null;
+
+  if (aiAnalysis) {
+    await saveConversationAiAnalysis(conversationId, aiAnalysis);
+  }
+
   await db
     .update(conversations)
     .set({
       status: 'processado',
-      summary: aiResult.summary,
-      topics: JSON.stringify(aiResult.topics),
-      participants: JSON.stringify(aiResult.participants),
+      // Em gravações Plaud, estes campos pertencem ao conteúdo original. A
+      // análise da aplicação fica isolada em meetings.metadata.ai_analysis.
+      ...(isPlaudConversation
+        ? {}
+        : {
+            summary: aiResult.summary,
+            topics: JSON.stringify(aiResult.topics),
+            participants: JSON.stringify(aiResult.participants),
+          }),
       title: currentTitle || aiResult.suggestedTitle,
       type: aiResult.suggestedType,
       // updated_at é setado pelo trigger INSTEAD OF da view (now()).
@@ -72,7 +102,7 @@ export async function persistTranscriptionResult(
     .where(eq(conversations.id, conversationId))
     .limit(1);
 
-  return { conversation: updatedConversation, opportunities: createdOpportunities };
+  return { conversation: updatedConversation, opportunities: createdOpportunities, aiAnalysis };
 }
 
 /** Mark a conversation as errored (AI processing failed). */

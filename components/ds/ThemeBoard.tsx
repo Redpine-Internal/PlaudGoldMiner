@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./Icon";
 import { Button } from "./Button";
+import { formatOpportunityType } from "@/lib/presentation/labels";
 
 /**
  * Visão "Por tema": a leitura que a lista de cards não dá.
@@ -44,14 +45,6 @@ export interface ThemeBoardProps {
   onOpenItem?: (id: string) => void;
   loading?: boolean;
 }
-
-const TYPES: Record<string, string> = {
-  treinamento: "Treinamento",
-  consultoria: "Consultoria",
-  sistema: "Sistema",
-  produto: "Produto",
-  servico: "Serviço",
-};
 
 /** As três marcas, na ordem em que aparecem no seletor. */
 const PRIORITIES: Array<{ value: string; label: string; short: string }> = [
@@ -249,7 +242,7 @@ export function ThemeBoard({
                     className="ds-badge ds-badge--compact"
                     style={{ background: `var(--opp-${m.type}-bg)`, color: `var(--opp-${m.type}-fg)` }}
                   >
-                    {TYPES[m.type] || m.type}
+                    {formatOpportunityType(m.type)}
                   </span>
                   <span
                     style={{

@@ -2,23 +2,19 @@ import React from "react";
 import { Icon } from "./Icon";
 import { Button } from "./Button";
 import { useEnrichment } from "./enrichment/useEnrichment";
+import { formatContentFormat, formatContentStatus } from "@/lib/presentation/labels";
 
 // Formatos de conteúdo. `youtube`/`linkedin`/`blog` são valores legados que a
 // migração 2026-08-28 converteu, mas seguem mapeados por segurança.
-const P: Record<string, { icon: string; color: string; label: string }> = {
-  artigo: { icon: "book-open", color: "var(--platform-artigo-icon)", label: "Artigo" },
-  post: { icon: "message-square", color: "var(--platform-post-icon)", label: "Post" },
-  carrossel: { icon: "layers", color: "var(--platform-carrossel-icon)", label: "Carrossel" },
-  roteiro: { icon: "clapperboard", color: "var(--platform-roteiro-icon)", label: "Roteiro" },
-  blog: { icon: "book-open", color: "var(--platform-artigo-icon)", label: "Artigo" },
-  linkedin: { icon: "message-square", color: "var(--platform-post-icon)", label: "Post" },
-  youtube: { icon: "clapperboard", color: "var(--platform-roteiro-icon)", label: "Roteiro" },
+const P: Record<string, { icon: string; color: string }> = {
+  artigo: { icon: "book-open", color: "var(--platform-artigo-icon)" },
+  post: { icon: "message-square", color: "var(--platform-post-icon)" },
+  carrossel: { icon: "layers", color: "var(--platform-carrossel-icon)" },
+  roteiro: { icon: "clapperboard", color: "var(--platform-roteiro-icon)" },
+  blog: { icon: "book-open", color: "var(--platform-artigo-icon)" },
+  linkedin: { icon: "message-square", color: "var(--platform-post-icon)" },
+  youtube: { icon: "clapperboard", color: "var(--platform-roteiro-icon)" },
 };
-const STATUS: Record<string, string> = {
-  sugerido: "Sugerido", rascunho: "Rascunho", em_revisao: "Em revisão",
-  aprovado: "Aprovado", producao: "Em produção", publicado: "Publicado", descartado: "Descartado",
-};
-
 export interface ContentCardProps {
   title?: string;
   /** Formato do conteúdo: artigo | post | carrossel | roteiro. */
@@ -107,9 +103,9 @@ export function ContentCard({
         originalText: enrichText ?? theme ?? "",
         draft,
         outline,
-        formatLabel: p.label,
+        formatLabel: formatContentFormat(platform),
         subtypeLabel: sub || null,
-        statusLabel: STATUS[status] || status,
+        statusLabel: formatContentStatus(status),
       });
     }
   };
@@ -151,12 +147,12 @@ export function ContentCard({
         <div className="pgm-content-card__format">
           <Icon name={p.icon} size={20} color={p.color} />
           <span>
-            {sub ? `${p.label} · ${sub}` : p.label}
+            {sub ? `${formatContentFormat(platform)} · ${sub}` : formatContentFormat(platform)}
           </span>
           {interesting ? <Icon name="star" size={14} color="var(--brand)" /> : null}
         </div>
         <span className="ds-badge ds-badge--compact" style={{ background: `var(--content-${status}-bg)`, color: `var(--content-${status}-fg)` }}>
-          {STATUS[status] || status}
+          {formatContentStatus(status)}
         </span>
       </div>
       <h2 className="pgm-content-card__title">{title}</h2>
@@ -164,7 +160,7 @@ export function ContentCard({
       {parsed ? (
         <div className="pgm-content-card__outline">
           {parsed.angle ? <p style={{ margin: "0 0 6px", fontStyle: "italic" }}>{parsed.angle}</p> : null}
-          <p className="pgm-content-card__outline-label">Outline</p>
+          <p className="pgm-content-card__outline-label">Estrutura</p>
           {parsed.points.length ? (
             <ul>
               {parsed.points.map((pt, i) => (

@@ -56,7 +56,7 @@ export function DriveFilePicker({
       ]);
 
       if (!filesRes.ok || !foldersRes.ok) {
-        throw new Error('Failed to fetch from Drive');
+        throw new Error('Falha ao carregar os arquivos do Drive');
       }
 
       const filesData = await filesRes.json();

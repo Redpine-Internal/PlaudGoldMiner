@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { useAppStore } from "@/stores/appStore";
 import { Icon, Tabs, TypeBadge, StatusBadge, EmptyState, Button, ScoreBadge, Markdown } from "@/components/ds";
+import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
 
 interface ConversationDetail {
   id: string;
@@ -277,8 +278,8 @@ const OutputPanel = () => {
                 </div>
                 <p style={{ margin: "0 0 8px", font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>{o.pain}</p>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <span style={{ ...chip, background: "var(--brand)", color: "var(--app-on-ink)" }}>{o.type}</span>
-                  <span style={chip}>{o.status}</span>
+                  <span style={{ ...chip, background: "var(--brand)", color: "var(--app-on-ink)" }}>{formatOpportunityType(o.type)}</span>
+                  <span style={chip}>{formatOpportunityStatus(o.status)}</span>
                 </div>
               </div>
             ))}

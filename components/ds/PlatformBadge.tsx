@@ -1,4 +1,5 @@
 import React from "react";
+import { formatContentFormat } from "@/lib/presentation/labels";
 
 // Formatos de conteúdo (taxonomia 2026-08-28). Os slugs legados youtube/linkedin/blog
 // seguem mapeados porque podem sobrar em linhas antigas.
@@ -27,7 +28,7 @@ export function PlatformBadge({ platform = "artigo", style, className = "" }: Pl
       className={("ds-badge " + className).trim()}
       style={{ background: `var(--platform-${p}-bg)`, color: `var(--platform-${p}-fg)`, ...style }}
     >
-      {p}
+      {formatContentFormat(platform)}
     </span>
   );
 }

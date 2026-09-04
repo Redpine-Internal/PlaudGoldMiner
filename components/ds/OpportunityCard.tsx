@@ -1,9 +1,7 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { useEnrichment } from "./enrichment/useEnrichment";
-
-const STATUS: Record<string, string> = { nova: "Nova", analise: "Em análise", qualificada: "Qualificada", descartada: "Descartada" };
-const TYPES: Record<string, string> = { treinamento: "Treinamento", consultoria: "Consultoria", sistema: "Sistema", produto: "Produto", servico: "Serviço" };
+import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
 
 /** Compõe o texto padrão do enriquecimento a partir dos campos do negócio. */
 function buildEnrichText(opts: {
@@ -13,7 +11,7 @@ function buildEnrichText(opts: {
   context?: string | null;
   conversationTitle?: string;
 }): string {
-  const label = TYPES[opts.type ?? ""] || opts.type || "";
+  const label = formatOpportunityType(opts.type);
   const head =
     `Novo negócio de ${label.toLowerCase()}` +
     (opts.subtype ? ` — ${opts.subtype}` : "") +
@@ -112,12 +110,12 @@ export function OpportunityCard({
       </div>
       <div className="pgm-opportunity-card__type">
         <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${type}-bg)`, color: `var(--opp-${type}-fg)` }}>
-          {TYPES[type] || type}
+          {formatOpportunityType(type)}
         </span>
       </div>
       <div className="pgm-opportunity-card__status">
         <span className="ds-badge ds-badge--compact" style={{ background: `var(--opp-${status}-bg)`, color: `var(--opp-${status}-fg)` }}>
-          {STATUS[status] || status}
+          {formatOpportunityStatus(status)}
         </span>
       </div>
       {action ? <div className="pgm-opportunity-card__actions">{action}</div> : null}
