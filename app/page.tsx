@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
+import { fetchJson } from "@/lib/http";
 
 interface DashboardData {
   greetingName: string;
@@ -53,7 +54,7 @@ interface DashboardData {
   weekSummary: string | null;
 }
 
-const fetcher = (url: string) => fetch(url).then((response) => response.json());
+const fetcher = (url: string) => fetchJson<{ data: DashboardData }>(url);
 
 const formatDate = (value: string) => {
   // Datas de conversa não têm horário. Meio-dia local evita que 02/set vire
@@ -77,7 +78,7 @@ const formatUpdatedAt = (value?: string | null) => {
 
 const DashboardPage = () => {
   const router = useRouter();
-  const { data: response, isLoading, mutate } = useSWR<{ data: DashboardData }>("/api/dashboard", fetcher, {
+  const { data: response, isLoading, error, mutate } = useSWR<{ data: DashboardData }>("/api/dashboard", fetcher, {
     revalidateOnFocus: false,
   });
   const [isRefreshingThemes, setIsRefreshingThemes] = useState(false);
@@ -138,6 +139,9 @@ const DashboardPage = () => {
     { label: "Conteúdos sugeridos", value: data?.kpis.contents ?? 0, href: "/conteudos" },
   ];
 
+  if (error) {
+    return <div className="dashboard-page" role="alert"><h1>Dashboard</h1><p>Não foi possível carregar os indicadores. Os números não estão disponíveis neste momento.</p><button type="button" className="ds-btn ds-btn--outline" onClick={() => void mutate()}>Tentar novamente</button></div>;
+  }
   if (isLoading) {
     return (
       <div className="dashboard-page" aria-busy="true">

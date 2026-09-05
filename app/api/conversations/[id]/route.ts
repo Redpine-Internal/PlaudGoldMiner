@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { conversations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { conversationDuration } from '@/lib/presentation/conversation-duration';
 import {
   conversationUpdateSchema,
   formatZodError,
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return Response.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    return Response.json({ data: result[0] });
+    return Response.json({ data: { ...result[0], duration: conversationDuration(result[0].duration, result[0].source) } });
   } catch (error) {
     console.error('[API] GET /api/conversations/[id] error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

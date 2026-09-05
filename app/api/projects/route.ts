@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import { collectionPagination, collectionSearch, foldedSearchSql, statusCounts } from '@/lib/collection-query';
 
 interface ProjectRow {
   id: string;
@@ -17,32 +18,39 @@ const PROJECT_FIELDS = `id, title, description, status,
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const rawLimit = parseInt(searchParams.get('limit') || '50', 10);
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 50;
+    const { limit, offset } = collectionPagination(searchParams);
     const filters: string[] = [];
     const values: string[] = [];
     const status = searchParams.get('status');
     const sourceType = searchParams.get('sourceType');
     const sourceId = searchParams.get('sourceId');
 
-    if (status) {
-      values.push(status);
-      filters.push(`status = $${values.length}`);
-    }
     if (sourceType && sourceId) {
       values.push(sourceType, sourceId);
       filters.push(`source_type = $${values.length - 1} AND source_id = $${values.length}`);
     }
+    const search = searchParams.get('search')?.trim();
+    if (search) {
+      values.push(collectionSearch(search));
+      filters.push(`${foldedSearchSql('title')} LIKE $${values.length}`);
+    }
+    const baseWhere = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const baseValues = [...values];
+    if (status) {
+      values.push(status);
+      filters.push(`status = $${values.length}`);
+    }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const [projects, count] = await Promise.all([
+    const [projects, count, counts] = await Promise.all([
       pool.query<ProjectRow>(
-        `SELECT ${PROJECT_FIELDS} FROM app_projects ${where} ORDER BY created_at DESC LIMIT $${values.length + 1}`,
-        [...values, String(limit)]
+        `SELECT ${PROJECT_FIELDS} FROM app_projects ${where} ORDER BY created_at DESC, id DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+        [...values, limit, offset]
       ),
       pool.query<{ total: string }>(`SELECT COUNT(*) AS total FROM app_projects ${where}`, values),
+      pool.query<{ status: string; total: string }>(`SELECT status, COUNT(*) AS total FROM app_projects ${baseWhere} GROUP BY status`, baseValues),
     ]);
 
-    return NextResponse.json({ data: projects.rows, total: Number(count.rows[0].total) });
+    return NextResponse.json({ data: projects.rows, total: Number(count.rows[0]?.total ?? 0), counts: statusCounts(counts.rows), limit, offset });
   } catch (error) {
     console.error('Error fetching projects:', error);
     return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });

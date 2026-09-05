@@ -26,9 +26,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       values.push(value);
       updates.push(`${column} = $${values.length}`);
     };
-    if (typeof body?.title === 'string') add('title', body.title);
+    if (typeof body?.title === 'string') {
+      if (!body.title.trim()) return NextResponse.json({ error: 'Informe o título da tarefa.' }, { status: 400 });
+      add('title', body.title.trim());
+    }
     if (body && Object.hasOwn(body, 'detail') && (typeof body.detail === 'string' || body.detail === null)) add('detail', body.detail);
-    if (typeof body?.columnId === 'string') add('column_id', body.columnId);
+    if (typeof body?.columnId === 'string') {
+      const destination = await pool.query(
+        `SELECT c.id FROM app_project_columns c
+         JOIN app_project_tasks t ON t.project_id = c.project_id
+         WHERE t.id = $1 AND c.id = $2`, [id, body.columnId]
+      );
+      if (!destination.rowCount) return NextResponse.json({ error: 'A coluna de destino deve pertencer ao mesmo projeto da tarefa.' }, { status: 400 });
+      add('column_id', body.columnId);
+    }
     if (typeof body?.position === 'number' && Number.isFinite(body.position)) add('position', body.position);
     if (!updates.length) return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
 

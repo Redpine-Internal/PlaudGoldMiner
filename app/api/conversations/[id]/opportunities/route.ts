@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { opportunities } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -13,7 +13,10 @@ export async function GET(
     const result = await db
       .select()
       .from(opportunities)
-      .where(eq(opportunities.conversationId, id));
+      .where(or(
+        eq(opportunities.conversationId, id),
+        sql`EXISTS (SELECT 1 FROM app_opportunity_sources s WHERE s.opportunity_id::text = ${opportunities.id}::text AND s.conversation_id::text = ${id}::text)`,
+      ));
 
     return NextResponse.json({ data: result });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { enrichWithConversation } from '@/lib/n8n/enrich';
+import { collectionPagination, collectionSearch, collectionValues, foldedSearchSql, statusCounts } from '@/lib/collection-query';
 
 // Linha de app_opportunities (tabela local; 1 linha por oportunidade).
 // Casa 1:1 com OpportunityCard — sem achatamento jsonb.
@@ -29,26 +30,40 @@ interface AppOpportunityRow {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const rawLimit = parseInt(searchParams.get('limit') || '50', 10);
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 50;
+    const { limit, offset } = collectionPagination(searchParams);
     const status = searchParams.get('status');
-    const type = searchParams.get('type');
+    const types = collectionValues(searchParams, 'type');
     const filters: string[] = [];
-    const values: string[] = [];
+    const values: unknown[] = [];
 
     // Colunas qualificadas com o alias o: o SELECT junta com as tabelas de tema,
     // e "status" sem prefixo ficaria ambíguo se elas ganharem a mesma coluna.
+    if (types.length) {
+      values.push(types);
+      filters.push(`o.type = ANY($${values.length}::text[])`);
+    }
+    const search = searchParams.get('search')?.trim();
+    if (search) {
+      values.push(collectionSearch(search));
+      filters.push(`(${foldedSearchSql('o.title')} LIKE $${values.length} OR ${foldedSearchSql('o.pain')} LIKE $${values.length})`);
+    }
+    const minScore = Number(searchParams.get('minScore') ?? 0);
+    if (Number.isFinite(minScore) && minScore > 0) {
+      values.push(minScore);
+      filters.push(`o.score >= $${values.length}`);
+    }
+    if (searchParams.get('interesting') === 'true') {
+      filters.push("EXISTS (SELECT 1 FROM app_idea_enrichment e WHERE e.source_type = 'opportunity' AND e.source_id::text = o.id::text AND e.interesting = true)");
+    }
+    const baseWhere = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const baseValues = [...values];
     if (status) {
       values.push(status);
       filters.push(`o.status = $${values.length}`);
     }
-    if (type) {
-      values.push(type);
-      filters.push(`o.type = $${values.length}`);
-    }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
-    const [res, count] = await Promise.all([
+    const [res, count, counts] = await Promise.all([
       pool.query<AppOpportunityRow>(
       `SELECT o.id, o.conversation_id, o.title, o.pain, o.context, o.score, o.type, o.subtype,
               o.generated_idea, o.status, o.notes, o.created_at, o.priority,
@@ -58,14 +73,15 @@ export async function GET(request: NextRequest) {
          LEFT JOIN app_business_theme_members m ON m.opportunity_id = o.id
          LEFT JOIN app_business_themes t ON t.id = m.theme_id
         ${where}
-        ORDER BY o.created_at DESC
-        LIMIT $${values.length + 1}`,
-      [...values, limit]
+        ORDER BY o.created_at DESC, o.id DESC
+        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      [...values, limit, offset]
       ),
       pool.query<{ total: string }>(
         `SELECT COUNT(*) AS total FROM app_opportunities o ${where}`,
         values
       ),
+      pool.query<{ status: string; total: string }>(`SELECT o.status, COUNT(*) AS total FROM app_opportunities o ${baseWhere} GROUP BY o.status`, baseValues),
     ]);
 
     const cards = await enrichWithConversation(
@@ -89,7 +105,7 @@ export async function GET(request: NextRequest) {
       }))
     );
 
-    return NextResponse.json({ data: cards, total: Number(count.rows[0].total) });
+    return NextResponse.json({ data: cards, total: Number(count.rows[0]?.total ?? 0), counts: statusCounts(counts.rows), limit, offset });
   } catch (error) {
     console.error('Error fetching opportunities:', error);
     return NextResponse.json({ error: 'Failed to fetch opportunities' }, { status: 500 });

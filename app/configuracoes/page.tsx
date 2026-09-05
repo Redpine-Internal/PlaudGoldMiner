@@ -1,6 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Icon, Input, Button } from "@/components/ds";
+import { useCallback, useEffect, useState } from "react";
+import { Icon, Button } from "@/components/ds";
+import { signIn, signOut } from "next-auth/react";
+import { ApiError, fetchJson } from "@/lib/http";
 import {
   ACCENTS,
   AUX_PRESETS,
@@ -19,127 +21,47 @@ const secDesc: React.CSSProperties = { margin: "4px 0 0", font: "400 12px/18px v
 interface N8nHealth {
   configured: boolean;
   reachable: boolean;
+  authOk?: boolean;
   baseUrl: string;
-  status?: number;
-  error?: string;
 }
 
-function N8nSection() {
-  // "off" = not connected yet · "form" = entering creds · "connecting" = pinging · "on" = reachable
-  const [status, setStatus] = useState<string>("off");
-  const [health, setHealth] = useState<N8nHealth | null>(null);
-  const [url, setUrl] = useState("https://n8n-prd.mychatbot.us");
-  const [key, setKey] = useState("");
-
-  // On mount, ask the server if n8n is already configured + reachable.
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/n8n/status")
-      .then((r) => r.json())
-      .then((j) => {
-        if (!alive) return;
-        const h: N8nHealth | undefined = j?.data;
-        if (h) {
-          setHealth(h);
-          if (h.baseUrl) setUrl(h.baseUrl);
-          if (h.configured && h.reachable) setStatus("on");
-        }
-      })
-      .catch(() => {
-        /* offline — stays off */
-      });
-    return () => {
-      alive = false;
-    };
+function IntegrationStatus() {
+  const [n8n, setN8n] = useState<N8nHealth | null>(null);
+  const [drive, setDrive] = useState<"connected" | "disconnected" | "error" | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [error, setError] = useState("");
+  const check = useCallback(async () => {
+    return Promise.all([
+      fetchJson<{ data: N8nHealth }>("/api/n8n/status")
+        .then((result) => setN8n(result.data))
+        .catch(() => { setN8n(null); setError("Não foi possível verificar o n8n."); }),
+      fetchJson("/api/drive/folders?pageSize=1")
+        .then(() => setDrive("connected"))
+        .catch((failure: unknown) => setDrive(failure instanceof ApiError && failure.status === 401 ? "disconnected" : "error")),
+    ]).finally(() => setChecking(false));
   }, []);
 
-  const connect = async () => {
-    setStatus("connecting");
-    try {
-      const res = await fetch("/api/n8n/status");
-      const j = await res.json();
-      const h: N8nHealth | undefined = j?.data;
-      setHealth(h ?? null);
-      setStatus(h?.reachable ? "on" : "form");
-    } catch {
-      setStatus("form");
-    }
-  };
-  const disconnect = () => {
-    setStatus("off");
-  };
-
+  useEffect(() => { void check(); }, [check]);
+  const n8nLabel = !n8n ? "Estado não confirmado" : !n8n.configured ? "Não configurado" : !n8n.reachable ? "Indisponível" : n8n.authOk === true ? "Conexão verificada" : n8n.authOk === false ? "Autenticação recusada" : "Autenticação não confirmada";
   return (
-    <div style={{ paddingTop: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10, font: "400 14px/20px var(--fontFamily)" }}>
-          <Icon name="controls" size={20} color="var(--textSecondary)" />
-          n8n · automações
-        </span>
-        {status === "on" ? (
-          <span className="ds-badge" style={{ background: "var(--accent-success)", color: "#fff" }}>
-            Conectado
-          </span>
-        ) : status === "connecting" ? (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, font: "400 13px/18px var(--fontFamily)", color: "var(--textSecondary)" }}>
-            <Icon name="reload" size={14} className="ds-spin" />
-            Conectando...
-          </span>
-        ) : (
-          <Button variant="outline" size="sm" onClick={() => setStatus("form")}>
-            Conectar
-          </Button>
-        )}
+    <div style={{ display: "grid", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <span><Icon name="cloud-upload" size={20} /> Google Drive</span>
+        <span role="status">{checking ? "Verificando..." : drive === "connected" ? "Conectado" : drive === "disconnected" ? "Não conectado" : "Falha na verificação"}</span>
+        {!checking && drive !== "connected" ? <Button size="sm" variant="outline" onClick={() => void signIn("google", { callbackUrl: "/configuracoes" }).catch(() => setError("Não foi possível abrir a conexão com o Google."))}>Conectar Google Drive</Button> : null}
+        {!checking && drive === "connected" ? <Button size="sm" variant="outline" onClick={() => {
+          setChecking(true);
+          void signOut({ redirect: false }).then(() => check()).catch(() => { setError("Não foi possível desconectar o Google Drive."); setChecking(false); });
+        }}>Desconectar Google Drive</Button> : null}
       </div>
-      {status === "form" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
-          <Input label="URL da instância" value={url} onChange={setUrl} placeholder="https://sua-instancia.n8n.cloud" />
-          <Input label="API Key" type="password" value={key} onChange={setKey} placeholder="n8n_api_..." />
-          <div style={{ display: "flex", gap: 8 }}>
-            <Button size="sm" icon="check" onClick={connect} disabled={!url || !key}>
-              Conectar
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setStatus("off")}>
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      {status === "on" ? (
-        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-          {(
-            [
-              ["Processar reunião (transcrição + resumo)", "Ativo"],
-              ["Detectar novos negócios", "Ativo"],
-              ["Comparar embeddings da base do Clone", "Ativo"],
-              ["Insights de artigos científicos", "Ativo"],
-              ["Gerar conteúdo social", "Ativo"],
-            ] as [string, string][]
-          ).map(([w, st]) => (
-            <div
-              key={w}
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px", background: "var(--background)", borderRadius: 6 }}
-            >
-              <span style={{ font: "400 13px/18px var(--fontFamily)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w}</span>
-              <span
-                className="ds-badge ds-badge--compact"
-                style={{ background: st === "Ativo" ? "var(--accent-success)" : "var(--accent-inactive)", color: "#fff", flexShrink: 0 }}
-              >
-                {st}
-              </span>
-            </div>
-          ))}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-            <span style={{ font: "400 12px/16px var(--fontFamily)", color: "var(--textSecondary)" }}>
-              {health?.baseUrl ?? "n8n"}
-              {health?.configured === false ? " · sem N8N_WEBHOOK_SECRET" : ""}
-            </span>
-            <Button size="sm" variant="ghost" onClick={disconnect}>
-              Desconectar
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <span><Icon name="controls" size={20} /> n8n · automações</span>
+        <span role="status">{checking ? "Verificando..." : n8nLabel}</span>
+      </div>
+      {n8n ? <div style={{ overflowWrap: "anywhere" }}><p style={secDesc}>URL da instância: {n8n.baseUrl}</p><p style={secDesc}>Chave do webhook: {n8n.configured ? "Configurada no servidor (oculta)" : "Não configurada"}</p></div> : null}
+      <p style={secDesc}>O n8n é configurado no servidor. Esta verificação consulta a conexão e a autenticação, não confirma a execução de cada automação. Para alterar ou remover a integração, solicite a atualização da configuração do servidor.</p>
+      {error ? <p role="alert">{error}</p> : null}
+      <div><Button variant="outline" size="sm" icon="reload" disabled={checking} onClick={() => { setChecking(true); setError(""); void check(); }}>{checking ? "Verificando conexões..." : "Verificar conexões"}</Button></div>
     </div>
   );
 }
@@ -311,16 +233,7 @@ const ConfiguracoesPage = () => {
         <section className="ds-card pgm-settings-section">
           <div><h2 style={secTitle}>Integrações</h2><p style={secDesc}>Conecte fontes para processar conversas automaticamente.</p></div>
           <div className="pgm-settings-controls">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, font: "400 14px/20px var(--fontFamily)" }}>
-              <Icon name="cloud-upload" size={20} color="var(--textSecondary)" />
-              Google Drive
-            </span>
-            <span className="ds-badge" style={{ background: "var(--accent-success)", color: "#fff" }}>
-              Conectado
-            </span>
-          </div>
-          <N8nSection />
+          <IntegrationStatus />
           </div>
         </section>
       </div>

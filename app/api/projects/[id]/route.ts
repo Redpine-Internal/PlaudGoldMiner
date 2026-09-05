@@ -39,14 +39,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const { id } = await params;
     const body = await request.json().catch(() => null);
-    if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+    if ('title' in body && (typeof body.title !== 'string' || !body.title.trim())) {
+      return NextResponse.json({ error: 'Informe o título do projeto.' }, { status: 400 });
+    }
+    if ('description' in body && body.description !== null && typeof body.description !== 'string') {
+      return NextResponse.json({ error: 'A descrição do projeto deve ser um texto.' }, { status: 400 });
+    }
     if ('status' in body && (typeof body.status !== 'string' || !ALLOWED_STATUS.has(body.status))) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
     const fields = ['title', 'description', 'status'].filter((field) => field in body);
     if (!fields.length) return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
-    const values = fields.map((field) => body[field]);
+    const values = fields.map((field) => field === 'title' ? body.title.trim() : body[field]);
     const project = await pool.query<ProjectRow>(
       `UPDATE app_projects SET ${fields.map((field, index) => `${field} = $${index + 1}`).join(', ')} WHERE id = $${values.length + 1} RETURNING ${PROJECT_FIELDS}`,
       [...values, id]

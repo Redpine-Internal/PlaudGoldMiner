@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import type { ContentCard } from '@/lib/n8n/mappers';
 import { enrichWithConversation } from '@/lib/n8n/enrich';
+import { collectionPagination, collectionSearch, collectionValues, foldedSearchSql, statusCounts } from '@/lib/collection-query';
 
 // Fonte local: app_contents (1 linha por conteúdo). A conversa de origem vive em
 // app_content_sources (N por conteúdo); pegamos a 1ª via LEFT JOIN LATERAL para
@@ -25,31 +26,35 @@ interface AppContentRow {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const rawLimit = parseInt(searchParams.get('limit') || '50', 10);
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 50;
+    const { limit, offset } = collectionPagination(searchParams);
     const status = searchParams.get('status');
-    const platform = searchParams.get('platform');
-    const search = searchParams.get('search');
+    const platforms = collectionValues(searchParams, 'platform');
+    const search = searchParams.get('search')?.trim();
     const filters: string[] = [];
-    const values: string[] = [];
+    const values: unknown[] = [];
 
+    if (platforms.length) {
+      values.push(platforms);
+      filters.push(`c.platform = ANY($${values.length}::text[])`);
+    }
+    if (search) {
+      values.push(collectionSearch(search));
+      filters.push(
+        `(${['c.title', 'c.theme', 'c.outline', 'c.subtype'].map((column) => `${foldedSearchSql(column)} LIKE $${values.length}`).join(' OR ')})`
+      );
+    }
+    if (searchParams.get('interesting') === 'true') {
+      filters.push("EXISTS (SELECT 1 FROM app_idea_enrichment e WHERE e.source_type = 'content' AND e.source_id::text = c.id::text AND e.interesting = true)");
+    }
+    const baseWhere = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const baseValues = [...values];
     if (status) {
       values.push(status);
       filters.push(`c.status = $${values.length}`);
     }
-    if (platform) {
-      values.push(platform);
-      filters.push(`c.platform = $${values.length}`);
-    }
-    if (search) {
-      values.push(`%${search}%`);
-      filters.push(
-        `(c.title ILIKE $${values.length} OR c.theme ILIKE $${values.length} OR c.outline ILIKE $${values.length} OR c.subtype ILIKE $${values.length})`
-      );
-    }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
-    const [res, count] = await Promise.all([
+    const [res, count, counts, formats] = await Promise.all([
       pool.query<AppContentRow>(
       `SELECT c.id, c.title, c.theme, c.platform, c.subtype, c.outline, c.draft,
               c.mention_count, c.relevance_score, c.status, c.notes, c.created_at,
@@ -57,14 +62,16 @@ export async function GET(request: NextRequest) {
          FROM app_contents c
          LEFT JOIN LATERAL (
            SELECT conversation_id FROM app_content_sources
-            WHERE content_id = c.id LIMIT 1
+            WHERE content_id = c.id ORDER BY id LIMIT 1
          ) src ON true
         ${where}
-        ORDER BY c.created_at DESC
-        LIMIT $${values.length + 1}`,
-      [...values, limit]
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      [...values, limit, offset]
       ),
       pool.query<{ total: string }>(`SELECT COUNT(*) AS total FROM app_contents c ${where}`, values),
+      pool.query<{ status: string; total: string }>(`SELECT c.status, COUNT(*) AS total FROM app_contents c ${baseWhere} GROUP BY c.status`, baseValues),
+      pool.query<{ platform: string }>('SELECT DISTINCT platform FROM app_contents ORDER BY platform'),
     ]);
 
     const cards = await enrichWithConversation(
@@ -85,7 +92,7 @@ export async function GET(request: NextRequest) {
       }))
     );
 
-    return NextResponse.json({ data: cards, total: Number(count.rows[0].total) });
+    return NextResponse.json({ data: cards, total: Number(count.rows[0]?.total ?? 0), counts: statusCounts(counts.rows), platforms: formats.rows.map((row) => row.platform), limit, offset });
   } catch (error) {
     console.error('Error fetching contents:', error);
     return NextResponse.json({ error: 'Failed to fetch contents' }, { status: 500 });

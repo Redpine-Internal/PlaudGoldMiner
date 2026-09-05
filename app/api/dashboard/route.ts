@@ -223,12 +223,14 @@ export async function GET() {
       ),
       // Descartadas ficam de fora: a leitura é "onde há demanda", não "o que a
       // IA já produziu". DISTINCT na conversa porque a mesma reunião costuma
-      // alimentar várias oportunidades do mesmo tipo.
+      // alimentar várias oportunidades do mesmo tipo. A média é calculada à
+      // parte, antes de multiplicar cada negócio por suas linhas de fontes.
       pool.query<DemandRow>(
         `SELECT o.type,
                 COUNT(DISTINCT o.id)::int AS count,
                 COUNT(DISTINCT c.id)::int AS conversations,
-                ROUND(AVG(o.score))::int AS avg_score,
+                (SELECT ROUND(AVG(scored.score))::int FROM app_opportunities scored
+                  WHERE scored.type = o.type AND scored.status IS DISTINCT FROM 'descartada') AS avg_score,
                 (SELECT t.title FROM app_opportunities t
                   WHERE t.type = o.type AND t.status IS DISTINCT FROM 'descartada'
                   ORDER BY t.score DESC NULLS LAST LIMIT 1) AS top_title

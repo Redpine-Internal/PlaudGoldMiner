@@ -1,7 +1,7 @@
 "use client";
-import { Suspense, useState, useMemo, useCallback, useEffect } from "react";
+import { Suspense, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { UploadModal } from "@/components/upload";
 import { DriveImportModal } from "@/components/drive";
 import { SyncPlaudButton } from "@/components/SyncPlaudButton";
@@ -10,6 +10,7 @@ import { GlassList, GlassListRow, GlassListSection } from "@/components/lg/Glass
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { CONVERSATION_TYPE_LABELS } from "@/lib/presentation/labels";
+import { fetchJson } from "@/lib/http";
 
 const PAGE_SIZE = 20;
 
@@ -23,6 +24,11 @@ interface ApiConversation {
   summary: string | null;
   topics: string | null;
   participants: string | null;
+  source: string;
+  sourceFileId: string | null;
+  hasSummary: boolean;
+  hasTranscription: boolean;
+  hasInsights: boolean;
 }
 
 interface ApiResponse {
@@ -30,7 +36,7 @@ interface ApiResponse {
   total: number;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = fetchJson<ApiResponse>;
 
 // Concurrency-limited queue for the per-card /status calls. The Plaud API caps
 // at 60 req/min, so firing ~40 requests at once (one per card) self-DDoSes it
@@ -70,39 +76,35 @@ const PERIODS: [string, string][] = [
 
 // Content-status flags loaded on-demand per Plaud recording via /status.
 type ContentFlags = { hasSummary: boolean; hasTranscription: boolean; hasInsights: boolean };
-type CardStatus = ContentFlags | "loading";
 // The three content filters, keyed to the flag they gate on.
 const CONTENT: [keyof ContentFlags, string][] = [
-  ["hasSummary", "Resumo do Plaud"],
+  ["hasSummary", "Resumo"],
   ["hasTranscription", "Transcrição"],
   ["hasInsights", "Negócios"],
 ];
 
-// Busca insensível a acentos: "seguranca" deve casar com "Segurança".
-function fold(s: string) {
-  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-function getDateRange(period: string) {
+function getDateRange(period: string, from: string, to: string) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   switch (period) {
     case "today":
-      return { from: today, to: now };
+      return { from: localDate(today), to: localDate(now) };
     case "week": {
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return { from: weekAgo, to: now };
+      const weekStart = new Date(today);
+      weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+      return { from: localDate(weekStart), to: localDate(now) };
     }
     case "month": {
-      const monthAgo = new Date(today);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      return { from: monthAgo, to: now };
+      return { from: localDate(new Date(now.getFullYear(), now.getMonth(), 1)), to: localDate(now) };
     }
+    case "custom":
+      return { from, to };
     default:
-      return { from: null as Date | null, to: null as Date | null };
+      return { from: "", to: "" };
   }
 }
+
+const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const parseDate = (s: string) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T12:00:00" : s);
 const fmtDate = (s: string) => parseDate(s).toLocaleDateString("pt-BR");
@@ -119,8 +121,10 @@ type ConvFilters = {
   types: string[];
   period: string;
   content: (keyof ContentFlags)[];
+  from: string;
+  to: string;
 };
-const INITIAL_FILTERS: ConvFilters = { types: [], period: "all", content: [] };
+const INITIAL_FILTERS: ConvFilters = { types: [], period: "all", content: [], from: "", to: "" };
 
 const filterLabelStyle: React.CSSProperties = {
   fontSize: 13,
@@ -131,127 +135,55 @@ const filterLabelStyle: React.CSSProperties = {
   marginBottom: 8,
 };
 
-const ConversasView = () => {
+const ConversasView = ({ initialSearch }: { initialSearch: string }) => {
   const router = useRouter();
+  const { mutate: mutateCache } = useSWRConfig();
   const isMobile = useIsMobile();
-  const searchParams = useSearchParams();
-  const urlQ = searchParams.get("q") ?? "";
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
+  const [source, setSource] = useState<"acervo" | "plaud">("acervo");
+  const livePlaud = source === "plaud";
   // Busca global: a toolbar navega para /conversas?q=... — o ?q= é o valor
   // inicial E reativo do filtro de busca; edição local não altera a URL.
-  const [q, setQ] = useState(urlQ);
-  useEffect(() => {
-    setQ(urlQ);
-  }, [urlQ]);
+  const [q, setQ] = useState(initialSearch);
 
   const [f, setF] = usePersistedFilters<ConvFilters>("conversas", INITIAL_FILTERS);
-  const { types, period, content } = f;
+  const { types, period, content, from = "", to = "" } = f;
   const [showFilters, setShowFilters] = useState(false);
-  const [page, setPage] = useState(1);
-  // Content flags per card id, filled in progressively as each row fetches its status.
-  const [statusById, setStatusById] = useState<Record<string, CardStatus>>({});
-
-  const reportStatus = useCallback((id: string, status: CardStatus) => {
-    setStatusById((prev) => (prev[id] === status ? prev : { ...prev, [id]: status }));
-  }, []);
-
+  const filterKey = JSON.stringify([q, types, period, content, from, to, source]);
+  const [pagination, setPagination] = useState({ key: filterKey, page: 1 });
+  const page = pagination.key === filterKey ? pagination.page : 1;
+  const setPage = (next: number | ((current: number) => number)) => setPagination({ key: filterKey, page: typeof next === "function" ? next(page) : next });
+  if (pagination.key !== filterKey) setPagination({ key: filterKey, page: 1 });
+  const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
+  if (q.trim()) query.set("search", q.trim());
+  types.forEach((type) => query.append("type", type));
+  content.forEach((flag) => query.append("content", flag));
+  const range = getDateRange(period, from, to);
+  if (range.from) query.set("from", range.from);
+  if (range.to) query.set("to", range.to);
+  const invalidRange = !livePlaud && Boolean(range.from && range.to && range.from > range.to);
   const { data, error, isLoading, mutate, isValidating } = useSWR<ApiResponse>(
-    "/api/plaud/files?page=1&page_size=50",
+    invalidRange ? null : livePlaud ? `/api/plaud/files?page=${page}&page_size=${PAGE_SIZE}` : `/api/conversations?${query}`,
     fetcher,
     { revalidateOnFocus: false }
   );
 
   const conversations = useMemo(() => data?.data || [], [data]);
 
-  // baseList: everything matching the cheap, local filters (search/type/period).
-  // These are the cards whose status we may need to fetch — including ones the
-  // content filter will hide, since we can only hide them AFTER their flags load.
-  const baseList = useMemo(() => {
-    const { from, to } = getDateRange(period);
-    return conversations.filter((c) => {
-      if (q) {
-        const s = fold(q);
-        if (!fold(c.title).includes(s) && !fold(c.summary || "").includes(s)) return false;
-      }
-      if (types.length && !types.includes(c.type)) return false;
-      if (from || to) {
-        const d = parseDate(c.date);
-        if (from && d < from) return false;
-        if (to && d > to) return false;
-      }
-      return true;
-    });
-  }, [conversations, q, types, period]);
-
-  // list: what actually renders. With a content filter active, a card is kept
-  // only once its flags have loaded and match; still-loading cards are held back.
-  const contentActive = content.length > 0;
-  const list = useMemo(() => {
-    if (!contentActive) return baseList;
-    return baseList.filter((c) => {
-      const st = statusById[c.id];
-      if (!st || st === "loading") return false;
-      return content.every((k) => st[k]);
-    });
-  }, [baseList, contentActive, content, statusById]);
-
-  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
-  const statusTargets = contentActive ? baseList : paged;
+  const total = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // Grupos de data da página atual (grupos vazios somem).
   const groups = useMemo(() => {
     const now = new Date();
     const buckets: ApiConversation[][] = [[], [], [], []];
-    paged.forEach((c) => buckets[groupIndex(c.date, now)].push(c));
+    conversations.forEach((c) => buckets[groupIndex(c.date, now)].push(c));
     return GROUP_LABELS.map((label, i) => ({ label, rows: buckets[i] })).filter((g) => g.rows.length > 0);
-  }, [paged]);
+  }, [conversations]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [q, types, period, content]);
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
-
-  // How many cards are still resolving their status while a filter is active —
-  // drives the "verificando…" hint so an empty list doesn't look final.
-  const pendingCount = contentActive
-    ? baseList.filter((c) => { const s = statusById[c.id]; return !s || s === "loading"; }).length
-    : 0;
-
-  // Resolve os três campos de conteúdo nas linhas visíveis. Quando um filtro de
-  // conteúdo está ativo, todas as candidatas precisam ser verificadas antes de
-  // sabermos quais permanecem na lista. A fila limita a concorrência do Plaud.
-  useEffect(() => {
-    let cancelled = false;
-    statusTargets.forEach((c) => {
-      if (statusById[c.id]) return; // already loaded or loading
-      reportStatus(c.id, "loading");
-      statusFetcher(`/api/plaud/files/${c.id}/status`)
-        .then((r) => {
-          if (cancelled) return;
-          const d = r?.data;
-          reportStatus(c.id, {
-            hasSummary: Boolean(d?.hasSummary),
-            hasTranscription: Boolean(d?.hasTranscription),
-            hasInsights: Boolean(d?.hasInsights),
-          });
-        })
-        .catch(() => {
-          if (cancelled) return;
-          // On failure (e.g. Plaud 429/502) treat all flags as false so the card
-          // resolves out of "loading" instead of hanging the filter forever.
-          reportStatus(c.id, { hasSummary: false, hasTranscription: false, hasInsights: false });
-        });
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contentActive, statusTargets]);
+  if (!livePlaud && data && page > pageCount) setPage(pageCount);
 
   const toggleType = (t: string) => setF({ types: types.includes(t) ? types.filter((x) => x !== t) : [...types, t] });
   const toggleContent = (k: keyof ContentFlags) =>
@@ -261,6 +193,18 @@ const ConversasView = () => {
     setQ("");
     setF(INITIAL_FILTERS);
   };
+  const refresh = () => {
+    void mutate();
+    if (livePlaud) {
+      const visibleStatusKeys = new Set(conversations.map((conversation) => `/api/plaud/files/${conversation.id}/status`));
+      void mutateCache((key) => typeof key === "string" && visibleStatusKeys.has(key));
+    }
+  };
+  const imported = () => {
+    setSource("acervo");
+    setPage(1);
+    void mutateCache((key) => typeof key === "string" && key.startsWith("/api/conversations?"));
+  };
 
   return (
     <div className="pgm-conversations-page">
@@ -269,8 +213,8 @@ const ConversasView = () => {
         <h1>Conversas</h1>
       </header>
       <div className="pgm-command-bar">
-        <Button variant="secondary" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
-        <SyncPlaudButton onDone={() => mutate()} />
+        <Button variant="secondary" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={refresh} />
+        <SyncPlaudButton onDone={imported} />
         <Button variant="secondary" icon="hard-drive" onClick={() => setDriveOpen(true)}>
           Importar do Drive
         </Button>
@@ -279,7 +223,13 @@ const ConversasView = () => {
         </Button>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
+      <div role="group" aria-label="Origem das conversas" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <FilterChip active={!livePlaud} onClick={() => setSource("acervo")}>Acervo</FilterChip>
+        <FilterChip active={livePlaud} onClick={() => setSource("plaud")}>Disponíveis no Plaud</FilterChip>
+      </div>
+      {livePlaud ? <p style={{ color: "var(--color-muted-foreground)", marginBottom: 16 }}>Gravações diretamente do Plaud. Use “Sincronizar com Plaud” para incluí-las no acervo e pesquisar com todos os filtros.</p> : null}
+
+      {!livePlaud ? <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8 }}>
           <SearchInput value={q} onChange={setQ} placeholder="Buscar por título ou resumo" style={{ flex: 1, maxWidth: 264, minWidth: 160 }} />
           <FilterChip
@@ -302,8 +252,7 @@ const ConversasView = () => {
             </button>
           ) : null}
           <span style={{ marginLeft: "auto", fontSize: 15, color: "var(--color-muted-foreground)" }}>
-            {list.length} conversa{list.length !== 1 ? "s" : ""}
-            {pendingCount ? ` · verificando ${pendingCount}…` : ""}
+            {total} conversa{total !== 1 ? "s" : ""}
           </span>
         </div>
         {showFilters ? (
@@ -338,6 +287,12 @@ const ConversasView = () => {
                   </FilterChip>
                 ))}
               </div>
+              {period === "custom" ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 12 }}>
+                  <label>De <input aria-label="Data inicial" type="date" className="ds-input" value={from} max={to || undefined} onChange={(event) => setF({ from: event.target.value })} /></label>
+                  <label>Até <input aria-label="Data final" type="date" className="ds-input" value={to} min={from || undefined} onChange={(event) => setF({ to: event.target.value })} /></label>
+                </div>
+              ) : null}
             </div>
             <div>
               <div style={filterLabelStyle}>Conteúdo</div>
@@ -351,15 +306,17 @@ const ConversasView = () => {
             </div>
           </div>
         ) : null}
-      </div>
+      </div> : null}
+
+      {invalidRange ? <p role="alert">A data inicial deve ser anterior ou igual à data final.</p> : null}
 
       {error ? (
-        <div style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: "var(--radius-lg)" }}>
+        <div role="alert" style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: "var(--radius-lg)" }}>
           Erro ao carregar conversas. Por favor, tente novamente.
         </div>
       ) : null}
 
-      {isLoading ? (
+      {error || invalidRange ? null : isLoading ? (
         <GlassList>
           {Array.from({ length: 4 }).map((_, i) => (
             <GlassListRow key={i}>
@@ -371,7 +328,7 @@ const ConversasView = () => {
             </GlassListRow>
           ))}
         </GlassList>
-      ) : list.length ? (
+      ) : conversations.length ? (
         <>
           {isMobile ? null : (
             <div className="pgm-conversations-columns" aria-hidden="true">
@@ -392,31 +349,39 @@ const ConversasView = () => {
                     <ConversationRow
                       key={c.id}
                       conversation={c}
-                      status={statusById[c.id]}
+                      livePlaud={livePlaud}
                       isMobile={isMobile}
-                      onSelect={() => router.push(`/conversas/${c.id}`)}
+                      onSelect={() => router.push(`/conversas/${c.source === "plaud" && /^[0-9a-f]{32}$/i.test(c.sourceFileId || "") ? c.sourceFileId : c.id}`)}
                     />
                   ))}
                 </GlassList>
               </div>
             ))}
           </div>
-          <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+          {!livePlaud ? <Pagination page={page} pageCount={pageCount} onChange={setPage} /> : null}
         </>
       ) : (
         <EmptyState
           icon="message-square"
           title="Nenhuma conversa encontrada"
           message={
-            conversations.length
+            livePlaud
+              ? "Não há gravações nesta página do Plaud. Volte à página anterior ou atualize a lista."
+              : hasFilters
               ? "Nenhuma conversa corresponde aos filtros selecionados. Tente ajustar os filtros."
               : "Parece que você ainda não tem nenhuma conversa processada. Faça upload de uma transcrição ou importe do Google Drive para começar."
           }
         />
       )}
 
-      <UploadModal isOpen={uploadOpen} onClose={() => setUploadOpen(false)} onSuccess={() => mutate()} />
-      <DriveImportModal isOpen={driveOpen} onClose={() => setDriveOpen(false)} onSuccess={() => mutate()} />
+      {livePlaud ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 16 }}>
+        <Button variant="outline" disabled={page <= 1 || isLoading} onClick={() => setPage((value) => value - 1)}>Anterior</Button>
+        <span>Página {page}</span>
+        <Button variant="outline" disabled={isLoading || Boolean(error) || conversations.length < PAGE_SIZE} onClick={() => setPage((value) => value + 1)}>Próxima</Button>
+      </div> : null}
+
+      <UploadModal isOpen={uploadOpen} onClose={() => setUploadOpen(false)} onSuccess={imported} />
+      <DriveImportModal isOpen={driveOpen} onClose={() => setDriveOpen(false)} onSuccess={imported} />
     </div>
   );
 };
@@ -425,36 +390,43 @@ const ConversasView = () => {
  * Linha da lista de conversas dentro do vidro único (GlassListRow).
  * Título 16px 600 + badges de tipo/status; resumo em 1 linha; data/duração na
  * coluna direita no desktop e inline no mobile (sem colunas extras). Os badges
- * de conteúdo (resumo/transcrição/insights) aparecem só com filtro de conteúdo
- * ativo, alimentados pelo fetch central rate-limited da página.
+ * de conteúdo vêm do acervo ou de uma consulta sob demanda na aba Plaud.
  */
 function ConversationRow({
   conversation: c,
-  status,
+  livePlaud,
   isMobile,
   onSelect,
 }: {
   conversation: ApiConversation;
-  status: CardStatus | undefined;
+  livePlaud: boolean;
   isMobile: boolean;
   onSelect: () => void;
 }) {
-  const flags = status && status !== "loading" ? status : null;
+  const { data: status, error: statusError } = useSWR(
+    livePlaud ? `/api/plaud/files/${c.id}/status` : null,
+    statusFetcher,
+    { revalidateOnFocus: false, errorRetryCount: 2 },
+  );
+  const flags = livePlaud ? status?.data : c;
   const dateFmt = fmtDate(c.date);
-  const displayStatus = c.status === "processando" ? "pendente" : c.status;
+  const displayStatus = c.status;
+  // The Plaud file list does not classify recordings or report local processing.
+  const typeBadge = livePlaud ? <span className="ds-badge">Gravação</span> : <TypeBadge type={c.type} />;
+  const statusBadge = livePlaud ? <span className="ds-badge">No Plaud</span> : <StatusBadge status={displayStatus} />;
 
   if (!isMobile) {
     return (
       <GlassListRow className="pgm-conversation-row" onClick={onSelect} hideChevron aria-label={c.title}>
         <span className="pgm-conversation-row__title">{c.title}</span>
-        <TypeBadge type={c.type} />
-        <StatusBadge status={displayStatus} />
+        {typeBadge}
+        {statusBadge}
         <span className="pgm-conversation-row__muted">{dateFmt}</span>
         <span className="pgm-conversation-row__muted">{c.duration || "—"}</span>
         <div className="pgm-conversation-row__content">
-          <IndicatorBadge icon="file-text" label="Resumo do Plaud" on={flags?.hasSummary} loading={!flags} />
-          <IndicatorBadge icon="documents" label="Transcrição" on={flags?.hasTranscription} loading={!flags} />
-          <IndicatorBadge icon="lightbulb" label="Negócios" on={flags?.hasInsights} loading={!flags} />
+          <IndicatorBadge icon="file-text" label="Resumo" on={flags?.hasSummary} loading={!flags && !statusError} error={Boolean(statusError)} />
+          <IndicatorBadge icon="documents" label="Transcrição" on={flags?.hasTranscription} loading={!flags && !statusError} error={Boolean(statusError)} />
+          <IndicatorBadge icon="lightbulb" label="Negócios" on={flags?.hasInsights} loading={!flags && !statusError} error={Boolean(statusError)} />
         </div>
       </GlassListRow>
     );
@@ -477,8 +449,8 @@ function ConversationRow({
           >
             {c.title}
           </span>
-          <TypeBadge type={c.type} style={{ flexShrink: 0 }} />
-          <StatusBadge status={displayStatus} style={{ flexShrink: 0 }} />
+          {typeBadge}
+          {statusBadge}
         </div>
         {c.summary ? (
           <span
@@ -499,13 +471,13 @@ function ConversationRow({
             {c.duration ? ` · ${c.duration}` : ""}
           </span>
         ) : null}
-        {status ? (
+        {(
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
-            <IndicatorBadge icon="file-text" label="Resumo do Plaud" on={flags?.hasSummary} loading={!flags} />
-            <IndicatorBadge icon="documents" label="Transcrição" on={flags?.hasTranscription} loading={!flags} />
-            <IndicatorBadge icon="lightbulb" label="Negócios" on={flags?.hasInsights} loading={!flags} />
+            <IndicatorBadge icon="file-text" label="Resumo" on={flags?.hasSummary} loading={!flags && !statusError} error={Boolean(statusError)} />
+            <IndicatorBadge icon="documents" label="Transcrição" on={flags?.hasTranscription} loading={!flags && !statusError} error={Boolean(statusError)} />
+            <IndicatorBadge icon="lightbulb" label="Negócios" on={flags?.hasInsights} loading={!flags && !statusError} error={Boolean(statusError)} />
           </div>
-        ) : null}
+        )}
       </div>
       {!isMobile ? (
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
@@ -520,11 +492,11 @@ function ConversationRow({
 }
 
 /** Indicador neutro mostrando se cada conteúdo está disponível. */
-function IndicatorBadge({ icon, label, on, loading }: { icon: string; label: string; on?: boolean; loading?: boolean }) {
+function IndicatorBadge({ icon, label, on, loading, error }: { icon: string; label: string; on?: boolean; loading?: boolean; error?: boolean }) {
   const active = Boolean(on) && !loading;
   return (
     <span
-      title={loading ? `${label}: verificando...` : on ? `Tem ${label.toLowerCase()}` : `Sem ${label.toLowerCase()}`}
+      title={error ? `${label}: não foi possível verificar. Atualize para tentar novamente.` : loading ? `${label}: verificando...` : on ? `Tem ${label.toLowerCase()}` : `Sem ${label.toLowerCase()}`}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -550,8 +522,14 @@ function IndicatorBadge({ icon, label, on, loading }: { icon: string; label: str
 // no prerender — o miolo (ConversasView) é quem lê a URL.
 const ConversasPage = () => (
   <Suspense fallback={null}>
-    <ConversasView />
+    <ConversasQuery />
   </Suspense>
 );
+
+function ConversasQuery() {
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q") ?? "";
+  return <ConversasView key={q} initialSearch={q} />;
+}
 
 export default ConversasPage;

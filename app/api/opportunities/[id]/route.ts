@@ -112,7 +112,8 @@ export async function PATCH(
  *
  * app_opportunity_sources NÃO tem foreign key para app_opportunities, então o
  * banco não faz cascade: apagar só a oportunidade deixaria as fontes órfãs.
- * As duas remoções vão na mesma transação para não sobrar meio registro.
+ * As remoções e a retirada dos favoritos vão na mesma transação. O enrichment
+ * permanece guardado com suas notas e referências, apenas sem a marca de interesse.
  */
 export async function DELETE(
   request: NextRequest,
@@ -125,6 +126,11 @@ export async function DELETE(
     await client.query('BEGIN');
     await client.query(`DELETE FROM app_opportunity_sources WHERE opportunity_id = $1`, [id]);
     const res = await client.query(`DELETE FROM app_opportunities WHERE id = $1`, [id]);
+    await client.query(
+      `UPDATE app_idea_enrichment SET interesting = false
+       WHERE source_type = 'opportunity' AND source_id = $1`,
+      [id]
+    );
     await client.query('COMMIT');
 
     if (res.rowCount === 0) {

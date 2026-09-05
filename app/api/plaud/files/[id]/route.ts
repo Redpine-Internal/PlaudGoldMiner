@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFileContent } from '@/lib/plaud/client';
+import { getFileContent, PlaudApiError } from '@/lib/plaud/client';
 import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 import { getConversationAiAnalysisByPlaudFileId } from '@/lib/ai/conversation-analysis-store';
 
@@ -46,6 +46,9 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
       },
     });
   } catch (error) {
+    if (error instanceof PlaudApiError && error.status === 404) {
+      return NextResponse.json({ error: 'Gravação não encontrada no Plaud.' }, { status: 404 });
+    }
     if (error instanceof PlaudAuthError) {
       console.error('Plaud auth error fetching file detail:', error);
       return NextResponse.json(

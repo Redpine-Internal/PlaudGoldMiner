@@ -3,7 +3,7 @@ import { getFileContent } from '@/lib/plaud/client';
 import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 import { db } from '@/lib/db';
 import { conversations, opportunities } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 
 /**
  * Lightweight content-status for a single Plaud recording, used by the Conversas
@@ -31,7 +31,10 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
       const [opp] = await db
         .select({ id: opportunities.id })
         .from(opportunities)
-        .where(eq(opportunities.conversationId, local.id))
+        .where(or(
+          eq(opportunities.conversationId, local.id),
+          sql`EXISTS (SELECT 1 FROM app_opportunity_sources s WHERE s.opportunity_id::text = ${opportunities.id}::text AND s.conversation_id::text = ${local.id}::text)`,
+        ))
         .limit(1);
       hasInsights = Boolean(opp);
     }

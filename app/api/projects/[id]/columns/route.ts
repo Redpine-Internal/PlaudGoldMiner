@@ -23,10 +23,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const result = await pool.query<ColumnRow>(
       `INSERT INTO app_project_columns (id, project_id, name, position)
-       VALUES ($1, $2, $3, (SELECT COALESCE(MAX(position), 0) + 1000 FROM app_project_columns WHERE project_id = $2))
+       SELECT $1, p.id, $3, (SELECT COALESCE(MAX(position), 0) + 1000 FROM app_project_columns WHERE project_id = p.id)
+       FROM app_projects p WHERE p.id = $2
        RETURNING id, project_id, name, position, created_at`,
       [crypto.randomUUID(), projectId, body.name.trim()]
     );
+    if (!result.rowCount) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     return NextResponse.json({ data: toColumn(result.rows[0]) }, { status: 201 });
   } catch (error) {
     console.error('Error creating project column:', error);

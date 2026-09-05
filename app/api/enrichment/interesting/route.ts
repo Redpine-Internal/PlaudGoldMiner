@@ -11,6 +11,11 @@ interface InterestingRow {
   refCount: number;
   title: string | null;
   subtitle: string | null;
+  draft: string | null;
+  outline: string | null;
+  platform: string | null;
+  subtype: string | null;
+  status: string | null;
 }
 
 /**
@@ -30,7 +35,12 @@ export async function GET() {
          e.updated_at    AS "updatedAt",
          COALESCE(rc.n, 0)::int AS "refCount",
          COALESCE(o.title, c.title) AS "title",
-         COALESCE(o.pain, c.theme) AS "subtitle"
+         COALESCE(o.pain, c.theme) AS "subtitle",
+         c.draft         AS "draft",
+         c.outline       AS "outline",
+         c.platform      AS "platform",
+         c.subtype       AS "subtype",
+         c.status        AS "status"
        FROM app_idea_enrichment e
        LEFT JOIN app_opportunities o ON e.source_type = 'opportunity' AND o.id = e.source_id
        LEFT JOIN app_contents c ON e.source_type = 'content' AND c.id = e.source_id
@@ -39,6 +49,7 @@ export async function GET() {
          FROM app_idea_enrichment_reference GROUP BY enrichment_id
        ) rc ON rc.enrichment_id = e.id
        WHERE e.interesting = true
+         AND (e.source_type <> 'opportunity' OR o.id IS NOT NULL)
        ORDER BY e.updated_at DESC`
     );
     return NextResponse.json({ data: rows });

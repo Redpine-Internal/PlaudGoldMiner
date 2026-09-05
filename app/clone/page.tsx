@@ -3,7 +3,10 @@ import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useAppStore, type CloneMsg } from "@/stores/appStore";
-import { Icon } from "@/components/ds";
+import { Icon, Markdown } from "@/components/ds";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { fetchJson } from "@/lib/http";
+import { createCloneStream, regenerationHistory, replaceCloneReply, type CloneMessage } from "@/lib/clone/chat-stream";
 
 interface Opportunity {
   id: string;
@@ -16,12 +19,12 @@ interface Content {
   title: string;
   relevanceScore: number;
 }
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = fetchJson;
 
 interface CloneData {
-  conversations: unknown[];
-  opportunities: Opportunity[];
-  contents: Content[];
+  conversations: number;
+  opportunities: number;
+  contents: number;
 }
 
 const iconBtn: React.CSSProperties = {
@@ -32,30 +35,33 @@ const iconBtn: React.CSSProperties = {
   color: "var(--textSecondary)",
   display: "inline-flex",
   borderRadius: 5,
+  minHeight: 44,
 };
 
 const suggestions = ["O que aprendi essa semana?", "Quais negócios priorizar?", "Ideias de conteúdo sobre delegação"];
+const HISTORY_LABEL = "Histórico desta sessão";
 
 const ClonePage = () => {
   const { chats, activeChatId, saveChatMsgs, newChat, selectChat } = useAppStore();
+  const isMobile = useIsMobile();
   const chat = chats.find((c) => c.id === activeChatId) || chats[0];
 
-  const { data: convData } = useSWR<{ data: unknown[]; total: number }>("/api/conversations?limit=100", fetcher);
-  const { data: oppData } = useSWR<{ data: Opportunity[] }>("/api/opportunities?limit=100", fetcher);
-  const { data: ctData } = useSWR<{ data: Content[] }>("/api/contents?limit=100", fetcher);
+  const { data: convData } = useSWR<{ data: unknown[]; total: number }>("/api/conversations?limit=1", fetcher);
+  const { data: oppData } = useSWR<{ data: Opportunity[]; total: number }>("/api/opportunities?limit=1", fetcher);
+  const { data: ctData } = useSWR<{ data: Content[]; total: number }>("/api/contents?limit=1", fetcher);
 
   const data: CloneData = {
-    conversations: convData?.data || [],
-    opportunities: oppData?.data || [],
-    contents: ctData?.data || [],
+    conversations: convData?.total ?? convData?.data.length ?? 0,
+    opportunities: oppData?.total ?? oppData?.data.length ?? 0,
+    contents: ctData?.total ?? ctData?.data.length ?? 0,
   };
   const dataReady = convData !== undefined && oppData !== undefined && ctData !== undefined;
 
   return (
     <div className="pgm-clone-layout">
-      <aside className="pgm-clone-history" aria-label="Histórico do Clone">
+      <aside className="pgm-clone-history" aria-label={HISTORY_LABEL}>
         <button type="button" className="pgm-clone-history__new" onClick={() => newChat()}>Novo chat →</button>
-        <p>Histórico</p>
+        <p>{HISTORY_LABEL}</p>
         <div className="pgm-clone-history__list">
           {chats.map((item) => (
             <button key={item.id} type="button" aria-pressed={item.id === activeChatId} onClick={() => selectChat(item.id)} title={item.title}>
@@ -65,7 +71,18 @@ const ClonePage = () => {
         </div>
         <Link href="/configuracoes">Configurações</Link>
       </aside>
-      <CloneChat key={chat.id} data={data} dataReady={dataReady} chat={chat} onMsgs={saveChatMsgs} />
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, minHeight: 0 }}>
+        {isMobile ? <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12 }}>
+          <label style={{ flex: 1, minWidth: 0 }}>
+            <span className="sr-only">{HISTORY_LABEL}</span>
+            <select className="ds-input" value={activeChatId} onChange={(event) => selectChat(Number(event.target.value))}>
+              {chats.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+            </select>
+          </label>
+          <button type="button" className="ds-btn ds-btn--outline" onClick={() => newChat()}>Novo chat</button>
+        </div> : null}
+        <CloneChat key={chat.id} data={data} dataReady={dataReady} chat={chat} onMsgs={saveChatMsgs} />
+      </div>
     </div>
   );
 };
@@ -81,23 +98,36 @@ function CloneChat({
   chat: { id: number; seed: string | null; msgs: CloneMsg[] | null };
   onMsgs: (id: number, msgs: CloneMsg[], autoTitle?: string) => void;
 }) {
-  const greetingText =
-    "Oi! Eu sou o Plaud Gold Miner! Aprendi com " +
-    data.conversations.length +
+  const greetingText = dataReady ?
+    "Oi! Eu sou o Plaud Gold Miner! Sua base tem " +
+    data.conversations +
     " conversas, " +
-    data.opportunities.length +
+    data.opportunities +
     " novos negócios e " +
-    data.contents.length +
-    " sugestões de conteúdo. O que você quer explorar?";
-  const greeting: CloneMsg = {
+    data.contents +
+    " sugestões de conteúdo. O que você quer explorar?" : "Oi! Eu sou o Plaud Gold Miner! Posso consultar suas conversas e ideias. O que você quer explorar?";
+  const greeting: CloneMessage = {
+    id: `greeting-${chat.id}`,
     role: "clone",
     text: greetingText,
   };
-  const [msgs, setMsgs] = useState<CloneMsg[]>(chat.msgs || [greeting]);
+  const [msgs, setMsgs] = useState<CloneMessage[]>(() => chat.msgs?.map((message, index) => ({
+    ...message,
+    id: typeof (message as Partial<CloneMessage>).id === "string" ? (message as CloneMessage).id : `${chat.id}-${index}`,
+  })) || [greeting]);
   const seeded = useRef(false);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [actionNotice, setActionNotice] = useState("");
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const stream = useRef(createCloneStream());
   const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const currentStream = stream.current;
+    return () => currentStream.cancel();
+  }, []);
 
   useEffect(() => {
     if (endRef.current) endRef.current.scrollTop = endRef.current.scrollHeight;
@@ -106,8 +136,8 @@ function CloneChat({
   useEffect(() => {
     const isUntouchedGreeting = !chat.msgs && msgs.length === 1 && msgs[0]?.role === "clone";
     if (!dataReady || !isUntouchedGreeting || msgs[0].text === greetingText) return;
-    setMsgs([{ role: "clone", text: greetingText }]);
-  }, [chat.msgs, dataReady, greetingText, msgs]);
+    setMsgs([{ id: `greeting-${chat.id}`, role: "clone", text: greetingText }]);
+  }, [chat.id, chat.msgs, dataReady, greetingText, msgs]);
 
   useEffect(() => {
     if (onMsgs && msgs.length > 1) {
@@ -117,65 +147,58 @@ function CloneChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msgs]);
 
-  // Real Clone: stream a grounded answer from Azure via /api/clone/chat.
-  // `history` is the conversation to send (the user turn is already appended by
-  // the caller). Streams tokens into a single growing clone message.
-  const ask = async (history: CloneMsg[]) => {
+  const ask = async (history: CloneMsg[], replyId: string) => {
+    if (stream.current.pending) return;
+    setStreaming(true);
+    setReplyError(null);
+    setActionNotice("");
     setThinking("Consultando a base de conhecimento...");
     try {
-      const res = await fetch("/api/clone/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
-      });
-
-      if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => null);
-        throw new Error(err?.error || "Falha ao consultar o Clone.");
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let acc = "";
-      let started = false;
-
-      // Insert the (empty) clone message on the first token, then keep updating it.
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        if (!started) {
-          started = true;
-          setThinking(null);
-          setMsgs((p) => [...p, { role: "clone", text: acc }]);
-        } else {
-          setMsgs((p) => {
-            const next = [...p];
-            next[next.length - 1] = { role: "clone", text: acc };
-            return next;
-          });
-        }
-      }
-
-      if (!started) {
-        // No tokens streamed — surface an honest empty state.
+      await stream.current.run(history, (text) => {
         setThinking(null);
-        setMsgs((p) => [...p, { role: "clone", text: "Não consegui gerar uma resposta agora. Tente novamente." }]);
-      }
+        setMsgs((current) => replaceCloneReply(current, replyId, text));
+      });
     } catch (e) {
-      setThinking(null);
+      if (e instanceof Error && e.name === "AbortError") return;
       const text = e instanceof Error ? e.message : "Falha ao consultar o Clone.";
-      setMsgs((p) => [...p, { role: "clone", text }]);
+      setReplyError(text);
+      setMsgs((current) => current.map((message) => message.id === replyId && !message.text ? { ...message, text: "Resposta indisponível. Use Regenerar para tentar novamente." } : message));
+    } finally {
+      setThinking(null);
+      setStreaming(false);
     }
   };
 
   const send = (text?: string) => {
     const q = (text ?? input).trim();
-    if (!q || thinking) return;
+    if (!q || stream.current.pending) return;
     setInput("");
-    const history: CloneMsg[] = [...msgs, { role: "user", text: q }];
-    setMsgs(history);
-    void ask(history);
+    const history: CloneMessage[] = [...msgs, { id: crypto.randomUUID(), role: "user", text: q }];
+    const replyId = crypto.randomUUID();
+    setMsgs([...history, { id: replyId, role: "clone", text: "" }]);
+    void ask(history, replyId);
+  };
+
+  const regenerate = (id: string) => {
+    if (stream.current.pending) return;
+    const history = regenerationHistory(msgs, id);
+    if (history) void ask(history, id);
+  };
+
+  const copy = async (message: CloneMessage) => {
+    try {
+      if (!navigator.clipboard) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(message.text);
+      setActionNotice("Resposta copiada.");
+    } catch {
+      setActionNotice("Não foi possível copiar. Selecione o texto e copie manualmente.");
+    }
+  };
+
+  const toggleUseful = (id: string) => {
+    const useful = !msgs.find((message) => message.id === id)?.useful;
+    setMsgs((current) => current.map((message) => message.id === id ? { ...message, useful } : message));
+    setActionNotice(useful ? "Resposta marcada como útil neste chat." : "Marcação removida deste chat.");
   };
 
   useEffect(() => {
@@ -193,13 +216,16 @@ function CloneChat({
   return (
     <section className="pgm-clone-chat">
       <h1>Clone</h1>
+      <p style={{ margin: 0, fontSize: 13, color: "var(--textSecondary)" }}>
+        O histórico é mantido enquanto você navega. Recarregar ou fechar a página apaga estas conversas do chat.
+      </p>
       <div className="pgm-clone-chat__rule" />
       <div className="pgm-clone-chat__body">
-        <div ref={endRef} className="pgm-clone-messages">
-          {msgs.map((m, i) =>
+        <div ref={endRef} className="pgm-clone-messages" aria-label="Mensagens do Clone" aria-busy={streaming}>
+          {msgs.map((m) =>
             m.role === "user" ? (
               <div
-                key={i}
+                key={m.id}
                 style={{
                   alignSelf: "flex-end",
                   maxWidth: "70%",
@@ -213,21 +239,23 @@ function CloneChat({
                 {m.text}
               </div>
             ) : (
-              <div key={i} className="pgm-clone-message">
+              <div key={m.id} className="pgm-clone-message">
                 <span>Clone</span>
                 <div>
-                  <p>{m.text}</p>
-                  <div className="pgm-clone-message__actions">
-                    <button type="button" title="Copiar" style={iconBtn} onClick={() => navigator.clipboard?.writeText(m.text)}><Icon name="copy" size={15} />Copiar</button>
-                    <button type="button" title="Útil" style={iconBtn}><Icon name="thumb-up" size={15} />Útil</button>
-                    <button type="button" title="Regenerar" style={iconBtn}><Icon name="reload" size={15} />Regenerar</button>
+                  <div className="[&_ul]:list-disc [&_ol]:list-decimal">
+                    <Markdown>{m.text}</Markdown>
+                  </div>
+                  <div className="pgm-clone-message__actions" style={{ flexWrap: "wrap", gap: 8 }}>
+                    <button type="button" title="Copiar" style={iconBtn} disabled={!m.text} onClick={() => void copy(m)}><Icon name="copy" size={15} />Copiar</button>
+                    <button type="button" title="Marcar como útil neste chat" style={iconBtn} disabled={streaming || !m.text} aria-pressed={!!m.useful} onClick={() => toggleUseful(m.id)}><Icon name="thumb-up" size={15} />{m.useful ? "Marcado como útil" : "Útil"}</button>
+                    {regenerationHistory(msgs, m.id) ? <button type="button" title="Regenerar esta resposta" style={iconBtn} disabled={streaming} onClick={() => regenerate(m.id)}><Icon name="reload" size={15} />Regenerar</button> : null}
                   </div>
                 </div>
               </div>
             )
           )}
           {thinking ? (
-            <div style={{ alignSelf: "flex-start", display: "flex", gap: 8, alignItems: "center" }}>
+            <div role="status" style={{ alignSelf: "flex-start", display: "flex", gap: 8, alignItems: "center" }}>
               <Icon name="reload" size={14} color="var(--textSecondary)" className="ds-spin" />
               <span style={{ font: "400 13px/18px var(--fontFamily)", color: "var(--textSecondary)" }}>{thinking}</span>
             </div>
@@ -242,22 +270,25 @@ function CloneChat({
           </div>
           ) : null}
         </div>
+        {replyError ? <p role="alert" style={{ color: "var(--accent-error)", margin: "8px 0" }}>{replyError}</p> : null}
+        <span role="status" style={{ fontSize: 13, color: "var(--textSecondary)" }}>{actionNotice || (streaming && !thinking ? "Recebendo resposta..." : "")}</span>
         <div className="pgm-clone-composer">
           <div className="pgm-clone-modes" role="group" aria-label="Modo do assistente">
             <button type="button" aria-pressed="true">Clone</button>
-            <button type="button" onClick={consultarBase} disabled={!!thinking}>Consultar base</button>
-            <button type="button" onClick={gerarInsights} disabled={!!thinking}>Gerar insights</button>
+            <button type="button" onClick={consultarBase} disabled={streaming}>Consultar base</button>
+            <button type="button" onClick={gerarInsights} disabled={streaming}>Gerar insights</button>
           </div>
           <input
             className="ds-input"
             value={input}
             placeholder="Pergunte ao seu Clone..."
+            aria-label="Pergunta para o Clone"
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") send();
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) send();
             }}
           />
-          <button type="button" className="pgm-clone-send" title="Enviar" onClick={() => send()} disabled={!input.trim() || !!thinking}>
+          <button type="button" className="pgm-clone-send" title="Enviar" onClick={() => send()} disabled={!input.trim() || streaming}>
             Enviar →
           </button>
         </div>

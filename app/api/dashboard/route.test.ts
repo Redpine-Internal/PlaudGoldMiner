@@ -24,6 +24,18 @@ beforeEach(() => {
 });
 
 describe('GET /api/dashboard', () => {
+  it('calcula a média por negócio antes da multiplicação pelas fontes', async () => {
+    await GET();
+
+    const demandSql = calls[11].sql;
+    expect(demandSql).toMatch(/\(SELECT ROUND\(AVG\(scored\.score\)\)::int FROM app_opportunities scored\s+WHERE scored\.type = o\.type AND scored\.status IS DISTINCT FROM 'descartada'\) AS avg_score/);
+    expect(demandSql).toContain('COUNT(DISTINCT o.id)::int AS count');
+    expect(demandSql).toContain('COUNT(DISTINCT c.id)::int AS conversations');
+    // AVG(DISTINCT score) também estaria errado: negócios distintos podem ter
+    // a mesma pontuação. O teste SQL real vive em dashboard-readonly.mts.
+    expect(demandSql).not.toMatch(/AVG\(DISTINCT|AVG\(o\.score\)/);
+  });
+
   it('mantém rótulos e números apoiados na mesma semântica dos dados', async () => {
     results.push(
       { rows: [{ count: 258 }] },

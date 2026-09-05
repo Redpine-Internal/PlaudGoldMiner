@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server';
-import { db } from '@/lib/db';
+import { db, pool } from '@/lib/db';
 import { conversations } from '@/lib/db/schema';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { collectionPagination, collectionSearch, collectionValues, foldedSearchSql } from '@/lib/collection-query';
+import { conversationDuration } from '@/lib/presentation/conversation-duration';
 import { z } from 'zod';
 import {
   conversationCreateSchema,
@@ -9,42 +11,78 @@ import {
   formatZodError,
 } from '@/lib/validators/conversation';
 
+const listFilters = conversationListSchema.omit({ type: true, limit: true }).extend({
+  types: z.array(z.enum(['reuniao', 'treinamento', 'informal', 'outro'])),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+  content: z.array(z.enum(['hasSummary', 'hasTranscription', 'hasInsights'])),
+}).refine((value) => !value.from || !value.to || value.from <= value.to, {
+  message: 'A data inicial deve ser anterior ou igual à data final.', path: ['from'],
+});
+
+const contentFlags = {
+  hasSummary: "NULLIF(btrim(c.summary), '') IS NOT NULL",
+  hasTranscription: "NULLIF(btrim(c.transcription), '') IS NOT NULL",
+  // The live view and legacy app tables mix uuid and text identifiers.
+  hasInsights: `EXISTS (SELECT 1 FROM app_opportunities o WHERE o.conversation_id::text = c.id::text
+    OR EXISTS (SELECT 1 FROM app_opportunity_sources s
+      WHERE s.opportunity_id::text = o.id::text AND s.conversation_id::text = c.id::text))`,
+};
+
 // GET /api/conversations - List conversations with optional filters
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const params = conversationListSchema.parse({
+    const params = listFilters.parse({
       status: searchParams.get('status') || undefined,
-      type: searchParams.get('type') || undefined,
-      limit: searchParams.get('limit') || undefined,
+      types: collectionValues(searchParams, 'type'),
+      from: searchParams.get('from') || undefined,
+      to: searchParams.get('to') || undefined,
+      content: collectionValues(searchParams, 'content'),
     });
-
-    // Build where conditions
-    const conditions = [];
+    const { limit, offset } = collectionPagination(searchParams);
+    const filters: string[] = [];
+    const values: unknown[] = [];
     if (params.status) {
-      conditions.push(eq(conversations.status, params.status));
+      values.push(params.status);
+      filters.push(`c.status = $${values.length}`);
     }
-    if (params.type) {
-      conditions.push(eq(conversations.type, params.type));
+    if (params.types.length) {
+      values.push(params.types);
+      filters.push(`c.type = ANY($${values.length}::text[])`);
     }
-
-    // Execute query
-    const result = await db
-      .select()
-      .from(conversations)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(conversations.date))
-      .limit(params.limit);
-
-    // Get total count for pagination info
-    const countResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(conversations)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    const search = searchParams.get('search')?.trim();
+    if (search) {
+      values.push(collectionSearch(search));
+      filters.push(`(${foldedSearchSql('c.title')} LIKE $${values.length} OR ${foldedSearchSql('c.summary')} LIKE $${values.length})`);
+    }
+    if (params.from) {
+      values.push(params.from);
+      filters.push(`c.date >= $${values.length}::date`);
+    }
+    if (params.to) {
+      values.push(params.to);
+      filters.push(`c.date < $${values.length}::date + INTERVAL '1 day'`);
+    }
+    params.content.forEach((flag) => filters.push(`(${contentFlags[flag]})`));
+    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const [result, countResult] = await Promise.all([
+      pool.query(`SELECT c.id, c.title, c.date, c.duration, c.type, c.status,
+        c.summary, c.topics, c.participants, c.source, c.source_file_id AS "sourceFileId",
+        (${contentFlags.hasSummary}) AS "hasSummary",
+        (${contentFlags.hasTranscription}) AS "hasTranscription",
+        (${contentFlags.hasInsights}) AS "hasInsights"
+        FROM conversations c ${where}
+        ORDER BY c.date DESC, c.id DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      [...values, limit, offset]),
+      pool.query<{ total: string }>(`SELECT count(*) AS total FROM conversations c ${where}`, values),
+    ]);
 
     return Response.json({
-      data: result,
-      total: countResult[0]?.count ?? 0,
+      data: result.rows.map((row) => ({ ...row, duration: conversationDuration(row.duration, row.source) })),
+      total: Number(countResult.rows[0]?.total ?? 0),
+      limit,
+      offset,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

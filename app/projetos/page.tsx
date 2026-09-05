@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { Button, EmptyState, Pagination, SearchInput, Skeleton } from "@/components/ds";
 import { GlassList, GlassListRow } from "@/components/lg/GlassList";
 import { PROJECT_STATUS_LABELS } from "@/lib/presentation/labels";
+import { fetchJson } from "@/lib/http";
 
 const PAGE_SIZE = 20;
 
@@ -22,9 +23,10 @@ interface Project {
 interface ApiResponse {
   data: Project[];
   total: number;
+  counts: Record<string, number>;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = fetchJson<ApiResponse>;
 
 const statusLabels: Record<Project["status"], string> = PROJECT_STATUS_LABELS;
 
@@ -50,50 +52,56 @@ export default function ProjetosPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState("");
   const [creating, setCreating] = useState(false);
-  const { data, error, isLoading, isValidating, mutate } = useSWR<ApiResponse>("/api/projects?limit=100", fetcher, { revalidateOnFocus: false });
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE), status: statusFilter });
+  if (q.trim()) query.set("search", q.trim());
+  const { data, error, isLoading, isValidating, mutate } = useSWR<ApiResponse>(`/api/projects?${query}`, fetcher, { revalidateOnFocus: false });
 
   const projects = useMemo(() => data?.data ?? [], [data]);
-  const counts = useMemo(() => ({
-    ativo: projects.filter((project) => project.status === "ativo").length,
-    pausado: projects.filter((project) => project.status === "pausado").length,
-    arquivado: projects.filter((project) => project.status === "arquivado").length,
-  }), [projects]);
-  const list = useMemo(
-    () => projects.filter((project) => project.status === statusFilter && project.title.toLowerCase().includes(q.toLowerCase())),
-    [projects, q, statusFilter],
-  );
-  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
+  const counts = data?.counts ?? {};
+  const total = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   useEffect(() => { setPage(1); }, [q, statusFilter]);
-  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
+  useEffect(() => { if (data && page > pageCount) setPage(pageCount); }, [page, pageCount, data]);
 
   const createProject = async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || creating) return;
     setCreating(true);
+    setActionError(null);
     try {
-      const res = await fetch("/api/projects", {
+      const created = await fetchJson<{ data: Project }>("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: trimmedTitle }),
       });
-      if (!res.ok) return;
-      const created: { data: Project } = await res.json();
       await mutate();
       router.push(`/projetos/${created.data.id}`);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Não foi possível criar o projeto.");
     } finally {
       setCreating(false);
     }
   };
 
   const setProjectStatus = async (id: string, status: Project["status"]) => {
-    await fetch(`/api/projects/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    await mutate();
+    if (savingId) return;
+    setSavingId(id);
+    setActionError(null);
+    try {
+      await fetchJson(`/api/projects/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      await mutate();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Não foi possível alterar o status do projeto.");
+    } finally {
+      setSavingId(null);
+    }
   };
 
   return (
@@ -133,7 +141,7 @@ export default function ProjetosPage() {
             className="ds-input"
             style={{ flex: 1, minWidth: 0 }}
           />
-          <Button variant="primary" onClick={() => void createProject()} disabled={!title.trim() || creating}>{creating ? "Criando..." : "Criar"}</Button>
+          <Button type="submit" variant="primary" disabled={!title.trim() || creating}>{creating ? "Criando..." : "Criar"}</Button>
         </form>
       ) : null}
 
@@ -142,16 +150,17 @@ export default function ProjetosPage() {
         <div className="pgm-projects-tabs" role="tablist" aria-label="Status do projeto">
           {(["ativo", "pausado", "arquivado"] as const).map((status) => (
             <button key={status} type="button" role="tab" aria-selected={statusFilter === status} onClick={() => setStatusFilter(status)}>
-              {statusLabels[status]} <span>{counts[status]}</span>
+              {statusLabels[status]} <span>{counts[status] ?? 0}</span>
             </button>
           ))}
         </div>
-        <span className="pgm-projects-toolbar__count">{list.length} projeto{list.length !== 1 ? "s" : ""}</span>
+        <span className="pgm-projects-toolbar__count">{total} projeto{total !== 1 ? "s" : ""}</span>
       </div>
 
       {error ? <div role="alert" style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: 6 }}>Erro ao carregar projetos. Por favor, tente novamente.</div> : null}
+      {actionError ? <p role="alert">{actionError}</p> : null}
 
-      {isLoading ? (
+      {error ? null : isLoading ? (
         <GlassList>
           {Array.from({ length: 4 }).map((_, i) => (
             <GlassListRow key={i} style={{ padding: "14px 18px" }}>
@@ -162,10 +171,10 @@ export default function ProjetosPage() {
             </GlassListRow>
           ))}
         </GlassList>
-      ) : list.length ? (
+      ) : projects.length ? (
         <>
           <GlassList className="pgm-project-list">
-            {paged.map((p) => (
+            {projects.map((p) => (
               <GlassListRow
                 key={p.id}
                 onClick={() => router.push(`/projetos/${p.id}`)}
@@ -184,13 +193,14 @@ export default function ProjetosPage() {
                 </div>
                 <div className="pgm-project-row__actions">
                   {p.status !== "arquivado" ? (
-                    <button type="button" onClick={(event) => { event.stopPropagation(); void setProjectStatus(p.id, "arquivado"); }}>Arquivar</button>
+                    <button type="button" disabled={Boolean(savingId)} onClick={(event) => { event.stopPropagation(); void setProjectStatus(p.id, "arquivado"); }}>Arquivar</button>
                   ) : null}
                   <button
                     type="button"
-                    onClick={(event) => { event.stopPropagation(); void setProjectStatus(p.id, p.status === "pausado" ? "ativo" : "pausado"); }}
+                    disabled={Boolean(savingId)}
+                    onClick={(event) => { event.stopPropagation(); void setProjectStatus(p.id, p.status === "ativo" ? "pausado" : "ativo"); }}
                   >
-                    {p.status === "pausado" ? "Retomar" : "Pausar"}
+                    {p.status === "ativo" ? "Pausar" : "Retomar"}
                   </button>
                 </div>
               </GlassListRow>
@@ -199,7 +209,7 @@ export default function ProjetosPage() {
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
         </>
       ) : (
-        <EmptyState icon="layout-dashboard" title="Nenhum projeto ainda" message="Inicie um projeto a partir de um Novo Negócio ou de um Conteúdo." />
+        <EmptyState icon="layout-dashboard" title="Nenhum projeto encontrado" message={q || statusFilter !== "ativo" ? "Nenhum projeto corresponde à busca e ao status selecionado." : "Inicie um projeto a partir de um Novo Negócio ou de um Conteúdo."} />
       )}
     </div>
   );

@@ -24,6 +24,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'columnId and title are required' }, { status: 400 });
     }
 
+    if ((body.detail != null && typeof body.detail !== 'string') || (body.kind != null && typeof body.kind !== 'string')) {
+      return NextResponse.json({ error: 'Descrição e tipo da tarefa devem ser textos.' }, { status: 400 });
+    }
+    const column = await pool.query('SELECT id FROM app_project_columns WHERE id = $1 AND project_id = $2', [body.columnId.trim(), projectId]);
+    if (!column.rowCount) return NextResponse.json({ error: 'A coluna deve pertencer ao projeto informado.' }, { status: 400 });
+
     const result = await pool.query<TaskRow>(
       `INSERT INTO app_project_tasks (id, project_id, column_id, title, detail, kind, position)
        VALUES ($1, $2, $3, $4, $5, $6, (SELECT COALESCE(MAX(position), 0) + 1000 FROM app_project_tasks WHERE column_id = $3))

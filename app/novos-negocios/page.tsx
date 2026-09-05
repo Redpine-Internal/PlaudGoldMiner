@@ -1,7 +1,8 @@
 "use client";
-import { useState, useMemo, useEffect, type CSSProperties } from "react";
+import { Suspense, useState, useMemo, useEffect, type CSSProperties } from "react";
 import useSWR from "swr";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { fetchJson } from "@/lib/http";
 import { Trash2 } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { Button, SearchInput, OpportunityCard, EmptyState, Pagination, StartProjectButton, GenerateBusinessModal, ThemeBoard, useEnrichment, type GeneratePayload, type ThemeBoardTheme } from "@/components/ds";
@@ -42,6 +43,7 @@ interface Opportunity {
 interface ApiResponse {
   data: Opportunity[];
   total: number;
+  counts: Record<string, number>;
 }
 
 interface ThemesResponse {
@@ -49,7 +51,7 @@ interface ThemesResponse {
   ungrouped: number;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = fetchJson;
 
 // Taxonomia atual. "servico" era um tipo legado; a purga de 2026-08-28 zerou a
 // tabela e o gerador não o produz mais, então saiu do rail.
@@ -71,8 +73,11 @@ const NovosNegociosPage = () => {
   const router = useRouter();
   const { selectedOpportunityId, setSelectedOpportunityId } = useAppStore();
   const enrichment = useEnrichment();
+  const searchParams = useSearchParams();
+  const urlQ = searchParams.get("q") ?? "";
   const isMobile = useIsMobile();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(urlQ);
+  useEffect(() => { setQ(urlQ); }, [urlQ]);
   const [f, setF] = usePersistedFilters<OppFilters>("oportunidades", INITIAL_FILTERS);
   const [onlyInteresting, setOnlyInteresting] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -83,9 +88,16 @@ const NovosNegociosPage = () => {
   const [page, setPage] = useState(1);
   const [regrouping, setRegrouping] = useState(false);
 
+  const minScore = Number(f.minScore) || 0;
+  const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
+  if (q.trim()) query.set("search", q.trim());
+  if (f.status) query.set("status", f.status);
+  f.types.forEach((type) => query.append("type", type));
+  if (minScore) query.set("minScore", String(minScore));
+  if (onlyInteresting) query.set("interesting", "true");
   const { data, error, isLoading, mutate, isValidating } = useSWR<ApiResponse>(
-    "/api/opportunities?limit=100",
-    fetcher,
+    `/api/opportunities?${query}`,
+    fetcher<ApiResponse>,
     { revalidateOnFocus: false }
   );
 
@@ -93,46 +105,50 @@ const NovosNegociosPage = () => {
   // Chave condicional: quem nunca alterna para "Por tema" não paga a requisição.
   const {
     data: themeData,
+    error: themesError,
     isLoading: themesLoading,
     mutate: mutateThemes,
   } = useSWR<ThemesResponse>(
     byTheme ? "/api/opportunities/themes" : null,
-    fetcher,
+    fetcher<ThemesResponse>,
     { revalidateOnFocus: false }
   );
 
   const opps = useMemo(() => data?.data ?? [], [data]);
 
-  const minScore = Number(f.minScore) || 0;
-
-  const list = useMemo(
-    () =>
-      opps.filter(
-        (o) =>
-          (!q || o.title.toLowerCase().includes(q.toLowerCase()) || o.pain.toLowerCase().includes(q.toLowerCase())) &&
-          (!f.status || o.status === f.status) &&
-          (!f.types.length || f.types.includes(o.type)) &&
-          o.score >= minScore &&
-          (!onlyInteresting || (enrichment?.isInteresting("opportunity", o.id) ?? false))
-      ),
-    [opps, q, f.status, f.types, minScore, onlyInteresting, enrichment]
-  );
-
-  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
+  const total = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useEffect(() => { if (onlyInteresting) void mutate(); }, [enrichment?.isInteresting, onlyInteresting, mutate]);
 
   useEffect(() => {
     setPage(1);
   }, [q, f.status, f.types, minScore, onlyInteresting]);
   useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
+    if (data && page > pageCount) setPage(pageCount);
+  }, [page, pageCount, data]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { nova: 0, analise: 0, qualificada: 0, descartada: 0 };
-    opps.forEach((o) => (c[o.status] = (c[o.status] || 0) + 1));
-    return c;
-  }, [opps]);
+  const counts = data?.counts ?? {};
+  const openOpportunity = (id: string) => {
+    const opportunity = opps.find((item) => item.id === id);
+    if (!opportunity) return;
+    setSelectedOpportunityId(id);
+    enrichment?.openEnrichment("opportunity", id, {
+      title: opportunity.title,
+      originalText: [opportunity.pain, opportunity.context].filter(Boolean).join("\n\n"),
+      pain: opportunity.pain,
+      context: opportunity.context,
+      generatedIdea: opportunity.generatedIdea,
+    });
+  };
+  const visibleThemes = useMemo(() => {
+    const ids = new Set(opps.map((item) => item.id));
+    return (themeData?.data ?? []).filter((theme) => theme.opportunityIds.some((id) => ids.has(id)));
+  }, [themeData, opps]);
+  // Theme responses exclude discarded businesses. A cached themeId alone does
+  // not mean this page can display the item in a theme, so account for the
+  // actual member ids returned by the board and keep every other item visible.
+  const displayedThemeIds = new Set(visibleThemes.flatMap((theme) => theme.opportunityIds));
+  const ungroupedItems = opps.filter((item) => !displayedThemeIds.has(item.id));
 
   const hasFilters = Boolean(q || f.status || f.types.length || f.minScore !== "0" || onlyInteresting);
 
@@ -259,7 +275,7 @@ const NovosNegociosPage = () => {
           value: f.status,
           onChange: (v) => setF({ status: v }),
           options: [
-            { value: "", label: "Todas", count: opps.length },
+            { value: "", label: "Todas", count: Object.values(counts).reduce((sum, count) => sum + count, 0) },
             ...OPP_STATUS.map((value) => ({ value, label: formatOpportunityStatus(value), count: counts[value] || 0 })),
           ],
         },
@@ -309,7 +325,7 @@ const NovosNegociosPage = () => {
       </ol>
       <header className="pgm-opportunities-hero">
         <div>
-          <p className="pgm-page-eyebrow">Observatório de oportunidades · {opps.length} negócios</p>
+          <p className="pgm-page-eyebrow">Observatório de oportunidades · {total} negócios</p>
           <h1>Novos Negócios</h1>
         </div>
         <div className="pgm-opportunities-hero__actions">
@@ -323,7 +339,7 @@ const NovosNegociosPage = () => {
               </button>
             ))}
           </div>
-          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => mutate()} />
+          <Button variant="outline" icon="refresh-cw" iconSpin={isValidating} title="Atualizar lista" onClick={() => { void mutate(); if (byTheme) void mutateThemes(); }} />
           <Button variant="outline" onClick={() => router.push("/projetos")}>Criar projeto</Button>
           <Button variant="primary" icon="sparkles" iconSpin={generating} onClick={() => setGenOpen(true)} disabled={generating}>
             {generating ? "Detectando..." : "Detectar Negócios →"}
@@ -375,14 +391,15 @@ const NovosNegociosPage = () => {
           <div className="pgm-opportunities-toolbar">
             <SearchInput value={q} onChange={setQ} placeholder="Buscar negócios" />
             <span>
-              {list.length} negócio{list.length !== 1 ? "s" : ""}
+              {total} negócio{total !== 1 ? "s" : ""}
             </span>
           </div>
 
           {isMobile ? <div style={{ marginBottom: 12 }}>{rail}</div> : null}
 
-          {error ? (
+          {error || (byTheme && themesError) ? (
             <div
+              role="alert"
               style={{
                 padding: 16,
                 marginBottom: 16,
@@ -396,27 +413,38 @@ const NovosNegociosPage = () => {
             </div>
           ) : null}
 
-          {byTheme ? (
-            <ThemeBoard
-              themes={themeData?.data ?? []}
-              items={list}
+          {error || (byTheme && themesError) ? null : byTheme ? (
+            <>
+            {isLoading || themesLoading || visibleThemes.length || !themeData?.data.length ? <ThemeBoard
+              themes={visibleThemes}
+              items={opps}
               ungrouped={themeData?.ungrouped ?? 0}
               regrouping={regrouping}
               loading={isLoading || themesLoading}
               onRegroup={regroup}
               onSetPriority={setPriority}
-              onOpenItem={setSelectedOpportunityId}
-            />
+              onOpenItem={openOpportunity}
+            /> : null}
+            {!isLoading && !opps.length ? <EmptyState icon="lightbulb" title="Nenhum negócio encontrado" message="Nenhum novo negócio corresponde aos filtros selecionados." /> : null}
+            {!isLoading && ungroupedItems.length ? <section style={{ marginTop: 16 }}>
+              <h2>Negócios fora dos temas exibidos</h2>
+              {!themesLoading && !visibleThemes.length && Boolean(themeData?.data.length) ? <Button variant="outline" onClick={regroup} disabled={regrouping}>
+                {regrouping ? "Agrupando…" : "Reagrupar"}
+              </Button> : null}
+              {ungroupedItems.map((item) => <button key={item.id} type="button" className="ds-btn ds-btn--link" onClick={() => openOpportunity(item.id)}>{item.title}</button>)}
+            </section> : null}
+            <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+            </>
           ) : isLoading ? (
             <div style={grid}>
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="ds-card" style={{ height: 160 }} />
               ))}
             </div>
-          ) : list.length ? (
+          ) : opps.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={grid}>
-                {paged.map((o) => (
+                {opps.map((o) => (
                   <OpportunityCard
                     key={o.id}
                     title={o.title}
@@ -475,7 +503,7 @@ const NovosNegociosPage = () => {
               </div>
               <Pagination page={page} pageCount={pageCount} onChange={setPage} />
             </div>
-          ) : opps.length ? (
+          ) : hasFilters ? (
             <EmptyState icon="lightbulb" title="Nenhum negócio encontrado" message="Nenhum novo negócio corresponde aos filtros selecionados." />
           ) : (
             <EmptyState
@@ -490,4 +518,6 @@ const NovosNegociosPage = () => {
   );
 };
 
-export default NovosNegociosPage;
+export default function NovosNegociosRoute() {
+  return <Suspense fallback={null}><NovosNegociosPage /></Suspense>;
+}

@@ -1,5 +1,6 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { Suspense, useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Button, SearchInput, FilterChip, ContentCard, EmptyState, Pagination, StartProjectButton, useEnrichment } from "@/components/ds";
 import { FilterRail } from "@/components/lg/FilterRail";
@@ -7,6 +8,7 @@ import type { FilterRailSection, FilterOption } from "@/components/lg/FilterRail
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { formatContentFormat, formatContentStatus } from "@/lib/presentation/labels";
+import { fetchJson } from "@/lib/http";
 
 const PAGE_SIZE = 20;
 
@@ -30,9 +32,11 @@ interface Content {
 interface ApiResponse {
   data: Content[];
   total: number;
+  counts: Record<string, number>;
+  platforms: string[];
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = fetchJson<ApiResponse>;
 
 const CT_STATUS = ["sugerido", "rascunho", "em_revisao", "aprovado", "publicado", "descartado", "producao"] as const;
 // Formatos de conteúdo (taxonomia 2026-08-28). O filtro é por formato; o
@@ -43,8 +47,11 @@ type ConteudoFilters = { status: string; platforms: string[]; railOpen: boolean 
 
 const ConteudosPage = () => {
   const enrichment = useEnrichment();
+  const searchParams = useSearchParams();
+  const urlQ = searchParams.get("q") ?? "";
   const isMobile = useIsMobile();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(urlQ);
+  useEffect(() => { setQ(urlQ); }, [urlQ]);
   const [f, setF] = usePersistedFilters<ConteudoFilters>("conteudos", { status: "", platforms: [], railOpen: true });
   const [onlyInteresting, setOnlyInteresting] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -54,53 +61,42 @@ const ConteudosPage = () => {
   const [drafting, setDrafting] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
+  const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
+  if (q.trim()) query.set("search", q.trim());
+  if (f.status) query.set("status", f.status);
+  f.platforms.forEach((platform) => query.append("platform", platform));
+  if (onlyInteresting) query.set("interesting", "true");
   const { data, error, isLoading, mutate, isValidating } = useSWR<ApiResponse>(
-    "/api/contents?limit=100",
+    `/api/contents?${query}`,
     fetcher,
     { revalidateOnFocus: false }
   );
 
   const items = useMemo(() => data?.data ?? [], [data]);
 
-  // Busca + "só interessantes" (contexto comum a lista e contadores do rail).
-  const base = useMemo(
-    () =>
-      items.filter(
-        (c) =>
-          (!q || c.title.toLowerCase().includes(q.toLowerCase()) || c.theme.toLowerCase().includes(q.toLowerCase())) &&
-          (!onlyInteresting || (enrichment?.isInteresting("content", c.id) ?? false))
-      ),
-    [items, q, onlyInteresting, enrichment]
-  );
-
-  // Aplica plataformas — é sobre este conjunto que os contadores de status contam.
-  const statusBase = useMemo(
-    () => base.filter((c) => !f.platforms.length || f.platforms.includes(c.platform)),
-    [base, f.platforms]
-  );
-
-  const list = useMemo(() => statusBase.filter((c) => !f.status || c.status === f.status), [statusBase, f.status]);
-
-  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const paged = useMemo(() => list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [list, page]);
+  const total = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useEffect(() => { if (onlyInteresting) void mutate(); }, [enrichment?.isInteresting, onlyInteresting, mutate]);
 
   useEffect(() => {
     setPage(1);
   }, [q, f.status, f.platforms, onlyInteresting]);
   useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
+    if (data && page > pageCount) setPage(pageCount);
+  }, [page, pageCount, data]);
 
   const setSt = async (id: string, s: string) => {
+    setGenError(null);
     try {
-      await fetch(`/api/contents/${id}`, {
+      await fetchJson(`/api/contents/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: s }),
       });
-      mutate();
+      await mutate();
     } catch (err) {
       console.error("Failed to update content status:", err);
+      setGenError(err instanceof Error ? err.message : "Não foi possível atualizar o status.");
     }
   };
 
@@ -144,24 +140,23 @@ const ConteudosPage = () => {
   /* ── Rail de filtros (desktop: aside 220px; mobile: chips roláveis) ── */
 
   const statusOptions = useMemo<FilterOption[]>(() => {
-    const counts: Record<string, number> = {};
-    for (const c of statusBase) counts[c.status] = (counts[c.status] ?? 0) + 1;
+    const counts = data?.counts ?? {};
     return [
-      { value: "", label: "Todos", count: statusBase.length },
+      { value: "", label: "Todos", count: Object.values(counts).reduce((sum, count) => sum + count, 0) },
       ...CT_STATUS
         .filter((s) => s !== "producao" || counts.producao || f.status === "producao")
         .map((s) => ({ value: s, label: formatContentStatus(s), count: counts[s] ?? 0 })),
     ];
-  }, [statusBase, f.status]);
+  }, [data?.counts, f.status]);
 
   const platformOptions = useMemo<FilterOption[]>(() => {
-    const present = new Set<string>(items.map((c) => c.platform));
+    const present = new Set<string>(data?.platforms ?? []);
     for (const p of f.platforms) present.add(p);
     return [
       ...CT_PLATFORMS,
       ...[...present].filter((p) => !CT_PLATFORMS.includes(p as (typeof CT_PLATFORMS)[number])),
     ].map((p) => ({ value: p, label: formatContentFormat(p) }));
-  }, [items, f.platforms]);
+  }, [data?.platforms, f.platforms]);
 
   const sections = useMemo<FilterRailSection[]>(() => {
     const s: FilterRailSection[] = [
@@ -196,7 +191,7 @@ const ConteudosPage = () => {
   const header = (
     <header className="pgm-content-hero">
       <div>
-        <p className="pgm-page-eyebrow">Estúdio editorial · {items.length} sugestões</p>
+        <p className="pgm-page-eyebrow">Estúdio editorial · {total} {total === 1 ? 'sugestão' : 'sugestões'}</p>
         <h1>Conteúdos</h1>
       </div>
       <div className="pgm-content-hero__actions">
@@ -231,8 +226,8 @@ const ConteudosPage = () => {
         </FilterChip>
       ) : null}
       <span className="pgm-content-toolbar__count">
-        <strong>{list.length}</strong>
-        <span>sugest{list.length !== 1 ? "ões" : "ão"}</span>
+        <strong>{total}</strong>
+        <span>sugest{total !== 1 ? "ões" : "ão"}</span>
       </span>
     </div>
   );
@@ -259,21 +254,21 @@ const ConteudosPage = () => {
       ) : null}
 
       {error ? (
-        <div style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: "var(--radius-lg)" }}>
+        <div role="alert" style={{ padding: 16, marginBottom: 16, background: "var(--alert-error-bg)", color: "var(--alert-error-fg)", border: "1px solid var(--alert-error-border)", borderRadius: "var(--radius-lg)" }}>
           Erro ao carregar conteúdos. Por favor, tente novamente.
         </div>
       ) : null}
 
-      {isLoading ? (
+      {error ? null : isLoading ? (
         <div className="pgm-content-grid">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="ds-card pgm-content-card" style={{ height: 220 }} />
           ))}
         </div>
-      ) : list.length ? (
+      ) : items.length ? (
         <>
           <div className="pgm-content-grid">
-            {paged.map((c) => (
+            {items.map((c) => (
               <div key={c.id} style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                 <ContentCard
                   style={{ height: "auto", flex: 1 }}
@@ -317,13 +312,13 @@ const ConteudosPage = () => {
           </div>
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
         </>
-      ) : items.length ? (
+      ) : q || f.status || f.platforms.length || onlyInteresting ? (
         <EmptyState icon="file-text" title="Nenhum conteúdo encontrado" message="Nenhum conteúdo corresponde aos filtros selecionados." />
       ) : (
         <EmptyState
           icon="file-text"
           title="Nenhuma sugestão de conteúdo"
-          message="Sugestões de conteúdo serão geradas automaticamente quando você processar conversas."
+          message="Use Gerar Conteúdos para criar sugestões a partir das conversas processadas."
         />
       )}
     </>
@@ -362,7 +357,9 @@ const ConteudosPage = () => {
   );
 };
 
-export default ConteudosPage;
+export default function ConteudosRoute() {
+  return <Suspense fallback={null}><ConteudosPage /></Suspense>;
+}
 
 function DraftEditor({
   id,
@@ -379,23 +376,29 @@ function DraftEditor({
 }) {
   const [text, setText] = useState(draft);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   useEffect(() => setText(draft), [draft]);
   const save = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
-      await fetch(`/api/contents/${id}`, {
+      await fetchJson(`/api/contents/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ draft: text }),
       });
-      onSaved();
+      await onSaved();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Não foi possível salvar o rascunho.");
     } finally {
       setSaving(false);
     }
   };
   return (
     <div style={{ marginTop: 8 }}>
+      {saveError ? <p role="alert">{saveError}</p> : null}
       <textarea
+        aria-label="Editar rascunho do conteúdo"
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={14}

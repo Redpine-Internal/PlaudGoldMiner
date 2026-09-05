@@ -2,7 +2,8 @@
 import useSWR from "swr";
 import { useEnrichment, EmptyState } from "@/components/ds";
 import { GlassList, GlassListRow } from "@/components/lg/GlassList";
-import { formatEnrichmentSourceType } from "@/lib/presentation/labels";
+import { formatContentFormat, formatContentStatus, formatEnrichmentSourceType } from "@/lib/presentation/labels";
+import { fetchJson } from "@/lib/http";
 
 interface InterestingItem {
   enrichmentId: string;
@@ -14,9 +15,14 @@ interface InterestingItem {
   refCount: number;
   title: string | null;
   subtitle: string | null;
+  draft: string | null;
+  outline: string | null;
+  platform: string | null;
+  subtype: string | null;
+  status: string | null;
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = (url: string) => fetchJson<{ data: InterestingItem[] }>(url);
 
 const TYPE_FG: Record<string, string> = {
   opportunity: "var(--badge-navy)",
@@ -26,10 +32,10 @@ const TYPE_FG: Record<string, string> = {
 
 export default function AssuntosInteressePage() {
   const enrichment = useEnrichment();
-  const { data, isLoading } = useSWR<{ data: InterestingItem[] }>(
+  const { data, isLoading, error, mutate } = useSWR<{ data: InterestingItem[] }>(
     "/api/enrichment/interesting",
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true }
   );
   const items = data?.data || [];
 
@@ -44,7 +50,7 @@ export default function AssuntosInteressePage() {
         </p>
       </header>
 
-      {isLoading ? (
+      {error ? <div role="alert"><p>Não foi possível carregar os assuntos de interesse.</p><button type="button" className="ds-btn ds-btn--outline" onClick={() => void mutate()}>Tentar novamente</button></div> : isLoading ? (
         <GlassList>
           {Array.from({ length: 4 }).map((_, i) => (
             <GlassListRow key={i}>
@@ -66,7 +72,17 @@ export default function AssuntosInteressePage() {
               onClick={() =>
                 enrichment?.openEnrichment(it.sourceType, it.sourceId, {
                   title: it.title ?? "Ideia",
-                  originalText: it.textOverride ?? it.subtitle ?? "",
+                  // For content, originalText is the theme. The editor loads
+                  // the authoritative override separately and prefers draft
+                  // over this theme when no override has been saved.
+                  originalText: it.sourceType === "content" ? it.subtitle ?? "" : it.textOverride ?? it.subtitle ?? "",
+                  ...(it.sourceType === "content" ? {
+                    draft: it.draft,
+                    outline: it.outline,
+                    formatLabel: formatContentFormat(it.platform),
+                    subtypeLabel: it.subtype?.trim() || null,
+                    statusLabel: formatContentStatus(it.status),
+                  } : {}),
                 })
               }
             >
@@ -75,7 +91,7 @@ export default function AssuntosInteressePage() {
                 <small>{it.sourceId.slice(0, 8)}</small>
               </div>
               <div className="pgm-topic-row__main">
-                <strong>{it.title || "(Sem título)"}</strong>
+                <strong>{it.title || "Ideia de origem não disponível"}</strong>
                 {it.subtitle ? <span>{it.subtitle}</span> : null}
               </div>
               <span className="pgm-topic-row__updated">Atualizado: {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString("pt-BR") : "não informado"}</span>

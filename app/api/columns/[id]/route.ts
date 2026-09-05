@@ -20,7 +20,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const values: (string | number)[] = [id];
     const updates: string[] = [];
     if (typeof body?.name === 'string') {
-      values.push(body.name);
+      if (!body.name.trim()) return NextResponse.json({ error: 'Informe o nome da coluna.' }, { status: 400 });
+      values.push(body.name.trim());
       updates.push(`name = $${values.length}`);
     }
     if (typeof body?.position === 'number' && Number.isFinite(body.position)) {

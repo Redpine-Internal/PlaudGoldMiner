@@ -66,7 +66,7 @@ export default function LoginPage() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <Icon name="brain" size={24} color="var(--brand)" />
-          <span style={{ fontSize: 18, fontWeight: 600 }}>Andreza AI</span>
+          <span style={{ fontSize: 22, fontFamily: "var(--font-display)" }}>Plaud Gold Miner</span>
         </div>
 
         <Input
@@ -87,14 +87,14 @@ export default function LoginPage() {
         />
 
         {error ? (
-          <span style={{ color: "var(--accent-error, #C25E4C)", fontSize: 14 }}>
+          <span role="alert" style={{ color: "var(--accent-error, #C25E4C)", fontSize: 14 }}>
             {error}
           </span>
         ) : null}
 
         <Button
+          type="submit"
           variant="primary"
-          onClick={() => void handleSubmit()}
           disabled={loading || !email || !password}
           icon={loading ? "loader-circle" : undefined}
           iconSpin={loading}

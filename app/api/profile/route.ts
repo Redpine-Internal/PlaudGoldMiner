@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { userProfile } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { DEFAULT_PROFILE } from '@/lib/profile/default-profile';
+import { profileInput } from '@/lib/profile/profile-input';
 
 const PROFILE_ID = DEFAULT_PROFILE.id; // single-user app: one fixed row
 
@@ -15,7 +16,7 @@ export async function GET() {
         ...(row ?? DEFAULT_PROFILE),
         name: row?.name?.trim() || DEFAULT_PROFILE.name,
         email: row?.email?.trim() || DEFAULT_PROFILE.email,
-        bio: row?.bio?.trim() || DEFAULT_PROFILE.bio,
+        bio: row ? row.bio ?? '' : DEFAULT_PROFILE.bio,
       },
     });
   } catch (error) {
@@ -26,10 +27,9 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
-    const name = typeof body.name === 'string' ? body.name : '';
-    const email = typeof body.email === 'string' ? body.email : '';
-    const bio = typeof body.bio === 'string' ? body.bio : null;
+    const parsed = profileInput.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Dados de perfil inválidos.' }, { status: 400 });
+    const { name, email, bio = null } = parsed.data;
 
     await db
       .insert(userProfile)
@@ -46,7 +46,7 @@ export async function PUT(request: NextRequest) {
         ...(saved ?? DEFAULT_PROFILE),
         name: saved?.name?.trim() || DEFAULT_PROFILE.name,
         email: saved?.email?.trim() || DEFAULT_PROFILE.email,
-        bio: saved?.bio?.trim() || DEFAULT_PROFILE.bio,
+        bio: saved ? saved.bio ?? '' : DEFAULT_PROFILE.bio,
       },
     });
   } catch (error) {

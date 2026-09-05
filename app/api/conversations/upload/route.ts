@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { conversations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { formatZodError } from '@/lib/validators/conversation';
 import {
   MAX_FILE_SIZE,
   isValidFileExtension,
@@ -12,9 +13,9 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as File | null;
+    const file = formData.get('file');
 
-    if (!file) {
+    if (!file || typeof file === 'string') {
       return Response.json(
         { error: 'No file provided' },
         { status: 400 }
@@ -39,9 +40,12 @@ export async function POST(request: NextRequest) {
 
     // Read file content
     const content = await file.text();
+    if (!content.trim()) {
+      return Response.json({ error: 'O arquivo está vazio.' }, { status: 400 });
+    }
 
     // Validate JSON if it's a JSON file
-    if (file.name.endsWith('.json')) {
+    if (file.name.toLowerCase().endsWith('.json')) {
       try {
         JSON.parse(content);
       } catch {
@@ -60,12 +64,16 @@ export async function POST(request: NextRequest) {
       duration: formData.get('duration') as string | null,
     };
 
-    const metadata = uploadMetadataSchema.parse({
+    const parsedMetadata = uploadMetadataSchema.safeParse({
       title: metadataRaw.title || undefined,
       type: metadataRaw.type || undefined,
       date: metadataRaw.date || undefined,
       duration: metadataRaw.duration || undefined,
     });
+    if (!parsedMetadata.success) {
+      return Response.json(formatZodError(parsedMetadata.error), { status: 400 });
+    }
+    const metadata = parsedMetadata.data;
 
     // Generate title from filename if not provided
     const title = metadata.title || file.name.replace(/\.(txt|json)$/i, '');

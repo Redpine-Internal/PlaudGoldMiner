@@ -60,7 +60,7 @@ describe('GET /api/opportunities', () => {
     const [, count] = calls;
     expect(count.sql).not.toContain('WHERE');
     expect(count.params).toEqual([]);
-    expect(calls[0].params).toEqual([50]);
+    expect(calls[0].params).toEqual([50, 0]);
   });
 
   it('aplica status e type como parâmetros ligados, nunca interpolados', async () => {
@@ -69,11 +69,11 @@ describe('GET /api/opportunities', () => {
     await GET(req('/api/opportunities?status=nova&type=consultoria'));
 
     const [lista] = calls;
-    expect(lista.sql).toContain('status = $1');
-    expect(lista.sql).toContain('type = $2');
+    expect(lista.sql).toContain('status = $2');
+    expect(lista.sql).toContain('type = ANY($1::text[])');
     // O valor entra só como parâmetro — nada do usuário vira texto de SQL.
     expect(lista.sql).not.toContain('nova');
-    expect(lista.params).toEqual(['nova', 'consultoria', 50]);
+    expect(lista.params).toEqual([['consultoria'], 'nova', 50, 0]);
   });
 
   it('usa o mesmo WHERE e os mesmos valores na contagem', async () => {
@@ -92,7 +92,7 @@ describe('GET /api/opportunities', () => {
 
     await GET(req('/api/opportunities?limit=5000'));
 
-    expect(calls[0].params.at(-1)).toBe(200);
+    expect(calls[0].params.at(-2)).toBe(200);
   });
 
   it('cai no padrão 50 quando o limite não é um número válido', async () => {
@@ -100,7 +100,7 @@ describe('GET /api/opportunities', () => {
 
     await GET(req('/api/opportunities?limit=abc'));
 
-    expect(calls[0].params.at(-1)).toBe(50);
+    expect(calls[0].params.at(-2)).toBe(50);
   });
 
   it('cai no padrão 50 para limite zero ou negativo', async () => {
@@ -108,7 +108,7 @@ describe('GET /api/opportunities', () => {
 
     await GET(req('/api/opportunities?limit=-10'));
 
-    expect(calls[0].params.at(-1)).toBe(50);
+    expect(calls[0].params.at(-2)).toBe(50);
   });
 
   it('devolve total numérico e a contagem de fontes de cada negócio', async () => {
@@ -232,11 +232,12 @@ describe('GET /api/opportunities', () => {
 describe('DELETE /api/opportunities/[id]', () => {
   const params = (id: string) => ({ params: Promise.resolve({ id }) });
 
-  it('apaga as fontes e a oportunidade dentro de uma transação', async () => {
+  it('apaga fontes e oportunidade e retira o favorito na mesma transação, preservando o enrichment', async () => {
     results.push(
       { rows: [] }, // BEGIN
       { rows: [], rowCount: 3 }, // DELETE fontes
       { rows: [], rowCount: 1 }, // DELETE oportunidade
+      { rows: [], rowCount: 1 }, // UPDATE favorito
       { rows: [] } // COMMIT
     );
 
@@ -245,32 +246,49 @@ describe('DELETE /api/opportunities/[id]', () => {
     expect(res.status).toBe(200);
     const sqls = calls.map((c) => c.sql.trim());
     expect(sqls[0]).toBe('BEGIN');
-    // As fontes saem ANTES: não há foreign key, então a ordem inversa deixaria
-    // órfãos se a segunda remoção falhasse.
-    expect(sqls[1]).toContain('app_opportunity_sources');
-    expect(sqls[2]).toContain('DELETE FROM app_opportunities');
-    expect(sqls[3]).toBe('COMMIT');
+    expect(sqls[1]).toBe('DELETE FROM app_opportunity_sources WHERE opportunity_id = $1');
+    expect(sqls[2]).toBe('DELETE FROM app_opportunities WHERE id = $1');
+    expect(sqls[3].replace(/\s+/g, ' ')).toBe(
+      "UPDATE app_idea_enrichment SET interesting = false WHERE source_type = 'opportunity' AND source_id = $1"
+    );
+    expect(calls.slice(1, 4).map((call) => call.params)).toEqual([['o1'], ['o1'], ['o1']]);
+    // A atualização é limitada à marca: nenhuma nota, texto ou referência é apagada.
+    expect(sqls).toHaveLength(5);
+    expect(sqls[4]).toBe('COMMIT');
+    expect(await res.json()).toEqual({ data: { id: 'o1', deleted: true } });
     expect(release).toHaveBeenCalled();
   });
 
   it('responde 404 quando o id não existe', async () => {
-    results.push({ rows: [] }, { rows: [], rowCount: 0 }, { rows: [], rowCount: 0 }, { rows: [] });
+    results.push(
+      { rows: [] }, { rows: [], rowCount: 0 }, { rows: [], rowCount: 0 },
+      { rows: [], rowCount: 0 }, { rows: [] }
+    );
 
     const res = await DELETE(req('/api/opportunities/inexistente'), params('inexistente'));
 
     expect(res.status).toBe(404);
   });
 
-  it('faz ROLLBACK e devolve a conexão quando a remoção falha', async () => {
-    query.mockImplementationOnce(async () => ({ rows: [] })); // BEGIN
-    query.mockImplementationOnce(async () => {
-      throw new Error('deadlock');
-    });
+  it.each([
+    [1, 'DELETE FROM app_opportunity_sources'],
+    [2, 'DELETE FROM app_opportunities'],
+    [3, 'UPDATE app_idea_enrichment'],
+  ])('faz ROLLBACK quando a etapa %i falha (%s)', async (failedStep, failedSql) => {
+    for (let step = 0; step < failedStep; step++) {
+      query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    }
+    query.mockRejectedValueOnce(new Error('deadlock'));
 
     const res = await DELETE(req('/api/opportunities/o1'), params('o1'));
 
     expect(res.status).toBe(500);
-    expect(calls.map((c) => c.sql)).toContain('ROLLBACK');
+    const sqls = query.mock.calls.map(([sql]) => sql.trim());
+    expect(sqls[0]).toBe('BEGIN');
+    expect(sqls[failedStep]).toContain(failedSql);
+    expect(sqls.at(-1)).toBe('ROLLBACK');
+    expect(sqls).not.toContain('COMMIT');
+    expect(sqls).toHaveLength(failedStep + 2);
     // Sem release o pool vaza uma conexão a cada falha.
     expect(release).toHaveBeenCalled();
   });
