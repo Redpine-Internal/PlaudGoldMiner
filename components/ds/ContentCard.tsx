@@ -131,7 +131,9 @@ export function ContentCard({
           {formatContentStatus(status)}
         </span>
       </div>
-      <h2 className="pgm-content-card__title">{title}</h2>
+      <h2 className="pgm-content-card__title">
+        {enrichment && sourceId ? <button type="button" onClick={(event) => { event.stopPropagation(); handleCardClick(); }} style={{ all: "unset", cursor: "pointer" }} className="pgm-card-title-button" aria-label={`Abrir conteúdo: ${title || "Sem título"}`}>{title}</button> : title}
+      </h2>
       <p className="pgm-content-card__theme">{theme}</p>
       <div className="pgm-content-card__stats">
         <span>Mencionado {mentionCount}x</span>

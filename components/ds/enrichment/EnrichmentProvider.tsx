@@ -7,13 +7,14 @@ import {
   type IdeaData,
 } from "./useEnrichment";
 import { IdeaEnrichmentModal } from "./IdeaEnrichmentModal";
+import { fetchJson } from "@/lib/http";
 
 interface InterestingItem {
   sourceType: string;
   sourceId: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = (url: string) => fetchJson<{ data: InterestingItem[] }>(url);
 
 interface OpenState {
   sourceType: EnrichmentSourceType;

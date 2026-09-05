@@ -399,6 +399,7 @@ main h2 {
 .pgm-toolbar__breadcrumb > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .pgm-toolbar__spacer { flex: 1; }
 .pgm-toolbar__search {
+  position: relative;
   width: min(280px, 28vw);
   min-height: 44px;
   display: flex;
@@ -410,6 +411,7 @@ main h2 {
   color: var(--app-muted);
 }
 .pgm-toolbar__search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--app-ink); }
+.pgm-card-title-button:focus-visible { outline: 2px solid var(--bronze-deep) !important; outline-offset: 4px !important; border-radius: 4px !important; }
 .pgm-toolbar__search input { align-self: stretch; min-height: 44px; font-size: 14px; }
 .pgm-toolbar__actions { display: flex; align-items: center; gap: 8px; }
 .pgm-toolbar__ask {

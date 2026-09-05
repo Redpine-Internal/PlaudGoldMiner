@@ -12,6 +12,7 @@ export type ButtonVariant =
   | "link";
 
 export interface ButtonProps {
+  type?: "button" | "submit" | "reset";
   variant?: ButtonVariant;
   size?: "sm" | "md";
   icon?: string;
@@ -28,6 +29,7 @@ export interface ButtonProps {
 
 /** Andreza AI button. Variants and paddings lifted verbatim from the app's Tailwind classes. */
 export function Button({
+  type = "button",
   variant = "primary",
   size = "md",
   icon,
@@ -52,7 +54,7 @@ export function Button({
     .join(" ");
   const iSize = iconSize || (size === "sm" ? 14 : 18);
   return (
-    <button type="button" className={cls} disabled={disabled} onClick={onClick} aria-label={ariaLabel} title={title} style={style}>
+    <button type={type} className={cls} disabled={disabled} onClick={onClick} aria-label={ariaLabel} title={title} style={style}>
       {icon ? <Icon name={icon} size={iSize} className={iconSpin ? "ds-spin" : ""} /> : null}
       {children ? <span>{children}</span> : null}
     </button>

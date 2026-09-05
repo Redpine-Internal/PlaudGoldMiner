@@ -26,6 +26,14 @@ export interface PlaudFilesPage {
   page_size: number;
 }
 
+/** Preserva o status HTTP para as rotas distinguirem ausência de falha do serviço. */
+export class PlaudApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'PlaudApiError';
+  }
+}
+
 async function plaudFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAccessToken();
   const res = await fetch(`${API_BASE}${path}`, {
@@ -37,7 +45,7 @@ async function plaudFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Plaud API ${path} respondeu ${res.status}. ${body.slice(0, 200)}`);
+    throw new PlaudApiError(res.status, `Plaud API ${path} respondeu ${res.status}. ${body.slice(0, 200)}`);
   }
   return (await res.json()) as T;
 }

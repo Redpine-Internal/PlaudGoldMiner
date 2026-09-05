@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['**/*.test.ts'],
+    include: ['**/*.test.{ts,tsx}'],
     // O worktree de agente traz um node_modules inteiro com testes de terceiros.
     exclude: ['node_modules/**', '.next/**', '.claude/**'],
   },

@@ -1,9 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "../Button";
 import { Icon } from "../Icon";
 import type { EnrichmentSourceType, IdeaData } from "./useEnrichment";
+import { createEnrichmentAutosave } from "@/components/ds/enrichment/enrichment-autosave";
+import { useModalDialog } from "@/hooks/use-modal-dialog";
+import { formatCalendarDate } from "@/lib/presentation/calendar-date";
 
 interface ReferenceItem {
   id: string;
@@ -120,7 +123,11 @@ function ContentDetails({ idea }: { idea: IdeaData }) {
   );
 }
 
-export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSaved, onIdeaGenerated }: Props) {
+export function IdeaEnrichmentModal(props: Props) {
+  return <EnrichmentEditor key={`${props.sourceType}:${props.sourceId}`} {...props} />;
+}
+
+function EnrichmentEditor({ sourceType, sourceId, idea, onClose, onSaved, onIdeaGenerated }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,11 +138,36 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
   const [generatingIdea, setGeneratingIdea] = useState(false);
   const [refs, setRefs] = useState<ReferenceItem[]>([]);
   const [sources, setSources] = useState<IdeaSource[]>([]);
+  const sourceConversationCount = new Set(sources.flatMap((source) => source.conversationId ? [source.conversationId] : [])).size;
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [busy, setBusy] = useState(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSave = useRef<Record<string, unknown> | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [marking, setMarking] = useState(false);
+
+  const put = useCallback(async (patch: Record<string, unknown>) => {
+    const res = await fetch("/api/enrichment", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceType, sourceId, ...patch }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.error || `Falha ao salvar (HTTP ${res.status}).`);
+    }
+    onSaved();
+  }, [sourceType, sourceId, onSaved]);
+
+  const reportSaveError = useCallback((err: unknown) => {
+    setError(err instanceof Error ? err.message : "Falha ao salvar. Verifique a conexão.");
+  }, []);
+  const autosave = useMemo(
+    () => createEnrichmentAutosave((patch) => put({ ...patch }), reportSaveError),
+    [put, reportSaveError],
+  );
+
+  // A fila pertence a esta ideia. Ao alternar ou desmontar, salva na origem antiga.
+  useEffect(() => () => { void autosave.flush().catch(reportSaveError); }, [autosave, reportSaveError]);
 
   // Carrega o enriquecimento existente ao abrir. Para oportunidades sem
   // override e sem ideia cacheada, dispara a geração da ideia via IA — o modal
@@ -149,6 +181,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
         const res = await fetch(
           `/api/enrichment?sourceType=${sourceType}&sourceId=${encodeURIComponent(sourceId)}`
         );
+        if (!res.ok) throw new Error("Não foi possível carregar o enriquecimento.");
         const body = (await res.json()) as { data: EnrichmentData | null };
         if (!alive) return;
         loaded = true;
@@ -235,52 +268,39 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
     };
   }, [sourceType, sourceId]);
 
-  // PUT parcial dos campos de texto/flag.
-  const put = async (patch: Record<string, unknown>) => {
-    try {
-      await fetch("/api/enrichment", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceType, sourceId, ...patch }),
-      });
-      onSaved();
-    } catch {
-      setError("Falha ao salvar. Verifique a conexão.");
-    }
-  };
-
-  // Autosave com debounce para notes e text.
-  const scheduleSave = (patch: Record<string, unknown>) => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    pendingSave.current = patch;
-    saveTimer.current = setTimeout(() => {
-      pendingSave.current = null;
-      put(patch);
-    }, 600);
-  };
-
-  // Descarrega imediatamente qualquer autosave pendente (ao fechar ou criar projeto),
-  // evitando perder as últimas edições dentro da janela de debounce.
-  const flushSave = async () => {
-    if (saveTimer.current) {
-      clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-    }
-    const patch = pendingSave.current;
-    pendingSave.current = null;
-    if (patch) await put(patch);
-  };
-
   // Fecha o modal garantindo a persistência do que estava pendente.
-  const handleClose = () => {
-    void flushSave();
-    onClose();
+  const handleClose = async () => {
+    if (closing || busy || marking) return;
+    setClosing(true);
+    try {
+      await autosave.flush();
+      onClose();
+    } catch (err) {
+      reportSaveError(err);
+    } finally {
+      setClosing(false);
+    }
   };
 
-  const toggleInteresting = () => {
+  const dialogRef = useModalDialog({
+    isOpen: true,
+    onClose: () => { void handleClose(); },
+    canClose: !closing && !busy && !marking,
+  });
+
+  const toggleInteresting = async () => {
+    if (marking) return;
     const next = !interesting;
+    setMarking(true);
     setInteresting(next);
-    put({ interesting: next });
+    try {
+      await put({ interesting: next });
+    } catch (err) {
+      setInteresting(!next);
+      reportSaveError(err);
+    } finally {
+      setMarking(false);
+    }
   };
 
   const addLink = async () => {
@@ -374,7 +394,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
   const createProject = async () => {
     setBusy(true);
     try {
-      await flushSave();
+      await autosave.flush();
       const parts = [text.trim()];
       if (notes.trim()) parts.push(`\n\nObservações:\n${notes.trim()}`);
       const links = refs.filter((r) => r.kind === "link");
@@ -392,6 +412,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
         const ex = await existing.json();
         const found = ex?.data?.[0];
         if (found?.id) {
+          onClose();
           router.push(`/projetos/${found.id}`);
           return;
         }
@@ -403,8 +424,13 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
       });
       const body = await res.json();
       const id = body?.data?.id;
-      if (id) router.push(`/projetos/${id}`);
+      if (id) {
+        onClose();
+        router.push(`/projetos/${id}`);
+      }
       else setError(body?.error || "Falha ao criar projeto.");
+    } catch (err) {
+      reportSaveError(err);
     } finally {
       setBusy(false);
     }
@@ -425,7 +451,12 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
       }}
     >
       <div
+        ref={dialogRef}
         className="ds-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="enrichment-dialog-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           maxHeight: "90vh",
@@ -436,18 +467,19 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <h2 style={{ font: "400 20px/28px var(--fontFamily)", margin: 0 }}>{idea.title}</h2>
+          <h2 id="enrichment-dialog-title" style={{ font: "400 20px/28px var(--fontFamily)", margin: 0 }}>{idea.title}</h2>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Button
               variant={interesting ? "primary" : "outline"}
               size="sm"
               icon="star"
               onClick={toggleInteresting}
+              disabled={loading || closing || marking || busy}
               title={interesting ? "Remover de interessantes" : "Marcar como interessante"}
             >
               {interesting ? "Interessante" : "Marcar"}
             </Button>
-            <button type="button" onClick={handleClose} title="Fechar" style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+            <button type="button" className="icon-btn" aria-label="Fechar ideia" onClick={handleClose} disabled={closing || busy || marking} title="Fechar" style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
               <Icon name="x" size={20} />
             </button>
           </div>
@@ -485,9 +517,11 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
             {sources.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <span className="ds-label">
-                  {sources.length === 1
+                  {sourceConversationCount === 0
+                    ? "Fontes de origem"
+                    : sourceConversationCount === 1
                     ? "Conversa de origem"
-                    : `Conversas de origem (${sources.length})`}
+                    : `Conversas de origem (${sourceConversationCount})`}
                 </span>
                 {sources.map((s) => (
                   <div
@@ -517,7 +551,7 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
                       )}
                       {s.conversationDate ? (
                         <span style={{ fontSize: 12, color: "var(--color-muted-foreground)" }}>
-                          {new Date(s.conversationDate).toLocaleDateString("pt-BR", {
+                          {formatCalendarDate(s.conversationDate, {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",
@@ -584,29 +618,32 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
               </div>
             ) : null}
 
-            <label className="ds-label">
+            <label className="ds-label" htmlFor="enrichment-text">
               {sourceType === "content" ? "Texto do artigo" : "Texto gerado"}{" "}
               {generatingIdea ? "(gerando…)" : textEdited ? "(editado)" : ""}
             </label>
             <textarea
+              id="enrichment-text"
               value={text}
-              disabled={generatingIdea}
+              disabled={generatingIdea || closing || busy}
               placeholder={generatingIdea ? "Gerando a ideia a partir da dor e do contexto…" : undefined}
               onChange={(e) => {
                 setText(e.target.value);
                 setTextEdited(true);
-                scheduleSave({ textOverride: e.target.value });
+                autosave.schedule({ textOverride: e.target.value });
               }}
               rows={8}
               style={{ width: "100%", resize: "vertical", flexShrink: 0, boxSizing: "border-box", padding: 8, borderRadius: 5, border: "1px solid var(--color-border)", font: "400 14px/20px var(--font-sans)", background: "var(--background)", color: "var(--textPrimary)" }}
             />
 
-            <label className="ds-label">Observações</label>
+            <label className="ds-label" htmlFor="enrichment-notes">Observações</label>
             <textarea
+              id="enrichment-notes"
               value={notes}
+              disabled={closing || busy}
               onChange={(e) => {
                 setNotes(e.target.value);
-                scheduleSave({ notes: e.target.value });
+                autosave.schedule({ notes: e.target.value });
               }}
               rows={4}
               placeholder="Suas anotações sobre esta ideia…"
@@ -651,8 +688,8 @@ export function IdeaEnrichmentModal({ sourceType, sourceId, idea, onClose, onSav
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
-              <Button variant="outline" onClick={handleClose}>Fechar</Button>
-              <Button variant="primary" icon="layout-dashboard" iconSpin={busy} onClick={createProject} disabled={busy}>Criar Projeto</Button>
+              <Button variant="outline" onClick={handleClose} disabled={closing || busy || marking}>{closing ? "Salvando…" : "Fechar"}</Button>
+              <Button variant="primary" icon="layout-dashboard" iconSpin={busy} onClick={createProject} disabled={busy || closing || marking || generatingIdea}>Criar Projeto</Button>
             </div>
           </>
         )}

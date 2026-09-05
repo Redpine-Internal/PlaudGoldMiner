@@ -93,7 +93,7 @@ export function OpportunityCard({
     >
       <div className="pgm-opportunity-card__main">
         <div className="pgm-opportunity-card__heading">
-          <h2>{title}</h2>
+          <h2>{(enrichment && sourceId) || onSelect ? <button type="button" className="pgm-card-title-button" style={{ all: "unset", cursor: "pointer" }} aria-label={`Abrir negócio: ${title || "Sem título"}`}>{title}</button> : title}</h2>
           {interesting ? <Icon name="star" size={15} color="var(--bronze)" /> : null}
         </div>
         <span className="pgm-opportunity-card__meta">

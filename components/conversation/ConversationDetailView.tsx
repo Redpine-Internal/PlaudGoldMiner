@@ -1,11 +1,13 @@
 "use client";
 import type React from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Icon, Tabs, TypeBadge, StatusBadge, EmptyState, Button, ScoreBadge, Markdown } from "@/components/ds";
 import type { ConversationAiAnalysis } from "@/lib/ai/conversation-analysis-store";
 import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
+import { formatCalendarDate } from "@/lib/presentation/calendar-date";
+import { ApiError, fetchJson } from "@/lib/http";
 
 interface ConversationDetail {
   id: string;
@@ -34,7 +36,20 @@ interface Opportunity {
   status: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+export async function fetchConversationResource<T>(url: string): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    return await fetchJson<T>(url, { signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("O carregamento demorou mais que o esperado. Tente novamente.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 type Tab = "resumo" | "analise" | "transcricao" | "insights";
 
@@ -51,7 +66,7 @@ function parseList(raw: string | null): string[] {
   if (!raw) return [];
   try {
     const v = JSON.parse(raw);
-    return Array.isArray(v) ? v : [];
+    return Array.isArray(v) ? v.filter((item): item is string => typeof item === "string") : [];
   } catch {
     return [];
   }
@@ -60,21 +75,26 @@ function parseList(raw: string | null): string[] {
 const isPlaudId = (id: string) => /^[0-9a-f]{32}$/i.test(id);
 
 export function ConversationDetailView({ id }: { id: string }) {
+  return <ConversationDetailContent key={id} id={id} />;
+}
+
+function ConversationDetailContent({ id }: { id: string }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("resumo");
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const plaud = isPlaudId(id);
 
-  const { data: conversationData, isLoading, mutate: mutateConversation } = useSWR<{ data: ConversationDetail }>(
+  const { data: conversationData, error: conversationError, isLoading, isValidating, mutate: mutateConversation } = useSWR<{ data: ConversationDetail }>(
     plaud ? `/api/plaud/files/${id}` : `/api/conversations/${id}`,
-    fetcher
+    fetchConversationResource,
+    { revalidateOnFocus: false, shouldRetryOnError: false },
   );
-  const opportunityConversationId = plaud ? conversationData?.data.localConversationId : id;
-  const { data: opportunitiesData } = useSWR<{ data: Opportunity[] }>(
+  const opportunityConversationId = conversationData?.data ? (plaud ? conversationData.data.localConversationId : id) : null;
+  const { data: opportunitiesData, error: opportunitiesError, isLoading: loadingOpportunities, isValidating: validatingOpportunities, mutate: mutateOpportunities } = useSWR<{ data: Opportunity[] }>(
     opportunityConversationId ? `/api/conversations/${opportunityConversationId}/opportunities` : null,
-    fetcher,
-    { revalidateOnFocus: false }
+    fetchConversationResource,
+    { revalidateOnFocus: false, shouldRetryOnError: false }
   );
 
   const analyze = async () => {
@@ -111,9 +131,27 @@ export function ConversationDetailView({ id }: { id: string }) {
     </Button>
   );
 
+  if (conversationError) {
+    const notFound = conversationError instanceof ApiError && conversationError.status === 404;
+    return (
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+        <div style={{ marginBottom: 16 }}>{backLink}</div>
+        {notFound ? (
+          <EmptyState icon="x" title="Conversa não encontrada" message="Esta conversa não está mais disponível. Volte à lista para escolher outra." />
+        ) : (
+          <div role="alert" style={{ display: "grid", gap: 12 }}>
+            <p>{conversationError instanceof Error ? conversationError.message : "Não foi possível carregar esta conversa."}</p>
+            <div><Button variant="outline" onClick={() => void mutateConversation()} disabled={isValidating}>{isValidating ? "Tentando…" : "Tentar novamente"}</Button></div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 80, gap: 12 }}>
+      <div role="status" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 80, gap: 12 }}>
+        {backLink}
         <Icon name="reload" size={32} className="ds-spin" color="var(--color-muted-foreground)" />
         <p style={{ font: "400 14px/20px var(--font-sans)", color: "var(--color-muted-foreground)" }}>Carregando conversa...</p>
       </div>
@@ -136,7 +174,8 @@ export function ConversationDetailView({ id }: { id: string }) {
   const topics = parseList(c.topics);
   const tags = parseList(c.tags);
   const status = c.status === "processando" ? "pendente" : c.status;
-  const fmtDate = (ds: string) => new Date(ds).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const activeTab = tab === "analise" && !c.aiAnalysis ? "resumo" : tab;
+  const tabsId = `conversation-detail-${id}`;
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", paddingBottom: 40 }}>
@@ -152,7 +191,7 @@ export function ConversationDetailView({ id }: { id: string }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, font: "400 13px/18px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Icon name="calendar" size={14} />
-            {fmtDate(c.date)}
+            {formatCalendarDate(c.date)}
           </span>
           {c.duration ? (
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -162,11 +201,7 @@ export function ConversationDetailView({ id }: { id: string }) {
           ) : null}
         </div>
         {c.audioUrl ? (
-          <audio controls preload="none" style={{ width: "100%", maxWidth: 560, height: 48, marginTop: 16 }}>
-            {/* Plaud serves the recording as MP3 (S3 presigned). */}
-            <source src={c.audioUrl} type="audio/mpeg" />
-            Seu navegador não suporta reprodução de áudio.
-          </audio>
+          <ConversationAudio key={c.audioUrl} url={c.audioUrl} title={c.title} onRefresh={() => mutateConversation()} refreshing={isValidating} />
         ) : null}
         {/* Bridge: turn a real Plaud recording into local opportunities. Only for
             Plaud conversations that already have a transcription to analyze. */}
@@ -176,7 +211,7 @@ export function ConversationDetailView({ id }: { id: string }) {
               {analyzing ? "Analisando..." : "Analisar conversa"}
             </Button>
             {analyzeError ? (
-              <span style={{ font: "400 13px/18px var(--font-sans)", color: "var(--accent-error)" }}>{analyzeError}</span>
+              <span role="alert" style={{ font: "400 13px/18px var(--font-sans)", color: "var(--accent-error)" }}>{analyzeError}</span>
             ) : (
               <span style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
                 Gera uma análise própria e novos negócios sem substituir o resumo original do Plaud.
@@ -187,7 +222,7 @@ export function ConversationDetailView({ id }: { id: string }) {
       </div>
 
       <Tabs
-        idBase="conversation-detail"
+        idBase={tabsId}
         aria-label="Conteúdo da conversa"
         tabs={[
           { id: "resumo", label: plaud ? "Resumo do Plaud" : "Resumo" },
@@ -196,18 +231,18 @@ export function ConversationDetailView({ id }: { id: string }) {
           { id: "insights", label: "Negócios" },
         ]}
         style={{ overflowX: "auto" }}
-        active={tab}
+        active={activeTab}
         onChange={(id) => setTab(id as Tab)}
       />
 
       <div
-        id={`conversation-detail-panel-${tab}`}
+        id={`${tabsId}-panel-${activeTab}`}
         role="tabpanel"
-        aria-labelledby={`conversation-detail-tab-${tab}`}
+        aria-labelledby={`${tabsId}-tab-${activeTab}`}
         tabIndex={0}
         style={{ paddingTop: 24 }}
       >
-        {tab === "resumo" ? (
+        {activeTab === "resumo" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             <div>
               <h4 style={h4}>Resumo</h4>
@@ -215,7 +250,7 @@ export function ConversationDetailView({ id }: { id: string }) {
                 <Markdown>{c.summary}</Markdown>
               ) : (
                 <p style={{ margin: 0, font: "400 14px/22px var(--font-sans)", color: "var(--color-muted-foreground)", fontStyle: "italic" }}>
-                  Resumo ainda não disponível — esta gravação ainda não foi processada no Plaud.
+                  {plaud ? "O resumo desta gravação ainda não está disponível no Plaud." : "O resumo desta conversa ainda não está disponível."}
                 </p>
               )}
             </div>
@@ -285,7 +320,7 @@ export function ConversationDetailView({ id }: { id: string }) {
               </div>
             ) : null}
           </div>
-        ) : tab === "analise" && c.aiAnalysis ? (
+        ) : activeTab === "analise" && c.aiAnalysis ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
             <div>
               <h4 style={h4}>
@@ -324,7 +359,7 @@ export function ConversationDetailView({ id }: { id: string }) {
               </div>
             ) : null}
           </div>
-        ) : tab === "transcricao" ? (
+        ) : activeTab === "transcricao" ? (
           c.transcription ? (
             <p style={{ margin: 0, font: "400 16px/26px var(--font-text)", color: "var(--color-foreground)", whiteSpace: "pre-wrap" }}>
               {c.transcription}
@@ -332,6 +367,13 @@ export function ConversationDetailView({ id }: { id: string }) {
           ) : (
             <EmptyState icon="file-text" title="Transcrição não disponível" message="A transcrição desta conversa ainda não foi processada." />
           )
+        ) : opportunitiesError ? (
+          <div role="alert" style={{ display: "grid", gap: 12 }}>
+            <p>{opportunitiesError instanceof Error ? opportunitiesError.message : "Não foi possível carregar os negócios desta conversa."}</p>
+            <div><Button variant="outline" onClick={() => void mutateOpportunities()} disabled={validatingOpportunities}>{validatingOpportunities ? "Tentando…" : "Tentar novamente"}</Button></div>
+          </div>
+        ) : loadingOpportunities ? (
+          <p role="status">Carregando negócios da conversa…</p>
         ) : opps.length ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <h4 style={{ ...h4, marginBottom: 0 }}>Novos Negócios Detectados ({opps.length})</h4>
@@ -356,6 +398,33 @@ export function ConversationDetailView({ id }: { id: string }) {
           <EmptyState icon="lightbulb" title="Nenhum negócio detectado" message="Não foram detectados novos negócios nesta conversa." />
         )}
       </div>
+    </div>
+  );
+}
+
+function ConversationAudio({ url, title, onRefresh, refreshing }: {
+  url: string;
+  title: string;
+  onRefresh: () => Promise<unknown>;
+  refreshing: boolean;
+}) {
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const [failed, setFailed] = useState(false);
+  const retry = async () => {
+    try {
+      await onRefresh();
+      setFailed(false);
+      audio.current?.load();
+    } catch {
+      setFailed(true);
+    }
+  };
+  return (
+    <div style={{ marginTop: 16 }}>
+      <audio ref={audio} src={url} controls preload="metadata" aria-label={`Áudio de ${title}`} onError={() => setFailed(true)} onLoadedMetadata={() => setFailed(false)} style={{ width: "100%", maxWidth: 560, height: 48 }}>
+        Seu navegador não suporta reprodução de áudio.
+      </audio>
+      {failed ? <div role="alert"><p>Não foi possível carregar o áudio. O link pode ter expirado.</p><Button variant="outline" size="sm" onClick={() => void retry()} disabled={refreshing}>{refreshing ? "Atualizando áudio…" : "Tentar carregar o áudio novamente"}</Button></div> : null}
     </div>
   );
 }

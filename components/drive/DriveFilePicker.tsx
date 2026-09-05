@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {
@@ -115,6 +117,7 @@ export function DriveFilePicker({
         <p className="text-muted-foreground">
           Conecte sua conta Google para acessar o Drive
         </p>
+        <Link href="/configuracoes" onClick={onCancel} className="ds-btn ds-btn--outline" style={{ marginTop: 16 }}>Configurar Google Drive</Link>
       </div>
     );
   }

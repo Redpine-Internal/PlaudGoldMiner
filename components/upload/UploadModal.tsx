@@ -28,6 +28,27 @@ interface AIResult {
   suggestedType?: 'reuniao' | 'treinamento' | 'informal' | 'outro';
 }
 
+interface ProcessResponse {
+  data?: {
+    conversation?: { title?: string | null; type?: string | null };
+    suggestedTitle?: string;
+    suggestedType?: string;
+  };
+}
+
+/** /api/process retorna a conversa persistida; os campos antigos são fallback. */
+export function processedMetadataSuggestions(result: ProcessResponse, uploadedTitle: string): AIResult {
+  const conversation = result.data?.conversation;
+  const validType = (value: unknown): value is NonNullable<AIResult['suggestedType']> =>
+    value === 'reuniao' || value === 'treinamento' || value === 'informal' || value === 'outro';
+  return {
+    suggestedTitle: conversation?.title?.trim() || result.data?.suggestedTitle?.trim() || uploadedTitle,
+    suggestedType: validType(conversation?.type)
+      ? conversation.type
+      : validType(result.data?.suggestedType) ? result.data.suggestedType : undefined,
+  };
+}
+
 export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
   const [step, setStep] = useState<Step>('upload');
   const [status, setStatus] = useState<UploadStatus>('idle');
@@ -85,15 +106,12 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
         throw new Error(data.error || 'Falha ao processar o arquivo');
       }
 
-      const processResult = await processResponse.json();
+      const processResult: ProcessResponse = await processResponse.json();
       setProgress(100);
       setStatus('success');
 
       // Set AI suggestions
-      setAiResult({
-        suggestedTitle: processResult.data?.suggestedTitle || conversation.title,
-        suggestedType: processResult.data?.suggestedType,
-      });
+      setAiResult(processedMetadataSuggestions(processResult, conversation.title));
 
       // Move to metadata step after a brief pause
       setTimeout(() => {
@@ -127,7 +145,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
           type: metadata.type,
           date: metadata.date.toISOString(),
           duration: metadata.duration,
-          tags: JSON.stringify(metadata.tags),
+          tags: metadata.tags,
         }),
       });
 

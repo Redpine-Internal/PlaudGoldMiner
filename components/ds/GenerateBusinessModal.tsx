@@ -1,9 +1,13 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useId, useState } from "react";
 import useSWR from "swr";
-import { Button } from "./Button";
-import { Icon } from "./Icon";
-import { SearchInput } from "./SearchInput";
+import { Button } from "@/components/ds/Button";
+import { Icon } from "@/components/ds/Icon";
+import { Pagination } from "@/components/ds/Pagination";
+import { SearchInput } from "@/components/ds/SearchInput";
+import { useModalDialog } from "@/hooks/use-modal-dialog";
+import { fetchJson } from "@/lib/http";
+import { formatCalendarDate } from "@/lib/presentation/calendar-date";
 
 /**
  * Seleção do range de reuniões que alimenta a geração de Novos Negócios.
@@ -36,9 +40,32 @@ interface Props {
   busy?: boolean;
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
 const MAX_SELECTION = 40;
+const PAGE_SIZE = 20;
+
+interface ConversationPage {
+  data: ConversationOption[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export function conversationSelectionUrl(page: number, query: string): string {
+  const params = new URLSearchParams({
+    status: "processado",
+    content: "hasTranscription",
+    limit: String(PAGE_SIZE),
+    offset: String((page - 1) * PAGE_SIZE),
+  });
+  if (query.trim()) params.set("search", query.trim());
+  return `/api/conversations?${params}`;
+}
+
+export function toggleConversationSelection(picked: string[], id: string, single: boolean): string[] {
+  if (single) return picked[0] === id ? [] : [id];
+  if (picked.includes(id)) return picked.filter((value) => value !== id);
+  return picked.length < MAX_SELECTION ? [...picked, id] : picked;
+}
 
 const MODES: { value: GenerateMode; label: string; hint: string }[] = [
   { value: "pending", label: "Pendentes", hint: "Conversas processadas que ainda não geraram negócios." },
@@ -48,10 +75,7 @@ const MODES: { value: GenerateMode; label: string; hint: string }[] = [
 ];
 
 function fmtDate(d: string | null): string {
-  if (!d) return "sem data";
-  const parsed = new Date(d);
-  if (Number.isNaN(parsed.getTime())) return d;
-  return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return formatCalendarDate(d, { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Props) {
@@ -60,42 +84,30 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
   const [to, setTo] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const titleId = useId();
+  const dialogRef = useModalDialog({ isOpen: true, onClose, canClose: !busy });
 
   // A lista só é necessária nos modos que escolhem conversa a dedo.
   const needsList = mode === "selection" || mode === "single";
-  const { data, isLoading } = useSWR<{ data: ConversationOption[] }>(
-    // O limite da rota é capado em 100 — pedir mais devolve 400.
-    needsList ? "/api/conversations?limit=100&status=processado" : null,
-    fetcher,
-    { revalidateOnFocus: false }
+  const { data, error, isLoading, isValidating, mutate } = useSWR<ConversationPage>(
+    needsList ? conversationSelectionUrl(page, q) : null,
+    fetchJson,
+    {
+      revalidateOnFocus: false,
+      onSuccess: (result) => {
+        const lastPage = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
+        setPage((current) => Math.min(current, lastPage));
+      },
+    }
   );
 
-  const conversations = useMemo(() => data?.data ?? [], [data]);
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return conversations;
-    return conversations.filter((c) => (c.title || "").toLowerCase().includes(term));
-  }, [conversations, q]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const conversations = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const toggle = (id: string) => {
-    if (mode === "single") {
-      setPicked((prev) => (prev[0] === id ? [] : [id]));
-      return;
-    }
-    setPicked((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= MAX_SELECTION) return prev;
-      return [...prev, id];
-    });
+    if (!busy) setPicked((prev) => toggleConversationSelection(prev, id, mode === "single"));
   };
 
   const invalid =
@@ -116,7 +128,7 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
   return (
     <div
       className="ds-modal-backdrop"
-      onClick={onClose}
+      onClick={busy ? undefined : onClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -128,25 +140,31 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
       }}
     >
       <div
+        ref={dialogRef}
         className="ds-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Detectar novos negócios"
+        aria-labelledby={titleId}
+        aria-describedby={`${titleId}-hint`}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(max(50vw, 640px), 100%)",
           maxHeight: "90vh",
+          overflowY: "auto",
           display: "flex",
           flexDirection: "column",
           gap: 16,
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <h2 style={{ font: "400 20px/28px var(--fontFamily)", margin: 0 }}>Detectar Negócios</h2>
+          <h2 id={titleId} style={{ font: "400 20px/28px var(--fontFamily)", margin: 0 }}>Detectar Negócios</h2>
           <button
             type="button"
             onClick={onClose}
+            disabled={busy}
             title="Fechar"
+            aria-label="Fechar seleção de conversas"
             style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
           >
             <Icon name="x" size={20} />
@@ -160,10 +178,13 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
               type="button"
               className="ds-btn ds-btn--secondary"
               aria-pressed={mode === m.value}
+              disabled={busy}
               onClick={() => {
+                if (mode === m.value) return;
                 setMode(m.value);
                 setPicked([]);
                 setQ("");
+                setPage(1);
               }}
               style={{
                 cursor: "pointer",
@@ -175,7 +196,7 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
           ))}
         </div>
 
-        <p style={{ margin: 0, font: "400 13px/18px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+        <p id={`${titleId}-hint`} style={{ margin: 0, font: "400 13px/18px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
           {hint}
         </p>
 
@@ -186,6 +207,7 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
               <input
                 type="date"
                 value={from}
+                disabled={busy}
                 onChange={(e) => setFrom(e.target.value)}
                 className="ds-input"
                 style={{ padding: "8px 10px" }}
@@ -196,6 +218,8 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
               <input
                 type="date"
                 value={to}
+                disabled={busy}
+                min={from || undefined}
                 onChange={(e) => setTo(e.target.value)}
                 className="ds-input"
                 style={{ padding: "8px 10px" }}
@@ -206,7 +230,13 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
 
         {needsList ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
-            <SearchInput value={q} onChange={setQ} placeholder="Buscar reunião..." />
+            <SearchInput
+              value={q}
+              onChange={(value) => { if (!busy) { setQ(value); setPage(1); } }}
+              placeholder="Buscar reunião..."
+              aria-label="Buscar em todas as conversas processadas"
+              disabled={busy}
+            />
             <div
               style={{
                 overflowY: "auto",
@@ -215,21 +245,31 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
                 borderRadius: 6,
               }}
             >
-              {isLoading ? (
-                <p style={{ padding: 12, margin: 0, color: "var(--color-muted-foreground)" }}>Carregando…</p>
-              ) : filtered.length ? (
-                filtered.map((c) => {
+              {error ? (
+                <div role="alert" style={{ padding: 12 }}>
+                  <p>{error instanceof Error ? error.message : "Não foi possível carregar as conversas."}</p>
+                  <Button variant="outline" size="sm" onClick={() => void mutate()} disabled={isValidating || busy}>
+                    {isValidating ? "Tentando…" : "Tentar novamente"}
+                  </Button>
+                </div>
+              ) : isLoading ? (
+                <p role="status" style={{ padding: 12, margin: 0, color: "var(--color-muted-foreground)" }}>Carregando…</p>
+              ) : conversations.length ? (
+                conversations.map((c) => {
                   const on = picked.includes(c.id);
                   return (
                     <button
                       key={c.id}
                       type="button"
                       onClick={() => toggle(c.id)}
+                      aria-pressed={on}
+                      disabled={busy || (!on && mode === "selection" && picked.length >= MAX_SELECTION)}
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: 10,
                         width: "100%",
+                        minHeight: 48,
                         padding: "8px 12px",
                         background: on ? "rgba(120,120,128,0.2)" : "transparent",
                         border: "none",
@@ -241,29 +281,34 @@ export function GenerateBusinessModal({ onClose, onGenerate, busy = false }: Pro
                       }}
                     >
                       <span style={{ width: 16, flexShrink: 0 }}>{on ? <Icon name="check" size={14} /> : null}</span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {c.title || "Sem título"}
+                      <span style={{ flex: 1, minWidth: 0, display: "grid", gap: 4, overflowWrap: "anywhere" }}>
+                        <span>{c.title || "Sem título"}</span>
+                        <span style={{ color: "var(--color-muted-foreground)" }}>{fmtDate(c.date)}</span>
                       </span>
-                      <span style={{ color: "var(--color-muted-foreground)", flexShrink: 0 }}>{fmtDate(c.date)}</span>
                     </button>
                   );
                 })
               ) : (
                 <p style={{ padding: 12, margin: 0, color: "var(--color-muted-foreground)" }}>
-                  Nenhuma conversa processada encontrada.
+                  {q ? "Nenhuma conversa encontrada para esta busca." : "Nenhuma conversa processada com transcrição disponível."}
                 </p>
               )}
             </div>
-            {mode === "selection" ? (
-              <span style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
-                {picked.length} de no máximo {MAX_SELECTION} selecionada(s)
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span role="status" style={{ font: "400 12px/16px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
+                {mode === "selection"
+                  ? `${picked.length} de no máximo ${MAX_SELECTION} selecionada(s)`
+                  : `${picked.length} conversa selecionada`}
+                {data && !error ? ` · ${total} encontrada(s)` : ""}
               </span>
-            ) : null}
+              {picked.length ? <Button variant="link" size="sm" onClick={() => setPicked([])} disabled={busy}>Limpar seleção</Button> : null}
+            </div>
+            {!error ? <Pagination page={page} pageCount={pageCount} onChange={(value) => { if (!busy) setPage(value); }} style={{ marginTop: 4, flexWrap: "wrap" }} /> : null}
           </div>
         ) : null}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
             Cancelar
           </Button>
           <Button variant="primary" icon="sparkles" iconSpin={busy} onClick={submit} disabled={busy || invalid}>

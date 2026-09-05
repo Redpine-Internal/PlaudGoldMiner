@@ -64,7 +64,9 @@ const Toolbar = () => {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
+  const searchRef = useRef<HTMLDivElement | null>(null);
   const avatarRef = useRef<HTMLDivElement | null>(null);
   const avatarButtonRef = useRef<HTMLButtonElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
@@ -123,18 +125,26 @@ const Toolbar = () => {
     });
   }, []);
 
-  const search = (value: string) => {
-    setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      router.push(value ? `/conversas?q=${encodeURIComponent(value)}` : "/conversas");
-    }, 300);
-  };
+  useEffect(() => {
+    const close = (event: PointerEvent) => {
+      if (!searchRef.current?.contains(event.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
+
+  const completeSearch = () => { setSearchOpen(false); setMobileSearchOpen(false); };
 
   const signOut = async () => {
-    await fetch("/auth/signout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
+    setSignOutError("");
+    try {
+      const response = await fetch("/auth/signout", { method: "POST" });
+      if (!response.ok) throw new Error("Falha ao sair");
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      setSignOutError("Não foi possível sair. Tente novamente pelo menu da conta.");
+    }
   };
 
   const openMobileMenu = () => window.dispatchEvent(new CustomEvent("pgm:open-more"));
@@ -149,7 +159,7 @@ const Toolbar = () => {
       <nav className="pgm-toolbar__breadcrumb" aria-label="Você está em">
         {isMobile ? null : (
           <>
-            <Link href={pathname === "/" ? "/" : pathname}>{titleFor(pathname)}</Link>
+            <Link href={TITLES.find(([path]) => pathname.startsWith(path))?.[0] ?? "/"}>{titleFor(pathname)}</Link>
             <span aria-hidden>›</span>
           </>
         )}
@@ -158,15 +168,26 @@ const Toolbar = () => {
       <span className="pgm-toolbar__spacer" />
 
       {!isMobile || mobileSearchOpen ? (
-        <div className="pgm-toolbar__search" role="search">
+        <div ref={searchRef} className="pgm-toolbar__search" role="search" style={{ overflow: "visible" }} onKeyDown={(event) => {
+          if (event.key === "Escape") { setSearchOpen(false); setMobileSearchOpen(false); }
+        }}>
           <Search size={18} strokeWidth={1.75} aria-hidden />
           <input
             autoFocus={isMobile}
             value={query}
-            onChange={(event) => search(event.target.value)}
+            onChange={(event) => { setQuery(event.target.value); setSearchOpen(true); }}
+            onFocus={() => setSearchOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && query.trim()) { event.preventDefault(); router.push(`/conversas?q=${encodeURIComponent(query.trim())}`); completeSearch(); }
+            }}
             placeholder="Buscar conversas, negócios, conteúdos"
             aria-label="Buscar conversas, negócios, conteúdos"
           />
+          {searchOpen && query.trim() ? <div className="menu" aria-label="Onde buscar" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, minWidth: 0, zIndex: 60 }}>
+            {[["conversas", "Conversas"], ["novos-negocios", "Novos Negócios"], ["conteudos", "Conteúdos"]].map(([route, label]) => (
+              <Link key={route} href={`/${route}?q=${encodeURIComponent(query.trim())}`} onClick={completeSearch}>Buscar em {label}</Link>
+            ))}
+          </div> : null}
           {isMobile ? (
             <button type="button" className="icon-btn" aria-label="Fechar busca" onClick={() => setMobileSearchOpen(false)}>
               <X size={18} strokeWidth={1.75} />
@@ -176,6 +197,7 @@ const Toolbar = () => {
       ) : null}
 
       <div className="pgm-toolbar__actions">
+        {signOutError ? <span role="alert">{signOutError}</span> : null}
         {isMobile ? (
           <button type="button" className="icon-btn" aria-label="Buscar" onClick={() => setMobileSearchOpen(true)}>
             <Search size={20} strokeWidth={1.75} />

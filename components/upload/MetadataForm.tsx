@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
 import { Calendar, Clock, Tag, Type } from 'lucide-react';
 
 interface MetadataFormProps {
@@ -31,6 +31,11 @@ const TYPE_OPTIONS = [
   { value: 'outro', label: 'Outro', color: 'bg-gray-100 text-gray-800' },
 ] as const;
 
+/** O input representa um dia local, não o dia do instante convertido para UTC. */
+export function localMetadataDate(value: Date = new Date()): string {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+}
+
 export function MetadataForm({
   initialData,
   suggestedTitle,
@@ -39,15 +44,14 @@ export function MetadataForm({
   onChange,
   disabled = false,
 }: MetadataFormProps) {
+  const formId = useId();
+  const titleEdited = useRef(Boolean(initialData?.title));
+  const typeEdited = useRef(Boolean(initialData?.type));
   const [title, setTitle] = useState(initialData?.title || suggestedTitle || '');
   const [type, setType] = useState<'reuniao' | 'treinamento' | 'informal' | 'outro'>(
     initialData?.type || suggestedType || 'outro'
   );
-  const [date, setDate] = useState<string>(
-    initialData?.date
-      ? initialData.date.toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0]
-  );
+  const [date, setDate] = useState(() => localMetadataDate(initialData?.date));
   const [duration, setDuration] = useState(initialData?.duration || '');
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [tagInput, setTagInput] = useState('');
@@ -55,14 +59,14 @@ export function MetadataForm({
 
   // Update when AI suggestions arrive
   useEffect(() => {
-    if (suggestedTitle && !title) {
-      queueMicrotask(() => setTitle(suggestedTitle));
+    if (suggestedTitle && !title && !titleEdited.current) {
+      queueMicrotask(() => { if (!titleEdited.current) setTitle(suggestedTitle); });
     }
   }, [suggestedTitle, title]);
 
   useEffect(() => {
-    if (suggestedType && type === 'outro') {
-      queueMicrotask(() => setType(suggestedType));
+    if (suggestedType && type === 'outro' && !typeEdited.current) {
+      queueMicrotask(() => { if (!typeEdited.current) setType(suggestedType); });
     }
   }, [suggestedType, type]);
 
@@ -108,14 +112,15 @@ export function MetadataForm({
     <div className="space-y-4">
       {/* Title */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1">
+        <label htmlFor={`${formId}-title`} className="block text-sm font-medium text-foreground mb-1">
           <Type className="inline h-4 w-4 mr-1" />
           Título *
         </label>
         <input
+          id={`${formId}-title`}
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => { titleEdited.current = true; setTitle(e.target.value); }}
           placeholder="Digite o título da conversa"
           className="min-h-[48px] w-full rounded-[4px] border-0 bg-muted px-3 py-2 focus:ring-2 focus:ring-primary"
           disabled={disabled}
@@ -124,7 +129,7 @@ export function MetadataForm({
         {suggestedTitle && title !== suggestedTitle && (
           <button
             type="button"
-            onClick={() => setTitle(suggestedTitle)}
+            onClick={() => { titleEdited.current = true; setTitle(suggestedTitle); }}
             className="mt-1 min-h-[44px] rounded-[4px] px-2 text-xs text-primary hover:bg-muted"
             disabled={disabled}
           >
@@ -135,15 +140,16 @@ export function MetadataForm({
 
       {/* Type */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
+        <div id={`${formId}-type-label`} className="block text-sm font-medium text-foreground mb-2">
           Tipo de Conversa *
-        </label>
-        <div className="flex flex-wrap gap-2">
+        </div>
+        <div role="group" aria-labelledby={`${formId}-type-label`} className="flex flex-wrap gap-2">
           {TYPE_OPTIONS.map((option) => (
             <button
               key={option.value}
               type="button"
-              onClick={() => setType(option.value)}
+              onClick={() => { typeEdited.current = true; setType(option.value); }}
+              aria-pressed={type === option.value}
               disabled={disabled}
               className={`min-h-[44px] rounded-[6px] px-3 py-2 text-sm font-medium transition-all ${
                 type === option.value
@@ -158,7 +164,7 @@ export function MetadataForm({
         {suggestedType && type !== suggestedType && (
           <button
             type="button"
-            onClick={() => setType(suggestedType)}
+            onClick={() => { typeEdited.current = true; setType(suggestedType); }}
             className="mt-2 min-h-[44px] rounded-[4px] px-2 text-xs text-primary hover:bg-muted"
             disabled={disabled}
           >
@@ -171,11 +177,12 @@ export function MetadataForm({
       {/* Date and Duration */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
+          <label htmlFor={`${formId}-date`} className="block text-sm font-medium text-foreground mb-1">
             <Calendar className="inline h-4 w-4 mr-1" />
             Data *
           </label>
           <input
+            id={`${formId}-date`}
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -185,11 +192,12 @@ export function MetadataForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
+          <label htmlFor={`${formId}-duration`} className="block text-sm font-medium text-foreground mb-1">
             <Clock className="inline h-4 w-4 mr-1" />
             Duração
           </label>
           <input
+            id={`${formId}-duration`}
             type="text"
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
@@ -202,7 +210,7 @@ export function MetadataForm({
 
       {/* Tags */}
       <div className="relative">
-        <label className="block text-sm font-medium text-foreground mb-1">
+        <label htmlFor={`${formId}-tags`} className="block text-sm font-medium text-foreground mb-1">
           <Tag className="inline h-4 w-4 mr-1" />
           Tags
         </label>
@@ -225,6 +233,7 @@ export function MetadataForm({
             </span>
           ))}
           <input
+            id={`${formId}-tags`}
             type="text"
             value={tagInput}
             onChange={(e) => {

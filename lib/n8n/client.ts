@@ -81,8 +81,8 @@ export interface N8nHealth {
  * Valida que o `x-plaude-api-key` é aceito pelos webhooks (Fase A).
  * Faz um POST autenticado ao webhook 06 (execution-status) — idempotente e só-leitura,
  * o candidato mais seguro. Interpreta 401/403 como auth reprovada; qualquer outra
- * resposta HTTP (incl. 4xx de negócio por executionId inexistente) prova que a chave
- * passou pelo nó `Validate`. Erro de rede => indeterminado (undefined).
+ * resposta não confirma que o fluxo de autenticação foi executado. Erros de rede,
+ * 404 e falhas do servidor ficam indeterminados, nunca viram conexão validada.
  */
 export async function pingWebhookAuth(): Promise<{ authOk?: boolean; status?: number; error?: string }> {
   if (!isN8nConfigured()) return { authOk: false, error: 'n8n not configured' };
@@ -90,7 +90,7 @@ export async function pingWebhookAuth(): Promise<{ authOk?: boolean; status?: nu
   if (res.ok) return { authOk: true };
   // callWebhook devolve `status` só em respostas HTTP não-2xx; ausência = erro de rede.
   if (typeof res.status === 'number') {
-    return { authOk: res.status !== 401 && res.status !== 403, status: res.status };
+    return { authOk: res.status === 401 || res.status === 403 ? false : undefined, status: res.status };
   }
   return { authOk: undefined, error: res.error };
 }
