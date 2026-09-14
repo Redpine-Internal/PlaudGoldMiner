@@ -1,0 +1,361 @@
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  background: #fff;
+  color: #080503;
+}
+
+.brandPanel {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(40px, 5.6vw, 80px) clamp(40px, 7.4vw, 106px);
+  background: #161412;
+  color: #fff;
+}
+
+.wordmark {
+  font-family: var(--fontFamily);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.manifesto {
+  width: min(100%, 500px);
+}
+
+.accentLine {
+  display: block;
+  width: 56px;
+  height: 2px;
+  margin-bottom: 30px;
+  background: var(--bronze);
+}
+
+.manifesto h1 {
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(42px, 4.5vw, 64px);
+  font-weight: 300;
+  line-height: 1.12;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+.manifesto h1 em {
+  color: #b58b63;
+  font-style: normal;
+}
+
+.manifesto p {
+  max-width: 470px;
+  margin: 28px 0 0;
+  color: #a8a49f;
+  font-family: var(--fontFamily);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.brandFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  color: #a8a49f;
+  font-family: var(--fontFamily);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.formPanel {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  background: #fff;
+}
+
+.form {
+  width: min(100%, 480px);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--bronze-deep);
+  font-family: var(--fontFamily);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.form h2 {
+  margin: 10px 0 34px;
+  color: #080503;
+  font-family: var(--font-display);
+  font-size: 30px !important;
+  font-weight: 300 !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0 !important;
+}
+
+.field + .field {
+  margin-top: 22px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 8px;
+  color: #080503;
+  font-family: var(--fontFamily);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.field label span {
+  color: var(--bronze);
+}
+
+.field input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #b9b6b0;
+  border-radius: 2px;
+  background: #fff;
+  color: #080503;
+  font-family: var(--fontFamily);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field input::placeholder {
+  color: #7c7771;
+}
+
+.field input:focus {
+  border-color: var(--bronze-deep);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bronze-deep) 20%, transparent);
+}
+
+.field input:disabled {
+  background: var(--app-surface-subtle);
+  cursor: wait;
+}
+
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #080503;
+  box-shadow: 0 0 0 1000px #fff inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.sessionOptions {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 24px;
+  margin: 8px 0 14px;
+}
+
+.forgotPassword {
+  color: #18130e;
+  font-family: var(--fontFamily);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.forgotPassword:hover {
+  color: var(--bronze-deep);
+}
+
+.primaryButton,
+.ssoButton {
+  width: 100%;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid transparent;
+  font-family: var(--fontFamily);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.primaryButton {
+  border-radius: 999px;
+  background: var(--sky);
+  color: #080503;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--sky-hover);
+}
+
+.ssoButton {
+  margin-top: 20px;
+  border-color: #18130e;
+  border-radius: 2px;
+  background: #fff;
+  color: #080503;
+}
+
+.ssoButton:hover:not(:disabled) {
+  background: var(--app-surface-subtle);
+}
+
+.primaryButton:disabled,
+.ssoButton:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.primaryButton:focus-visible,
+.ssoButton:focus-visible,
+.forgotPassword:focus-visible {
+  outline: 2px solid var(--bronze-deep);
+  outline-offset: 3px;
+}
+
+.errorMessage {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--alert-error-border);
+  border-radius: 2px;
+  background: var(--alert-error-bg);
+  color: var(--alert-error-fg);
+  font-family: var(--fontFamily);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.legal {
+  margin: 66px 0 0;
+  color: #746f69;
+  font-family: var(--fontFamily);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.legal span {
+  display: block;
+  margin-top: 6px;
+}
+
+@media (max-width: 960px) {
+  .brandPanel {
+    padding-inline: 48px;
+  }
+
+  .manifesto h1 {
+    font-size: 44px;
+  }
+
+  .formPanel {
+    padding-inline: 40px;
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .brandPanel {
+    min-height: auto;
+    padding: 30px 24px 34px;
+  }
+
+  .wordmark {
+    font-size: 18px;
+  }
+
+  .manifesto {
+    margin-top: 56px;
+  }
+
+  .accentLine {
+    width: 44px;
+    margin-bottom: 22px;
+  }
+
+  .manifesto h1 {
+    max-width: 350px;
+    font-size: 36px;
+  }
+
+  .manifesto p,
+  .brandFooter {
+    display: none;
+  }
+
+  .formPanel {
+    min-height: auto;
+    align-items: flex-start;
+    padding: 36px 24px 48px;
+  }
+
+  .form {
+    max-width: none;
+  }
+
+  .form h2 {
+    margin-bottom: 30px;
+    font-size: 30px !important;
+  }
+
+  .legal {
+    margin-top: 38px;
+  }
+}
+
+@media (max-width: 380px) {
+  .brandPanel,
+  .formPanel {
+    padding-inline: 16px;
+  }
+
+  .manifesto h1 {
+    font-size: 32px;
+  }
+
+  .sessionOptions {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding-block: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field input,
+  .primaryButton,
+  .ssoButton {
+    transition: none;
+  }
+}

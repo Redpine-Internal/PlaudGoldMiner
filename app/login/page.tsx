@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Input, Icon } from "@/components/ds";
+import styles from "./login-page.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,20 +21,22 @@ export default function LoginPage() {
     }
   }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (credentials: {
+    email: string;
+    password: string;
+  }) => {
     setError(null);
     setLoading("password");
     try {
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
+        email: credentials.email.trim().toLowerCase(),
+        password: credentials.password,
       });
       if (signInError) {
         setError("E-mail ou senha inválidos.");
         return;
       }
-      // Recarrega no servidor para o middleware enxergar a sessão nova.
       router.replace("/");
       router.refresh();
     } catch {
@@ -67,89 +69,124 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--background)",
-        color: "var(--textPrimary)",
-        padding: 24,
-      }}
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!loading && email && password) void handleSubmit();
-        }}
-        style={{
-          width: "100%",
-          maxWidth: 360,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          background: "var(--surface, var(--background))",
-          border: "1px solid var(--border, rgba(0,0,0,0.1))",
-          borderRadius: 6,
-          padding: 32,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <Icon name="brain" size={24} color="var(--brand)" />
-          <span style={{ fontSize: 22, fontFamily: "var(--font-display)" }}>Plaud Gold Miner</span>
+    <main className={styles.page}>
+      <section className={styles.brandPanel} aria-labelledby="login-manifesto">
+        <div className={styles.wordmark} aria-label="Andreza Araújo">
+          Andreza Araújo
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          disabled={loading !== null}
-          icon={loading === "microsoft" ? "loader-circle" : undefined}
-          iconSpin={loading === "microsoft"}
-          onClick={() => void handleMicrosoftSignIn()}
-        >
-          {loading === "microsoft" ? "Abrindo Microsoft…" : "Entrar com Microsoft"}
-        </Button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--textSecondary)", fontSize: 12 }}>
-          <span style={{ height: 1, flex: 1, background: "var(--border, rgba(0,0,0,0.1))" }} />
-          <span>ou use sua senha</span>
-          <span style={{ height: 1, flex: 1, background: "var(--border, rgba(0,0,0,0.1))" }} />
+        <div className={styles.manifesto}>
+          <span className={styles.accentLine} aria-hidden="true" />
+          <h1 id="login-manifesto">
+            Inteligência para uma cultura de segurança que{" "}
+            <em>volta para casa</em>.
+          </h1>
+          <p>
+            Sistema executivo de escutas, diagnósticos e pipeline de
+            transformação cultural. Acesso restrito a organizações clientes.
+          </p>
         </div>
 
-        <Input
-          label="E-mail"
-          type="email"
-          value={email}
-          onChange={setEmail}
-          placeholder="voce@empresa.com"
-          required
-        />
-        <Input
-          label="Senha"
-          type="password"
-          value={password}
-          onChange={setPassword}
-          placeholder="••••••••"
-          required
-        />
+        <footer className={styles.brandFooter}>
+          <span>ACS Global Ventures · Sistema executivo</span>
+          <span>v4.2</span>
+        </footer>
+      </section>
 
-        {error ? (
-          <span role="alert" style={{ color: "var(--accent-error, #C25E4C)", fontSize: 14 }}>
-            {error}
-          </span>
-        ) : null}
-
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={loading !== null || !email || !password}
-          icon={loading === "password" ? "loader-circle" : undefined}
-          iconSpin={loading === "password"}
+      <section className={styles.formPanel} aria-labelledby="login-title">
+        <form
+          className={styles.form}
+          aria-busy={loading !== null}
+          onSubmit={(event) => {
+            event.preventDefault();
+            const formData = new FormData(event.currentTarget);
+            if (!loading) {
+              void handleSubmit({
+                email: String(formData.get("email") ?? ""),
+                password: String(formData.get("password") ?? ""),
+              });
+            }
+          }}
         >
-          {loading === "password" ? "Entrando…" : "Entrar"}
-        </Button>
-      </form>
-    </div>
+          <p className={styles.eyebrow}>Acesso</p>
+          <h2 id="login-title">Entrar no sistema</h2>
+
+          <div className={styles.field}>
+            <label htmlFor="login-email">
+              E-mail corporativo <span aria-hidden="true">*</span>
+            </label>
+            <input
+              id="login-email"
+              name="email"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="seu.nome@empresa.com.br"
+              disabled={loading !== null}
+              required
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="login-password">
+              Senha <span aria-hidden="true">*</span>
+            </label>
+            <input
+              id="login-password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="••••••••"
+              disabled={loading !== null}
+              required
+            />
+          </div>
+
+          <div className={styles.sessionOptions}>
+            <a
+              href="mailto:contato@andrezaaraujo.com?subject=Recuperação%20de%20acesso"
+              className={styles.forgotPassword}
+            >
+              Esqueci a senha
+            </a>
+          </div>
+
+          {error ? (
+            <p role="alert" className={styles.errorMessage}>
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            className={styles.primaryButton}
+            disabled={loading !== null}
+          >
+            <span>{loading === "password" ? "Entrando…" : "Entrar"}</span>
+            <span aria-hidden="true">→</span>
+          </button>
+
+          <button
+            type="button"
+            className={styles.ssoButton}
+            disabled={loading !== null}
+            onClick={() => void handleMicrosoftSignIn()}
+          >
+            {loading === "microsoft"
+              ? "Abrindo SSO…"
+              : "Entrar com SSO da organização"}
+          </button>
+
+          <p className={styles.legal}>
+            Ao entrar você concorda com os termos de uso e a política de
+            privacidade. Dados de escuta são confidenciais e auditados.
+            <span>andrezaaraujo.com · contato@andrezaaraujo.com</span>
+          </p>
+        </form>
+      </section>
+    </main>
   );
 }
