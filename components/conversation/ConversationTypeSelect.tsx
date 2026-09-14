@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   CONVERSATION_CLASSIFICATIONS,
-  isMiningEligibleConversationType,
   type ConversationType,
 } from "@/lib/conversations/classification";
 
@@ -40,7 +39,6 @@ export function ConversationTypeSelect({ conversationId, value, onSaved, compact
     }
   };
 
-  const eligible = isMiningEligibleConversationType(value);
   return (
     <span
       onClick={(event) => event.stopPropagation()}
@@ -54,12 +52,11 @@ export function ConversationTypeSelect({ conversationId, value, onSaved, compact
         value={value}
         disabled={saving}
         onChange={(event) => void save(event.target.value as ConversationType)}
-        title={eligible ? "Esta gravação entra na mineração" : "Esta gravação não entra na mineração"}
         style={{ minHeight: compact ? 34 : 40, width: "100%", padding: compact ? "5px 28px 5px 8px" : undefined }}
       >
         {CONVERSATION_CLASSIFICATIONS.map((classification) => (
           <option key={classification.value} value={classification.value}>
-            {classification.label}{classification.miningEligible ? " · entra na mineração" : " · fora da mineração"}
+            {classification.label}
           </option>
         ))}
       </select>
