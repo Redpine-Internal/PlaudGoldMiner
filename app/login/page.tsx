@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Input, Icon } from "@/components/ds";
@@ -10,11 +10,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"password" | "microsoft" | null>(null);
+
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("error");
+    if (reason === "access") {
+      setError("Este usuário não possui acesso ao Plaud Gold Miner.");
+    } else if (reason === "sso") {
+      setError("Não foi possível entrar com a Microsoft. Tente novamente.");
+    }
+  }, []);
 
   const handleSubmit = async () => {
     setError(null);
-    setLoading(true);
+    setLoading("password");
     try {
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -31,7 +40,29 @@ export default function LoginPage() {
     } catch {
       setError("Não foi possível entrar. Tente novamente.");
     } finally {
-      setLoading(false);
+      setLoading(null);
+    }
+  };
+
+  const handleMicrosoftSignIn = async () => {
+    setError(null);
+    setLoading("microsoft");
+    try {
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: "azure",
+        options: {
+          scopes: "email",
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (signInError) {
+        setError("Não foi possível entrar com a Microsoft. Tente novamente.");
+        setLoading(null);
+      }
+    } catch {
+      setError("Não foi possível entrar com a Microsoft. Tente novamente.");
+      setLoading(null);
     }
   };
 
@@ -69,6 +100,23 @@ export default function LoginPage() {
           <span style={{ fontSize: 22, fontFamily: "var(--font-display)" }}>Plaud Gold Miner</span>
         </div>
 
+        <Button
+          type="button"
+          variant="outline"
+          disabled={loading !== null}
+          icon={loading === "microsoft" ? "loader-circle" : undefined}
+          iconSpin={loading === "microsoft"}
+          onClick={() => void handleMicrosoftSignIn()}
+        >
+          {loading === "microsoft" ? "Abrindo Microsoft…" : "Entrar com Microsoft"}
+        </Button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--textSecondary)", fontSize: 12 }}>
+          <span style={{ height: 1, flex: 1, background: "var(--border, rgba(0,0,0,0.1))" }} />
+          <span>ou use sua senha</span>
+          <span style={{ height: 1, flex: 1, background: "var(--border, rgba(0,0,0,0.1))" }} />
+        </div>
+
         <Input
           label="E-mail"
           type="email"
@@ -95,11 +143,11 @@ export default function LoginPage() {
         <Button
           type="submit"
           variant="primary"
-          disabled={loading || !email || !password}
-          icon={loading ? "loader-circle" : undefined}
-          iconSpin={loading}
+          disabled={loading !== null || !email || !password}
+          icon={loading === "password" ? "loader-circle" : undefined}
+          iconSpin={loading === "password"}
         >
-          {loading ? "Entrando…" : "Entrar"}
+          {loading === "password" ? "Entrando…" : "Entrar"}
         </Button>
       </form>
     </div>

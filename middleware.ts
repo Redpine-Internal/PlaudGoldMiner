@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isAllowedUserEmail } from '@/lib/auth/access';
 
 // Protege todas as rotas: sem sessão Supabase → redireciona para /login.
 // Também refresca a sessão a cada request (mantém o cookie válido).
@@ -46,15 +47,20 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isLogin = pathname === '/login';
+  const isAuthCallback = pathname === '/auth/callback';
+  const isAllowedUser = user ? isAllowedUserEmail(user.email) : false;
 
-  if (!user && !isLogin) {
+  if ((!user || !isAllowedUser) && !isLogin && !isAuthCallback) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    if (user && !isAllowedUser) {
+      url.search = '?error=access';
+    }
     return NextResponse.redirect(url);
   }
 
   // Já logado tentando ver /login → manda para a home.
-  if (user && isLogin) {
+  if (isAllowedUser && isLogin) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
