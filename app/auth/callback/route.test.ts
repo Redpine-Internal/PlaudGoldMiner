@@ -42,6 +42,29 @@ describe('GET /auth/callback', () => {
     expect(response.headers.get('location')).toBe('https://app.example.com/');
   });
 
+  it('usa o domínio público encaminhado pelo Cloud Run', async () => {
+    exchangeCodeForSession.mockResolvedValueOnce({ error: null });
+    getUser.mockResolvedValueOnce({
+      data: { user: { email: 'fabio.marques@ehsbrasil.com' } },
+    });
+
+    const request = new NextRequest(
+      'http://0.0.0.0:8080/auth/callback?code=ok&next=%2Fconteudos',
+      {
+        headers: {
+          'x-forwarded-host': 'plaudgoldminer-huzboo2prq-uc.a.run.app',
+          'x-forwarded-proto': 'https',
+        },
+      },
+    );
+
+    const response = await GET(request);
+
+    expect(response.headers.get('location')).toBe(
+      'https://plaudgoldminer-huzboo2prq-uc.a.run.app/conteudos',
+    );
+  });
+
   it('volta ao login quando a troca do código falha', async () => {
     exchangeCodeForSession.mockResolvedValueOnce({ error: new Error('invalid code') });
 
