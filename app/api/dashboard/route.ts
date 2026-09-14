@@ -90,6 +90,7 @@ export async function GET() {
       processedRes,
       opportunitiesRes,
       pendingRes,
+      awaitingTranscriptionRes,
       suggestedRes,
       weekActivityRes,
       recentRes,
@@ -111,7 +112,12 @@ export async function GET() {
           WHERE status IS DISTINCT FROM 'descartada'`
       ),
       pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM conversations WHERE status = 'pendente'`
+        `SELECT COUNT(*)::int AS count FROM conversations
+          WHERE status = 'pendente' AND NULLIF(btrim(transcription), '') IS NOT NULL`
+      ),
+      pool.query<{ count: number }>(
+        `SELECT COUNT(*)::int AS count FROM conversations
+          WHERE source = 'plaud' AND NULLIF(btrim(transcription), '') IS NULL`
       ),
       pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM app_contents WHERE status = 'sugerido'`
@@ -405,6 +411,7 @@ export async function GET() {
 
     const queue = {
       pendingConversations: pendingRes.rows[0]?.count ?? 0,
+      awaitingTranscription: awaitingTranscriptionRes.rows[0]?.count ?? 0,
       suggestedContents: suggestedRes.rows[0]?.count ?? 0,
     };
 

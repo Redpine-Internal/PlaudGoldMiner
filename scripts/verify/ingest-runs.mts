@@ -8,7 +8,14 @@ async function main() {
   assert.ok(id, 'deve devolver id do run');
   await finishIngestRun(id, {
     ok: true,
-    summary: { total: 3, created: 1, updated: 1, skipped: 1, errors: [{ fileId: 'x', message: 'boom' }] },
+    summary: {
+      total: 3,
+      created: 1,
+      updated: 1,
+      skipped: 1,
+      awaitingTranscription: 0,
+      errors: [{ fileId: 'x', message: 'boom' }],
+    },
     processing: { processed: 1, failed: 0 },
   });
   const row = (await pool.query(`SELECT * FROM app_ingest_runs WHERE id=$1`, [id])).rows[0];

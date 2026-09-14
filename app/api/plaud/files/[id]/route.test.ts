@@ -39,9 +39,32 @@ describe('erros HTTP no detalhe Plaud', () => {
   });
 
   it.each([429, 500])('mantém falha do serviço para HTTP %s, sem confundir com ausência', async (status) => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Unavailable', { status })));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Unavailable', {
+      status,
+      headers: status === 429 ? { 'retry-after': '0.001' } : undefined,
+    })));
     const response = await detail();
     expect(response.status).toBe(502);
+  });
+
+  it('repete a consulta depois de um 429 e preserva o resultado bem-sucedido', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('Rate limited', {
+        status: 429,
+        headers: { 'retry-after': '0.001' },
+      }))
+      .mockResolvedValueOnce(Response.json({
+        id,
+        name: 'Conversa recuperada',
+        start_at: '2026-09-02T12:00:00Z',
+        duration: 120000,
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await detail();
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('mantém o contrato de um detalhe bem-sucedido', async () => {

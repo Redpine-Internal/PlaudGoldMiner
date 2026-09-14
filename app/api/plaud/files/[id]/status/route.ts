@@ -21,7 +21,12 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
   try {
     // Insights come from our own DB (analyzed recordings), keyed by sourceFileId.
     const [local] = await db
-      .select({ id: conversations.id })
+      .select({
+        id: conversations.id,
+        transcription: conversations.transcription,
+        summary: conversations.summary,
+        status: conversations.status,
+      })
       .from(conversations)
       .where(eq(conversations.sourceFileId, id))
       .limit(1);
@@ -39,8 +44,12 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
       hasInsights = Boolean(opp);
     }
 
-    // Summary/transcription come from Plaud (on-demand segments).
-    const { transcript, summary } = await getFileContent(id);
+    // Depois da sincronização, o banco é suficiente para renderizar a lista e
+    // evita uma chamada Plaud por card. Arquivos ainda não sincronizados usam
+    // a consulta remota como fallback.
+    const remote = local ? null : await getFileContent(id);
+    const transcript = local?.transcription ?? remote?.transcript ?? '';
+    const summary = local?.summary ?? remote?.summary ?? '';
 
     return NextResponse.json({
       data: {
@@ -48,7 +57,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
         hasSummary: Boolean(summary && summary.trim()),
         hasTranscription: Boolean(transcript && transcript.trim()),
         hasInsights,
-        analyzed: Boolean(local),
+        analyzed: local?.status === 'processado',
       },
     });
   } catch (error) {

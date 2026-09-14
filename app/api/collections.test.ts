@@ -113,7 +113,7 @@ describe('acervo unificado de conversas', () => {
     const response = await conversations(request('/api/conversations'));
     expect(await response.json()).toMatchObject({ data, total: 258 });
     expect(calls()[0][0]).toContain('FROM conversations c');
-    expect(calls()[0][0]).not.toContain("source = 'plaud'");
+    expect(calls()[0][0]).not.toContain("WHERE c.source = 'plaud'");
   });
 
   it('combina período inclusivo, múltiplos tipos e disponibilidade no total e na página', async () => {

@@ -34,7 +34,10 @@ export async function processPendingConversations(
 
   const summary: ProcessPendingSummary = { processed: 0, failed: 0 };
   for (const conv of pending) {
-    if (!conv.transcription) continue;
+    // Placeholders do Plaud usam texto vazio enquanto a transcrição não
+    // existe. Nunca envie vazio/espaços para a IA: reconsultar o Plaud não
+    // pode gerar consumo de tokens por si só.
+    if (!conv.transcription?.trim()) continue;
     try {
       await db.update(conversations).set({ status: 'processando' }).where(eq(conversations.id, conv.id));
       const result = await processor(conv.transcription);

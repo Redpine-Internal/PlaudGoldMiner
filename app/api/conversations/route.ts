@@ -67,7 +67,12 @@ export async function GET(request: NextRequest) {
     params.content.forEach((flag) => filters.push(`(${contentFlags[flag]})`));
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     const [result, countResult] = await Promise.all([
-      pool.query(`SELECT c.id, c.title, c.date, c.duration, c.type, c.status,
+      pool.query(`SELECT c.id, c.title, c.date, c.duration, c.type,
+        CASE
+          WHEN c.source = 'plaud' AND NULLIF(btrim(c.transcription), '') IS NULL
+            THEN 'aguardando_transcricao'
+          ELSE c.status
+        END AS status,
         c.summary, c.topics, c.participants, c.source, c.source_file_id AS "sourceFileId",
         (${contentFlags.hasSummary}) AS "hasSummary",
         (${contentFlags.hasTranscription}) AS "hasTranscription",

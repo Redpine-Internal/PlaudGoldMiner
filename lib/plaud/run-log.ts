@@ -6,6 +6,7 @@ export interface IngestSummary {
   created: number;
   updated: number;
   skipped: number;
+  awaitingTranscription: number;
   errors: { fileId: string; message: string }[];
 }
 

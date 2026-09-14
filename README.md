@@ -155,7 +155,8 @@ Nenhuma vai para a imagem — `.dockerignore` exclui `.env*`. Em produção vêm
 |---|---|
 | `ANTHROPIC_API_KEY` | Clone conversacional indisponível |
 | `N8N_WEBHOOK_URL` · `N8N_WEBHOOK_SECRET` | Integração n8n inativa |
-| `INGEST_CRON_SECRET` | Ingestão agendada sem autenticação própria |
+| `INGEST_CRON_SECRET` | Segredo obrigatório da reconciliação agendada do Plaud |
+| `PLAUD_INGEST_MIN_INTERVAL_MS` | Intervalo mínimo entre detalhes do Plaud; padrão `1200` ms para respeitar 60 requisições/minuto |
 | `GOOGLE_CLIENT_ID` · `GOOGLE_CLIENT_SECRET` | Importação do Google Drive indisponível. **Não afeta o login** nem a ingestão do Plaud |
 | `AZURE_OPENAI_TPM` | Assume 10.000 tokens/minuto |
 
@@ -178,6 +179,16 @@ build**. Se forem vazias, a imagem sai sem configuração do Supabase e o login 
 
 O pipeline faz build → push no Artifact Registry → deploy. Segredos vêm do Secret Manager em
 runtime.
+
+Apó o primeiro deploy que inclui `INGEST_CRON_SECRET`, configure ou atualize a
+reconciliação diária do Plaud com:
+
+```bash
+./scripts/configure-plaud-scheduler.sh
+```
+
+O job roda às 05:00 no fuso `America/Sao_Paulo`. O botão **Sincronizar com
+Plaud** continua disponível para uma atualização imediata.
 
 ---
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { formatConversationStatus } from "@/lib/presentation/labels";
 
-const STATUSES = ["processado", "pendente", "processando", "erro"];
+const STATUSES = ["processado", "pendente", "aguardando_transcricao", "processando", "erro"];
 
 export interface StatusBadgeProps {
   status?: string;
@@ -11,7 +11,10 @@ export interface StatusBadgeProps {
 
 /** Processing-status badge — colors from --status-* tokens, rounded-md, font-medium. */
 export function StatusBadge({ status = "pendente", style, className = "" }: StatusBadgeProps) {
-  const s = STATUSES.includes(status) ? (status === "processando" ? "pendente" : status) : "pendente";
+  const normalized = STATUSES.includes(status) ? status : "pendente";
+  const s = ["processando", "aguardando_transcricao"].includes(normalized)
+    ? "pendente"
+    : normalized;
   return (
     <span
       className={("ds-badge ds-badge--status " + className).trim()}

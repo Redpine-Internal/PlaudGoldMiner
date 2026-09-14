@@ -21,11 +21,16 @@ export async function GET() {
     }
 
     // IDs já no banco.
-    const dbRes = await pool.query<{ pf: string }>(
-      `SELECT metadata->>'plaud_file_id' AS pf FROM meetings WHERE metadata->>'plaud_file_id' IS NOT NULL`
+    const dbRes = await pool.query<{ pf: string; has_transcription: boolean }>(
+      `SELECT metadata->>'plaud_file_id' AS pf,
+              NULLIF(btrim(transcription), '') IS NOT NULL AS has_transcription
+         FROM meetings
+        WHERE metadata->>'plaud_file_id' IS NOT NULL`
     );
     const dbIds = new Set(dbRes.rows.map((r) => r.pf));
     const missing = [...plaudIds].filter((id) => !dbIds.has(id));
+    const awaitingTranscription = dbRes.rows.filter((row) => !row.has_transcription).length;
+    const withTranscription = dbRes.rows.length - awaitingTranscription;
 
     const runs = await pool.query(
       `SELECT id, trigger, started_at, finished_at, ok, total, created, updated, skipped,
@@ -37,6 +42,8 @@ export async function GET() {
       data: {
         plaudTotal: plaudIds.size,
         inDatabase: dbIds.size,
+        withTranscription,
+        awaitingTranscription,
         missingCount: missing.length,
         missingIds: missing,
         lastRuns: runs.rows,

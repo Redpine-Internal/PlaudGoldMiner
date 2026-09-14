@@ -52,7 +52,12 @@ describe('negócios sustentados por conversas secundárias', () => {
   });
 
   it('hasInsights considera as fontes adicionais da gravação do Plaud', async () => {
-    results.push([{ id: 'secondary' }], [{ id: 'shared-opportunity' }]);
+    results.push([{
+      id: 'secondary',
+      transcription: 'Transcrição',
+      summary: 'Resumo',
+      status: 'processado',
+    }], [{ id: 'shared-opportunity' }]);
     const response = await plaudStatus(request, params('plaud-file'));
     expect(await response.json()).toMatchObject({ data: { hasInsights: true, hasSummary: true, hasTranscription: true } });
     const query = dialect.sqlToQuery(where.mock.calls[1][0] as SQL);
@@ -60,6 +65,6 @@ describe('negócios sustentados por conversas secundárias', () => {
     expect(query.sql).toContain('s.opportunity_id::text = "app_opportunities"."id"::text');
     expect(query.sql).toContain('s.conversation_id::text = $2::text');
     expect(query.params).toEqual(['secondary', 'secondary']);
-    expect(getFileContent).toHaveBeenCalledWith('plaud-file');
+    expect(getFileContent).not.toHaveBeenCalled();
   });
 });

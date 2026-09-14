@@ -13,7 +13,11 @@ import { fetchJson } from "@/lib/http";
 interface DashboardData {
   greetingName: string;
   kpis: { conversations: number; opportunities: number; contents: number };
-  queue: { pendingConversations: number; suggestedContents: number };
+  queue: {
+    pendingConversations: number;
+    awaitingTranscription: number;
+    suggestedContents: number;
+  };
   recentConversations: { id: string; title: string; date: string }[];
   pipeline: { id: string; title: string; status: string; score: number }[];
   themes: {
@@ -121,6 +125,16 @@ const DashboardPage = () => {
           count: data.queue.pendingConversations,
           label: data.queue.pendingConversations === 1 ? "conversa para processar" : "conversas para processar",
           action: "Processar",
+          href: "/conversas",
+        },
+        {
+          id: "awaiting-transcription",
+          count: data.queue.awaitingTranscription,
+          label:
+            data.queue.awaitingTranscription === 1
+              ? "gravação aguardando transcrição do Plaud"
+              : "gravações aguardando transcrição do Plaud",
+          action: "Acompanhar",
           href: "/conversas",
         },
         {

@@ -26,7 +26,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return Response.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    return Response.json({ data: { ...result[0], duration: conversationDuration(result[0].duration, result[0].source) } });
+    const conversation = result[0];
+    const status =
+      conversation.source === 'plaud' && !conversation.transcription?.trim()
+        ? 'aguardando_transcricao'
+        : conversation.status;
+    return Response.json({
+      data: {
+        ...conversation,
+        status,
+        duration: conversationDuration(conversation.duration, conversation.source),
+      },
+    });
   } catch (error) {
     console.error('[API] GET /api/conversations/[id] error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

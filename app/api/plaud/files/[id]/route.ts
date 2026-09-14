@@ -32,7 +32,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
         date: (file.start_at || file.created_at || '').slice(0, 10),
         duration: formatDuration(file.duration ?? 0) || null,
         type: 'reuniao' as const,
-        status: 'processado' as const,
+        status: transcript ? ('processado' as const) : ('aguardando_transcricao' as const),
         summary: summary || null,
         transcription: transcript || null,
         // Panel expects topics as a JSON-encoded string array.

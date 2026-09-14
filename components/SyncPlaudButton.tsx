@@ -18,7 +18,8 @@ export function SyncPlaudButton({ onDone }: { onDone?: () => void }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Falha na sincronização");
       const { ingest, processing } = json.data;
-      setMsg(`Novas: ${ingest.created} · Atualizadas: ${ingest.updated} · Processadas: ${processing.processed}` +
+      setMsg(`Encontradas: ${ingest.total} · Aguardando transcrição: ${ingest.awaitingTranscription} · Novas: ${ingest.created} · Atualizadas: ${ingest.updated} · Processadas: ${processing.processed}` +
+        (ingest.errors?.length ? ` · Falhas de sincronização: ${ingest.errors.length}` : "") +
         (processing.failed ? ` · Falhas IA: ${processing.failed}` : ""));
       onDone?.();
     } catch (e) {

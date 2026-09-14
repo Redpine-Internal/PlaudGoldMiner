@@ -1,7 +1,11 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
-import { runFullIngest, IngestRunError } from '@/lib/plaud/ingest-all';
+import {
+  runFullIngest,
+  IngestAlreadyRunningError,
+  IngestRunError,
+} from '@/lib/plaud/ingest-all';
 
 const bodySchema = z.object({
   maxPages: z.number().int().positive().max(1000).optional(),
@@ -16,7 +20,14 @@ export async function POST(request: NextRequest) {
   // Guard: a rota varre o Plaud inteiro — só o operador/cron pode disparar.
   const secret = process.env.INGEST_CRON_SECRET;
   const provided = request.headers.get('x-ingest-secret');
-  if (secret && provided !== secret) {
+  if (!secret) {
+    console.error('[API] POST /api/plaud/ingest sem INGEST_CRON_SECRET configurado.');
+    return Response.json(
+      { error: 'Sincronização automática não configurada.' },
+      { status: 503 }
+    );
+  }
+  if (provided !== secret) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const trigger: 'manual' | 'cron' = request.headers.get('x-ingest-trigger') === 'cron' ? 'cron' : 'manual';
@@ -39,6 +50,9 @@ export async function POST(request: NextRequest) {
     const result = await runFullIngest(trigger, maxPages);
     return Response.json({ data: result });
   } catch (error) {
+    if (error instanceof IngestAlreadyRunningError) {
+      return Response.json({ error: error.message, code: 'plaud_sync_running' }, { status: 409 });
+    }
     const cause = error instanceof IngestRunError ? error.cause : error;
     if (cause instanceof PlaudAuthError) {
       console.error('[API] POST /api/plaud/ingest auth error:', cause);

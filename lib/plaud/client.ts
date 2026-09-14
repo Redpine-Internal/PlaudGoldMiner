@@ -9,6 +9,20 @@
 import { getAccessToken, PlaudAuthError } from './tokens';
 
 const API_BASE = process.env.PLAUD_API_BASE || 'https://platform.plaud.ai/developer/api';
+const DEFAULT_RATE_LIMIT_WAIT_MS = 60_000;
+const MAX_RATE_LIMIT_RETRIES = 3;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function rateLimitWaitMs(response: Response): number {
+  const retryAfter = Number(response.headers.get('retry-after'));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.ceil(retryAfter * 1000);
+  }
+  return DEFAULT_RATE_LIMIT_WAIT_MS;
+}
 
 /** A recording as returned by the files list endpoint. `duration` is in milliseconds. */
 export interface PlaudFile {
@@ -36,18 +50,25 @@ export class PlaudApiError extends Error {
 
 async function plaudFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAccessToken();
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
-  });
-  if (res.status === 401) {
-    throw new PlaudAuthError('Plaud recusou o token (401). Reautentique o MCP do Plaud.');
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
+    });
+    if (res.status === 401) {
+      throw new PlaudAuthError('Plaud recusou o token (401). Reautentique o MCP do Plaud.');
+    }
+    if (res.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+      await wait(rateLimitWaitMs(res));
+      continue;
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new PlaudApiError(res.status, `Plaud API ${path} respondeu ${res.status}. ${body.slice(0, 200)}`);
+    }
+    return (await res.json()) as T;
   }
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new PlaudApiError(res.status, `Plaud API ${path} respondeu ${res.status}. ${body.slice(0, 200)}`);
-  }
-  return (await res.json()) as T;
+  throw new PlaudApiError(429, `Plaud API ${path} excedeu o limite de requisições.`);
 }
 
 /** List recordings. Plaud requires page_size >= 10. */

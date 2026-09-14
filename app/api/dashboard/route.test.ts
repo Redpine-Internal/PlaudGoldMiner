@@ -27,7 +27,7 @@ describe('GET /api/dashboard', () => {
   it('calcula a média por negócio antes da multiplicação pelas fontes', async () => {
     await GET();
 
-    const demandSql = calls[11].sql;
+    const demandSql = calls.find((call) => call.sql.includes('COUNT(DISTINCT o.id)::int AS count'))?.sql ?? '';
     expect(demandSql).toMatch(/\(SELECT ROUND\(AVG\(scored\.score\)\)::int FROM app_opportunities scored\s+WHERE scored\.type = o\.type AND scored\.status IS DISTINCT FROM 'descartada'\) AS avg_score/);
     expect(demandSql).toContain('COUNT(DISTINCT o.id)::int AS count');
     expect(demandSql).toContain('COUNT(DISTINCT c.id)::int AS conversations');
@@ -41,6 +41,7 @@ describe('GET /api/dashboard', () => {
       { rows: [{ count: 258 }] },
       { rows: [{ count: 42 }] },
       { rows: [{ count: 0 }] },
+      { rows: [{ count: 54 }] },
       { rows: [{ count: 19 }] },
       {
         rows: [{
@@ -99,6 +100,7 @@ describe('GET /api/dashboard', () => {
     expect(body.data.greetingName).toBe('Fabio');
     expect(body.data.kpis).toEqual({ conversations: 258, opportunities: 42, contents: 19 });
     expect(body.data.queue.suggestedContents).toBe(19);
+    expect(body.data.queue.awaitingTranscription).toBe(54);
     expect(body.data.weekSummary).toBe(
       'Há 1 conversa no acervo com data nos últimos 7 dias. ' +
       'Nesse período, a IA registrou 7 novos negócios a partir de 6 conversas do acervo; 5 delas são anteriores a essa janela. ' +
@@ -131,15 +133,15 @@ describe('GET /api/dashboard', () => {
     expect(body.data.lastProject).toBeNull();
 
     expect(calls[1].sql).toContain("status IS DISTINCT FROM 'descartada'");
-    expect(calls[3].sql).toContain("status = 'sugerido'");
-    expect(calls[4].sql).toContain("BETWEEN current_date - interval '6 days' AND current_date");
-    expect(calls[5].sql).toContain("COALESCE(NULLIF(source_file_id, ''), id::text) AS id");
-    expect(calls[5].sql).toContain("status = 'processado'");
-    expect(calls[7].sql).toContain('FROM app_business_themes');
-    expect(calls[8].sql).toContain('FROM active_opportunities');
-    expect(calls[9].sql).toContain("WHERE status = 'ativo'");
-    expect(calls[14].sql).toContain('INNER JOIN app_opportunities');
-    expect(calls[14].sql).toContain('INNER JOIN conversations');
+    expect(calls[4].sql).toContain("status = 'sugerido'");
+    expect(calls[5].sql).toContain("BETWEEN current_date - interval '6 days' AND current_date");
+    expect(calls[6].sql).toContain("COALESCE(NULLIF(source_file_id, ''), id::text) AS id");
+    expect(calls[6].sql).toContain("status = 'processado'");
+    expect(calls[8].sql).toContain('FROM app_business_themes');
+    expect(calls[9].sql).toContain('FROM active_opportunities');
+    expect(calls[10].sql).toContain("WHERE status = 'ativo'");
+    expect(calls[15].sql).toContain('INNER JOIN app_opportunities');
+    expect(calls[15].sql).toContain('INNER JOIN conversations');
     expect(calls.filter((call) => call.sql.includes('FROM app_projects'))).toHaveLength(1);
   });
 });

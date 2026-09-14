@@ -8,6 +8,7 @@ export const CONVERSATION_TYPE_LABELS = {
 export const CONVERSATION_STATUS_LABELS = {
   processado: 'Processado',
   pendente: 'Pendente',
+  aguardando_transcricao: 'Aguardando transcrição do Plaud',
   processando: 'Processando',
   erro: 'Erro',
 } as const;

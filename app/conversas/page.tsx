@@ -20,7 +20,7 @@ interface ApiConversation {
   date: string;
   duration: string | null;
   type: "reuniao" | "treinamento" | "informal" | "outro";
-  status: "processado" | "pendente" | "processando" | "erro";
+  status: "processado" | "pendente" | "aguardando_transcricao" | "processando" | "erro";
   summary: string | null;
   topics: string | null;
   participants: string | null;
@@ -413,7 +413,13 @@ function ConversationRow({
   const displayStatus = c.status;
   // The Plaud file list does not classify recordings or report local processing.
   const typeBadge = livePlaud ? <span className="ds-badge">Gravação</span> : <TypeBadge type={c.type} />;
-  const statusBadge = livePlaud ? <span className="ds-badge">No Plaud</span> : <StatusBadge status={displayStatus} />;
+  const statusBadge = livePlaud
+    ? flags
+      ? flags.hasTranscription
+        ? <span className="ds-badge">Disponível no Plaud</span>
+        : <StatusBadge status="aguardando_transcricao" />
+      : <span className="ds-badge">Consultando…</span>
+    : <StatusBadge status={displayStatus} />;
 
   if (!isMobile) {
     return (

@@ -1,5 +1,5 @@
 import { pool } from '@/lib/db';
-import { getFileContent } from '@/lib/plaud/client';
+import { getFileContent, type PlaudFile } from '@/lib/plaud/client';
 
 export type IngestOutcome = 'created' | 'updated' | 'skipped';
 
@@ -8,6 +8,10 @@ export interface IngestResult {
   meetingId: string;
   outcome: IngestOutcome;
   reason?: string;
+}
+
+export interface PlaudFileStageResult extends IngestResult {
+  needsContent: boolean;
 }
 
 // Injeção de dependência para testar sem bater no Plaud real.
@@ -26,6 +30,89 @@ function toDateOnly(...candidates: string[]): string | null {
 }
 
 /**
+ * Garante que toda gravação listada pelo Plaud exista no acervo, mesmo quando
+ * o Plaud ainda não produziu a transcrição. O texto vazio é o estado pendente
+ * compatível com a coluna NOT NULL de meetings; a UI o traduz para
+ * "Aguardando transcrição do Plaud".
+ */
+export async function stagePlaudFile(file: PlaudFile): Promise<PlaudFileStageResult> {
+  const title = file.name || 'Conversa do Plaud';
+  const meetingDate = toDateOnly(file.start_at || '', file.created_at || '');
+  const duration = file.duration ?? null;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 42))`, [file.id]);
+
+    const existing = await client.query(
+      `SELECT m.id, m.title, m.transcription, m.meeting_date::text AS meeting_date,
+              m.metadata->>'duration' AS duration
+         FROM meetings m
+        WHERE m.metadata->>'plaud_file_id' = $1
+        LIMIT 1`,
+      [file.id]
+    );
+
+    if (existing.rowCount === 0) {
+      const inserted = await client.query(
+        `INSERT INTO meetings
+           (title, transcription, transcription_length, meeting_date, participants,
+            source, status, metadata)
+         VALUES ($1,'',0,$2,'[]'::jsonb,'plaud','received',
+            jsonb_strip_nulls(jsonb_build_object(
+              'plaud_file_id',$3::text,'duration',$4::numeric,'type','reuniao',
+              'plaud_transcription_status','pending')))
+         RETURNING id`,
+        [title, meetingDate, file.id, duration]
+      );
+      await client.query('COMMIT');
+      return {
+        fileId: file.id,
+        meetingId: inserted.rows[0].id as string,
+        outcome: 'created',
+        reason: 'aguardando transcrição do Plaud',
+        needsContent: true,
+      };
+    }
+
+    const row = existing.rows[0];
+    const hasTranscription = Boolean((row.transcription ?? '').trim());
+    const metadataChanged =
+      (row.title ?? '') !== title ||
+      (row.meeting_date ?? null) !== meetingDate ||
+      String(row.duration ?? '') !== String(duration ?? '');
+
+    if (metadataChanged) {
+      await client.query(
+        `UPDATE meetings SET
+           title=$2,
+           meeting_date=$3,
+           metadata=metadata || jsonb_strip_nulls(jsonb_build_object(
+             'duration',$4::numeric,'type','reuniao','plaud_transcription_status',$5::text)),
+           updated_at=now()
+         WHERE id=$1`,
+        [row.id, title, meetingDate, duration, hasTranscription ? 'ready' : 'pending']
+      );
+    }
+
+    await client.query('COMMIT');
+    return {
+      fileId: file.id,
+      meetingId: row.id as string,
+      outcome: metadataChanged ? 'updated' : 'skipped',
+      reason: hasTranscription ? undefined : 'aguardando transcrição do Plaud',
+      needsContent: !hasTranscription,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Deposita UMA gravação do Plaud em meetings/summaries. Idempotente por
  * metadata->>'plaud_file_id': cria se novo, atualiza só se o conteúdo do Plaud
  * mudou (preservando status), pula se idêntico. NÃO roda IA.
@@ -35,9 +122,15 @@ export async function ingestPlaudFile(
   deps: IngestDeps = defaultDeps
 ): Promise<IngestResult> {
   const { file, transcript, summary, topics } = await deps.getFileContent(fileId);
+  const staged = await stagePlaudFile(file);
 
   if (!transcript || transcript.trim().length === 0) {
-    return { fileId, meetingId: '', outcome: 'skipped', reason: 'sem transcrição' };
+    return {
+      fileId,
+      meetingId: staged.meetingId,
+      outcome: staged.outcome,
+      reason: 'aguardando transcrição do Plaud',
+    };
   }
 
   const title = file.name || 'Conversa do Plaud';
@@ -96,7 +189,7 @@ export async function ingestPlaudFile(
 
     if (!titleChanged && !transcriptChanged && !dateChanged && !summaryChanged) {
       await client.query('COMMIT');
-      return { fileId, meetingId, outcome: 'skipped' };
+      return { fileId, meetingId, outcome: staged.outcome };
     }
 
     // Atualiza só o que mudou; NÃO toca em status. metadata mesclado (topics/duration).
@@ -107,7 +200,12 @@ export async function ingestPlaudFile(
          transcription_length = $4,
          meeting_date = $5,
          metadata = metadata || jsonb_strip_nulls(jsonb_build_object(
-           'duration', $6::numeric, 'type', 'reuniao', 'topics', $7::jsonb)),
+           'duration', $6::numeric, 'type', 'reuniao', 'topics', $7::jsonb,
+           'plaud_transcription_status', 'ready')),
+         status = CASE
+           WHEN NULLIF(btrim(transcription), '') IS NULL THEN 'received'
+           ELSE status
+         END,
          updated_at = now()
        WHERE id = $1`,
       [meetingId, title, transcript, transcript.length, meetingDate,
@@ -129,7 +227,11 @@ export async function ingestPlaudFile(
     }
 
     await client.query('COMMIT');
-    return { fileId, meetingId, outcome: 'updated' };
+    return {
+      fileId,
+      meetingId,
+      outcome: staged.outcome === 'created' ? 'created' : 'updated',
+    };
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;

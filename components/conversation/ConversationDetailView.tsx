@@ -15,7 +15,7 @@ interface ConversationDetail {
   date: string;
   duration: string | null;
   type: "reuniao" | "treinamento" | "informal" | "outro";
-  status: "processado" | "pendente" | "processando" | "erro";
+  status: "processado" | "pendente" | "aguardando_transcricao" | "processando" | "erro";
   summary: string | null;
   transcription: string | null;
   topics: string | null;

@@ -1,5 +1,9 @@
 import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
-import { runFullIngest, IngestRunError } from '@/lib/plaud/ingest-all';
+import {
+  runFullIngest,
+  IngestAlreadyRunningError,
+  IngestRunError,
+} from '@/lib/plaud/ingest-all';
 
 /**
  * Sincronização manual disparada pelo botão da UI. Mesma varredura da rota
@@ -10,6 +14,9 @@ export async function POST() {
     const result = await runFullIngest('manual');
     return Response.json({ data: result });
   } catch (error) {
+    if (error instanceof IngestAlreadyRunningError) {
+      return Response.json({ error: error.message, code: 'plaud_sync_running' }, { status: 409 });
+    }
     const cause = error instanceof IngestRunError ? error.cause : error;
     if (cause instanceof PlaudAuthError) {
       console.error('[API] POST /api/plaud/sync auth error:', cause);
