@@ -1,4 +1,5 @@
 import { pool } from '@/lib/db';
+import { miningEligibleSql } from '@/lib/conversations/classification';
 
 // Preenche conversationTitle/conversationDate nos cards a partir da view
 // `conversations` (que enxerga `meetings`). Faz UM SELECT com id = ANY($1).
@@ -12,7 +13,8 @@ export async function enrichWithConversation<
     return cards.map((c) => ({ ...c, conversationTitle: null, conversationDate: null }));
 
   const res = await pool.query<{ id: string; title: string; date: string }>(
-    `SELECT id, title, date::text AS date FROM conversations WHERE id = ANY($1)`,
+    `SELECT id, title, date::text AS date FROM conversations
+      WHERE id = ANY($1) AND ${miningEligibleSql('conversations.type')}`,
     [ids]
   );
   const byId = new Map(res.rows.map((r) => [r.id, r]));

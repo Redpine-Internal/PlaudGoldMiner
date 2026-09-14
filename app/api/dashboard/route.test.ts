@@ -28,7 +28,9 @@ describe('GET /api/dashboard', () => {
     await GET();
 
     const demandSql = calls.find((call) => call.sql.includes('COUNT(DISTINCT o.id)::int AS count'))?.sql ?? '';
-    expect(demandSql).toMatch(/\(SELECT ROUND\(AVG\(scored\.score\)\)::int FROM app_opportunities scored\s+WHERE scored\.type = o\.type AND scored\.status IS DISTINCT FROM 'descartada'\) AS avg_score/);
+    expect(demandSql).toContain('(SELECT ROUND(AVG(scored.score))::int FROM app_opportunities scored');
+    expect(demandSql).toContain('eligible_conversation.type IN');
+    expect(demandSql).toContain("'reuniao_interna'");
     expect(demandSql).toContain('COUNT(DISTINCT o.id)::int AS count');
     expect(demandSql).toContain('COUNT(DISTINCT c.id)::int AS conversations');
     // AVG(DISTINCT score) também estaria errado: negócios distintos podem ter

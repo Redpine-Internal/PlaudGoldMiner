@@ -10,6 +10,7 @@ import { conversations } from '@/lib/db/schema';
 import { and, asc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { processTranscription } from '@/lib/ai/services/transcription-processor';
 import { persistTranscriptionResult, markConversationError } from '@/lib/ai/persist-result';
+import { MINING_ELIGIBLE_CONVERSATION_TYPES } from '@/lib/conversations/classification';
 
 export interface ProcessPendingSummary {
   processed: number;
@@ -22,7 +23,11 @@ let processor: Processor = processTranscription;
 export async function processPendingConversations(
   options?: { limit?: number; ids?: string[] }
 ): Promise<ProcessPendingSummary> {
-  const filters = [eq(conversations.status, 'pendente'), isNotNull(conversations.transcription)];
+  const filters = [
+    eq(conversations.status, 'pendente'),
+    isNotNull(conversations.transcription),
+    inArray(conversations.type, MINING_ELIGIBLE_CONVERSATION_TYPES),
+  ];
   if (options?.ids?.length) filters.push(inArray(conversations.id, options.ids));
 
   const pending = await db

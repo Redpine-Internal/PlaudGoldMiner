@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { conversations, opportunities, contents, contentSources } from '@/lib/db/schema';
-import { and, desc, eq, gte, lte, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, type SQL } from 'drizzle-orm';
 import { generateContentSuggestions } from '@/lib/ai/services/content-suggestion-generator';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
+import { MINING_ELIGIBLE_CONVERSATION_TYPES } from '@/lib/conversations/classification';
 
 /**
  * Generate content-piece suggestions from recurring themes across processed
@@ -22,7 +23,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parâmetros inválidos: use from/to como YYYY-MM-DD' }, { status: 400 });
     }
     const { from, to } = parsed.data;
-    const filters: SQL[] = [eq(conversations.status, 'processado')];
+    const filters: SQL[] = [
+      eq(conversations.status, 'processado'),
+      inArray(conversations.type, MINING_ELIGIBLE_CONVERSATION_TYPES),
+    ];
     if (from) filters.push(gte(conversations.date, new Date(`${from}T00:00:00Z`)));
     if (to) filters.push(lte(conversations.date, new Date(`${to}T23:59:59Z`)));
 

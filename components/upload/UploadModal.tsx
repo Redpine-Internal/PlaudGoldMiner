@@ -6,6 +6,11 @@ import { DropZone } from './DropZone';
 import { UploadProgress, type UploadStatus } from './UploadProgress';
 import { MetadataForm } from './MetadataForm';
 import { useModalDialog } from '@/hooks/use-modal-dialog';
+import {
+  CONVERSATION_TYPE_VALUES,
+  isMiningEligibleConversationType,
+  type ConversationType,
+} from '@/lib/conversations/classification';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -17,7 +22,7 @@ type Step = 'upload' | 'metadata' | 'processing';
 
 interface Metadata {
   title: string;
-  type: 'reuniao' | 'treinamento' | 'informal' | 'outro';
+  type: ConversationType;
   date: Date;
   duration?: string;
   tags: string[];
@@ -25,7 +30,7 @@ interface Metadata {
 
 interface AIResult {
   suggestedTitle?: string;
-  suggestedType?: 'reuniao' | 'treinamento' | 'informal' | 'outro';
+  suggestedType?: ConversationType;
 }
 
 interface ProcessResponse {
@@ -40,7 +45,7 @@ interface ProcessResponse {
 export function processedMetadataSuggestions(result: ProcessResponse, uploadedTitle: string): AIResult {
   const conversation = result.data?.conversation;
   const validType = (value: unknown): value is NonNullable<AIResult['suggestedType']> =>
-    value === 'reuniao' || value === 'treinamento' || value === 'informal' || value === 'outro';
+    typeof value === 'string' && (CONVERSATION_TYPE_VALUES as readonly string[]).includes(value);
   return {
     suggestedTitle: conversation?.title?.trim() || result.data?.suggestedTitle?.trim() || uploadedTitle,
     suggestedType: validType(conversation?.type)
@@ -58,7 +63,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
   const [aiResult, setAiResult] = useState<AIResult | null>(null);
   const [metadata, setMetadata] = useState<Metadata>({
     title: '',
-    type: 'outro',
+    type: 'nao_classificado',
     date: new Date(),
     tags: [],
   });
@@ -89,29 +94,9 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
       const { data: conversation } = await response.json();
       setConversationId(conversation.id);
 
-      // Process to get AI suggestions
-      setStatus('processing');
-      setProgress(60);
-
-      const processResponse = await fetch('/api/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: conversation.id }),
-      });
-
-      setProgress(90);
-
-      if (!processResponse.ok) {
-        const data = await processResponse.json();
-        throw new Error(data.error || 'Falha ao processar o arquivo');
-      }
-
-      const processResult: ProcessResponse = await processResponse.json();
       setProgress(100);
       setStatus('success');
-
-      // Set AI suggestions
-      setAiResult(processedMetadataSuggestions(processResult, conversation.title));
+      setAiResult({ suggestedTitle: conversation.title });
 
       // Move to metadata step after a brief pause
       setTimeout(() => {
@@ -154,6 +139,18 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
         throw new Error(data.error || 'Falha ao salvar os dados da conversa');
       }
 
+      if (isMiningEligibleConversationType(metadata.type)) {
+        const processResponse = await fetch('/api/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversationId }),
+        });
+        if (!processResponse.ok) {
+          const data = await processResponse.json();
+          throw new Error(data.error || 'Falha ao processar o arquivo');
+        }
+      }
+
       setProgress(100);
       setStatus('success');
 
@@ -180,7 +177,7 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
     setAiResult(null);
     setMetadata({
       title: '',
-      type: 'outro',
+      type: 'nao_classificado',
       date: new Date(),
       tags: [],
     });

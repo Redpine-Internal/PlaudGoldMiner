@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { enrichWithConversation } from '@/lib/n8n/enrich';
+import { opportunityHasEligibleSourceSql } from '@/lib/conversations/classification';
 
 // Fonte local: app_opportunities tem 1 linha por oportunidade, então o id da URL
 // é o id real da linha (sem parsing sintético). Lookup direto por id.
@@ -26,7 +27,9 @@ export async function GET(
 
     const res = await pool.query<AppOpportunityRow>(
       `SELECT id, conversation_id, title, pain, context, score, type, status, notes, created_at
-         FROM app_opportunities WHERE id = $1 LIMIT 1`,
+         FROM app_opportunities o
+        WHERE id = $1 AND ${opportunityHasEligibleSourceSql('o')}
+        LIMIT 1`,
       [id]
     );
     if (res.rowCount === 0) {
@@ -93,7 +96,8 @@ export async function PATCH(
     }
 
     const res = await pool.query(
-      `UPDATE app_opportunities SET priority = $1 WHERE id = $2`,
+      `UPDATE app_opportunities o SET priority = $1
+        WHERE id = $2 AND ${opportunityHasEligibleSourceSql('o')}`,
       [priority, id]
     );
     if (res.rowCount === 0) {

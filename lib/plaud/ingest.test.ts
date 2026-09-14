@@ -44,6 +44,7 @@ describe('ingestão de gravações do Plaud', () => {
       needsContent: true,
     });
     expect(client.query.mock.calls.some(([sql]) => String(sql).includes("VALUES ($1,'',0"))).toBe(true);
+    expect(client.query.mock.calls.some(([sql]) => String(sql).includes("'type','nao_classificado'"))).toBe(true);
     expect(client.release).toHaveBeenCalledOnce();
   });
 
@@ -115,6 +116,7 @@ describe('ingestão de gravações do Plaud', () => {
 
     expect(result).toMatchObject({ meetingId: 'meeting-1', outcome: 'updated' });
     expect(queries.some((sql) => sql.includes("THEN 'received'"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("'type', 'reuniao'"))).toBe(false);
     expect(queries.some((sql) => sql.includes('INSERT INTO summaries'))).toBe(true);
   });
 });

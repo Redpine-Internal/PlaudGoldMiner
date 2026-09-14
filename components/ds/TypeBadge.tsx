@@ -1,7 +1,18 @@
 import React from "react";
 import { formatConversationType } from "@/lib/presentation/labels";
 
-const TYPE_VARS: Record<string, string> = { reuniao: "reuniao", treinamento: "treinamento", informal: "informal", outro: "outro" };
+const TYPE_VARS: Record<string, string> = {
+  nao_classificado: "outro",
+  reuniao_comercial: "reuniao",
+  diagnostico: "reuniao",
+  projeto_cliente: "reuniao",
+  mentoria: "reuniao",
+  reuniao_interna: "reuniao",
+  treinamento: "treinamento",
+  outro: "outro",
+  reuniao: "reuniao",
+  informal: "informal",
+};
 
 export interface TypeBadgeProps {
   type?: string;
@@ -11,7 +22,7 @@ export interface TypeBadgeProps {
 
 /** Conversation-type badge — colors from --type-* tokens. */
 export function TypeBadge({ type = "outro", style, className = "" }: TypeBadgeProps) {
-  const t = TYPE_VARS[type] ? type : "outro";
+  const t = TYPE_VARS[type] ?? "outro";
   return (
     <span
       className={("ds-badge " + className).trim()}

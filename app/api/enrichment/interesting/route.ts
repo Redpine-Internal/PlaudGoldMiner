@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import {
+  contentIsEligibleSql,
+  opportunityHasEligibleSourceSql,
+} from '@/lib/conversations/classification';
 
 interface InterestingRow {
   enrichmentId: string;
@@ -49,7 +53,19 @@ export async function GET() {
          FROM app_idea_enrichment_reference GROUP BY enrichment_id
        ) rc ON rc.enrichment_id = e.id
        WHERE e.interesting = true
-         AND (e.source_type <> 'opportunity' OR o.id IS NOT NULL)
+         AND (
+           e.source_type = 'insight'
+           OR (
+             e.source_type = 'opportunity'
+             AND o.id IS NOT NULL
+             AND ${opportunityHasEligibleSourceSql('o')}
+           )
+           OR (
+             e.source_type = 'content'
+             AND c.id IS NOT NULL
+             AND ${contentIsEligibleSql('c')}
+           )
+         )
        ORDER BY e.updated_at DESC`
     );
     return NextResponse.json({ data: rows });

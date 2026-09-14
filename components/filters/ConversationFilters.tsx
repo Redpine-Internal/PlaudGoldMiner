@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Search, X, Filter, Calendar } from 'lucide-react';
+import { CONVERSATION_CLASSIFICATIONS } from '@/lib/conversations/classification';
 
 interface FilterState {
   search: string;
@@ -16,12 +17,7 @@ interface ConversationFiltersProps {
   resultCount?: number;
 }
 
-const TYPE_OPTIONS = [
-  { value: 'reuniao', label: 'Reunião' },
-  { value: 'treinamento', label: 'Treinamento' },
-  { value: 'informal', label: 'Informal' },
-  { value: 'outro', label: 'Outro' },
-];
+const TYPE_OPTIONS = CONVERSATION_CLASSIFICATIONS;
 
 const PERIOD_OPTIONS = [
   { value: 'all', label: 'Todos' },

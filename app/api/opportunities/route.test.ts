@@ -50,15 +50,15 @@ beforeEach(() => {
 });
 
 describe('GET /api/opportunities', () => {
-  it('não aplica WHERE quando não há filtros', async () => {
+  it('aplica apenas a elegibilidade das fontes quando não há filtros de tela', async () => {
     results.push({ rows: [] }, { rows: [{ total: '0' }] });
 
     await GET(req('/api/opportunities'));
 
-    // O SELECT tem uma subquery de contagem com WHERE próprio; o que não pode
-    // existir é filtro no nível externo. A contagem é o teste mais limpo disso.
     const [, count] = calls;
-    expect(count.sql).not.toContain('WHERE');
+    expect(count.sql).toContain('eligible_conversation.type IN');
+    expect(count.sql).toContain("'reuniao_interna'");
+    expect(count.sql).not.toContain("'treinamento'");
     expect(count.params).toEqual([]);
     expect(calls[0].params).toEqual([50, 0]);
   });

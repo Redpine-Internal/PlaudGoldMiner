@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { conversations, opportunities, contents } from '@/lib/db/schema';
-import { desc, gte, lte, and } from 'drizzle-orm';
+import { desc, gte, lte, and, sql } from 'drizzle-orm';
+import { contentIsEligibleSql, opportunityHasEligibleSourceSql } from '@/lib/conversations/classification';
 
 interface ExportRequest {
   includeConversations: boolean;
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
       const oppResult = await db
         .select()
         .from(opportunities)
+        .where(sql.raw(opportunityHasEligibleSourceSql('app_opportunities')))
         .orderBy(desc(opportunities.createdAt));
 
       exportData.opportunities = oppResult.map((o) => ({
@@ -91,6 +93,7 @@ export async function POST(request: NextRequest) {
       const contentResult = await db
         .select()
         .from(contents)
+        .where(sql.raw(contentIsEligibleSql('app_contents')))
         .orderBy(desc(contents.createdAt));
 
       exportData.contents = contentResult.map((c) => ({
@@ -137,8 +140,8 @@ export async function GET(request: NextRequest) {
         .select()
         .from(conversations)
         .where(dateFilters.length > 0 ? and(...dateFilters) : undefined),
-      db.select().from(opportunities),
-      db.select().from(contents),
+      db.select().from(opportunities).where(sql.raw(opportunityHasEligibleSourceSql('app_opportunities'))),
+      db.select().from(contents).where(sql.raw(contentIsEligibleSql('app_contents'))),
     ]);
 
     return NextResponse.json({

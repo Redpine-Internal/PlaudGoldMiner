@@ -6,6 +6,7 @@ import {
   analyzeOpportunityBatch,
   type BatchConversation,
 } from '@/lib/ai/services/opportunity-batch-analyzer';
+import { miningEligibleSql } from '@/lib/conversations/classification';
 
 /**
  * Gera Novos Negócios a partir de um RANGE de reuniões.
@@ -47,7 +48,8 @@ export async function POST(request: NextRequest) {
                     FROM conversations c
                    WHERE c.status = 'processado'
                      AND c.transcription IS NOT NULL
-                     AND trim(c.transcription) <> ''`;
+                     AND trim(c.transcription) <> ''
+                     AND ${miningEligibleSql('c.type')}`;
 
     if (mode === 'period') {
       const from = typeof body?.from === 'string' ? body.from : null;

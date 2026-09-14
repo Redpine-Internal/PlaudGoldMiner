@@ -1,4 +1,5 @@
 // Type definitions based on the project prompt
+import type { ConversationType } from '@/lib/conversations/classification';
 
 // Card component props
 export interface ConversationCardProps {
@@ -6,7 +7,7 @@ export interface ConversationCardProps {
   title: string;
   date: Date;
   duration: string;
-  type: 'reuniao' | 'treinamento' | 'informal' | 'outro';
+  type: ConversationType;
   status: 'processado' | 'pendente' | 'erro';
   summary?: string;
 }

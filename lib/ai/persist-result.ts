@@ -58,7 +58,8 @@ export async function persistTranscriptionResult(
             participants: JSON.stringify(aiResult.participants),
           }),
       title: currentTitle || aiResult.suggestedTitle,
-      type: aiResult.suggestedType,
+      // A classificação é uma decisão manual do usuário. A IA não pode
+      // transformar uma reunião em treinamento (ou o inverso) ao processá-la.
       // updated_at é setado pelo trigger INSTEAD OF da view (now()).
     })
     .where(eq(conversations.id, conversationId));

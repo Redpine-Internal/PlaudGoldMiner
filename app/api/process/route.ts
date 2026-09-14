@@ -5,6 +5,7 @@ import { persistTranscriptionResult, markConversationError } from '@/lib/ai/pers
 import { db } from '@/lib/db';
 import { conversations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { isMiningEligibleConversationType } from '@/lib/conversations/classification';
 
 // Request validation schema
 const processRequestSchema = z.object({
@@ -26,6 +27,13 @@ export async function POST(request: NextRequest) {
 
     if (!conversation) {
       return Response.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    if (!isMiningEligibleConversationType(conversation.type)) {
+      return Response.json(
+        { error: 'Classifique esta gravação como uma reunião elegível antes de analisá-la.' },
+        { status: 409 }
+      );
     }
 
     // Check if transcription exists

@@ -39,10 +39,10 @@ describe('negócios sustentados por conversas secundárias', () => {
   });
 
   it('o detalhe inclui fonte primária ou evidência adicional sem multiplicar a oportunidade', async () => {
-    results.push([{ id: 'shared-opportunity', conversationId: 'primary' }]);
+    results.push([{ type: 'reuniao' }], [{ id: 'shared-opportunity', conversationId: 'primary' }]);
     const response = await opportunityDetail(request, params('secondary'));
     expect(await response.json()).toEqual({ data: [{ id: 'shared-opportunity', conversationId: 'primary' }] });
-    const query = dialect.sqlToQuery(where.mock.calls[0][0] as SQL);
+    const query = dialect.sqlToQuery(where.mock.calls[1][0] as SQL);
     expect(query.sql).toContain('"app_opportunities"."conversation_id" = $1');
     expect(query.sql).toContain('or EXISTS');
     expect(query.sql).toContain('app_opportunity_sources');
@@ -57,6 +57,7 @@ describe('negócios sustentados por conversas secundárias', () => {
       transcription: 'Transcrição',
       summary: 'Resumo',
       status: 'processado',
+      type: 'reuniao',
     }], [{ id: 'shared-opportunity' }]);
     const response = await plaudStatus(request, params('plaud-file'));
     expect(await response.json()).toMatchObject({ data: { hasInsights: true, hasSummary: true, hasTranscription: true } });
@@ -66,5 +67,12 @@ describe('negócios sustentados por conversas secundárias', () => {
     expect(query.sql).toContain('s.conversation_id::text = $2::text');
     expect(query.params).toEqual(['secondary', 'secondary']);
     expect(getFileContent).not.toHaveBeenCalled();
+  });
+
+  it('não expõe negócios quando a conversa foi classificada como treinamento', async () => {
+    results.push([{ type: 'treinamento' }]);
+    const response = await opportunityDetail(request, params('training'));
+    expect(await response.json()).toEqual({ data: [] });
+    expect(where).toHaveBeenCalledTimes(1);
   });
 });

@@ -61,7 +61,7 @@ export async function stagePlaudFile(file: PlaudFile): Promise<PlaudFileStageRes
             source, status, metadata)
          VALUES ($1,'',0,$2,'[]'::jsonb,'plaud','received',
             jsonb_strip_nulls(jsonb_build_object(
-              'plaud_file_id',$3::text,'duration',$4::numeric,'type','reuniao',
+              'plaud_file_id',$3::text,'duration',$4::numeric,'type','nao_classificado',
               'plaud_transcription_status','pending')))
          RETURNING id`,
         [title, meetingDate, file.id, duration]
@@ -89,7 +89,7 @@ export async function stagePlaudFile(file: PlaudFile): Promise<PlaudFileStageRes
            title=$2,
            meeting_date=$3,
            metadata=metadata || jsonb_strip_nulls(jsonb_build_object(
-             'duration',$4::numeric,'type','reuniao','plaud_transcription_status',$5::text)),
+             'duration',$4::numeric,'plaud_transcription_status',$5::text)),
            updated_at=now()
          WHERE id=$1`,
         [row.id, title, meetingDate, duration, hasTranscription ? 'ready' : 'pending']
@@ -163,7 +163,7 @@ export async function ingestPlaudFile(
             source, status, metadata)
          VALUES ($1,$2,$3,$4,'[]'::jsonb,'plaud','received',
             jsonb_strip_nulls(jsonb_build_object(
-              'plaud_file_id',$5::text,'duration',$6::numeric,'type','reuniao','topics',$7::jsonb)))
+              'plaud_file_id',$5::text,'duration',$6::numeric,'type','nao_classificado','topics',$7::jsonb)))
          RETURNING id`,
         [title, transcript, transcript.length, meetingDate, fileId,
          file.duration ?? null, topicsJson]
@@ -200,7 +200,7 @@ export async function ingestPlaudFile(
          transcription_length = $4,
          meeting_date = $5,
          metadata = metadata || jsonb_strip_nulls(jsonb_build_object(
-           'duration', $6::numeric, 'type', 'reuniao', 'topics', $7::jsonb,
+           'duration', $6::numeric, 'topics', $7::jsonb,
            'plaud_transcription_status', 'ready')),
          status = CASE
            WHEN NULLIF(btrim(transcription), '') IS NULL THEN 'received'

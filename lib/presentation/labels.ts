@@ -1,8 +1,14 @@
 export const CONVERSATION_TYPE_LABELS = {
-  reuniao: 'Reunião',
+  nao_classificado: 'Não classificada',
+  reuniao_comercial: 'Reunião comercial',
+  diagnostico: 'Diagnóstico ou descoberta',
+  projeto_cliente: 'Projeto ou consultoria com cliente',
+  mentoria: 'Mentoria com cliente',
+  reuniao_interna: 'Reunião interna',
   treinamento: 'Treinamento',
-  informal: 'Informal',
   outro: 'Outro',
+  reuniao: 'Reunião',
+  informal: 'Conversa informal',
 } as const;
 
 export const CONVERSATION_STATUS_LABELS = {

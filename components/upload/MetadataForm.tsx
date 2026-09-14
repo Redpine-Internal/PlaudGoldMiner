@@ -2,21 +2,22 @@
 
 import { useState, useEffect, useId, useRef } from 'react';
 import { Calendar, Clock, Tag, Type } from 'lucide-react';
+import { CONVERSATION_CLASSIFICATIONS, type ConversationType } from '@/lib/conversations/classification';
 
 interface MetadataFormProps {
   initialData?: {
     title?: string;
-    type?: 'reuniao' | 'treinamento' | 'informal' | 'outro';
+    type?: ConversationType;
     date?: Date;
     duration?: string;
     tags?: string[];
   };
   suggestedTitle?: string;
-  suggestedType?: 'reuniao' | 'treinamento' | 'informal' | 'outro';
+  suggestedType?: ConversationType;
   existingTags?: string[];
   onChange: (data: {
     title: string;
-    type: 'reuniao' | 'treinamento' | 'informal' | 'outro';
+    type: ConversationType;
     date: Date;
     duration?: string;
     tags: string[];
@@ -24,12 +25,12 @@ interface MetadataFormProps {
   disabled?: boolean;
 }
 
-const TYPE_OPTIONS = [
-  { value: 'reuniao', label: 'Reunião', color: 'bg-blue-100 text-blue-800' },
-  { value: 'treinamento', label: 'Treinamento', color: 'bg-green-100 text-green-800' },
-  { value: 'informal', label: 'Informal', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'outro', label: 'Outro', color: 'bg-gray-100 text-gray-800' },
-] as const;
+const TYPE_OPTIONS = CONVERSATION_CLASSIFICATIONS.map((classification) => ({
+  ...classification,
+  color: classification.miningEligible
+    ? 'bg-blue-100 text-blue-800'
+    : 'bg-gray-100 text-gray-800',
+}));
 
 /** O input representa um dia local, não o dia do instante convertido para UTC. */
 export function localMetadataDate(value: Date = new Date()): string {
@@ -48,8 +49,8 @@ export function MetadataForm({
   const titleEdited = useRef(Boolean(initialData?.title));
   const typeEdited = useRef(Boolean(initialData?.type));
   const [title, setTitle] = useState(initialData?.title || suggestedTitle || '');
-  const [type, setType] = useState<'reuniao' | 'treinamento' | 'informal' | 'outro'>(
-    initialData?.type || suggestedType || 'outro'
+  const [type, setType] = useState<ConversationType>(
+    initialData?.type || suggestedType || 'nao_classificado'
   );
   const [date, setDate] = useState(() => localMetadataDate(initialData?.date));
   const [duration, setDuration] = useState(initialData?.duration || '');
@@ -65,7 +66,7 @@ export function MetadataForm({
   }, [suggestedTitle, title]);
 
   useEffect(() => {
-    if (suggestedType && type === 'outro' && !typeEdited.current) {
+    if (suggestedType && type === 'nao_classificado' && !typeEdited.current) {
       queueMicrotask(() => { if (!typeEdited.current) setType(suggestedType); });
     }
   }, [suggestedType, type]);
@@ -150,6 +151,7 @@ export function MetadataForm({
               type="button"
               onClick={() => { typeEdited.current = true; setType(option.value); }}
               aria-pressed={type === option.value}
+              title={option.miningEligible ? 'Entra na mineração' : 'Fora da mineração'}
               disabled={disabled}
               className={`min-h-[44px] rounded-[6px] px-3 py-2 text-sm font-medium transition-all ${
                 type === option.value

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { opportunities } from '@/lib/db/schema';
+import { conversations, opportunities } from '@/lib/db/schema';
 import { eq, or, sql } from 'drizzle-orm';
+import { isMiningEligibleConversationType } from '@/lib/conversations/classification';
 
 export async function GET(
   request: NextRequest,
@@ -9,6 +10,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    const [conversation] = await db
+      .select({ type: conversations.type })
+      .from(conversations)
+      .where(eq(conversations.id, id))
+      .limit(1);
+    if (!conversation || !isMiningEligibleConversationType(conversation.type)) {
+      return NextResponse.json({ data: [] });
+    }
 
     const result = await db
       .select()

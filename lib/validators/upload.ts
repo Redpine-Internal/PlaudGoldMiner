@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CONVERSATION_TYPE_VALUES } from '@/lib/conversations/classification';
 
 // Validation constants
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -8,7 +9,7 @@ export const ACCEPTED_MIME_TYPES = ['text/plain', 'application/json'];
 // Schema for upload metadata
 export const uploadMetadataSchema = z.object({
   title: z.string().min(1).max(200).optional(),
-  type: z.enum(['reuniao', 'treinamento', 'informal', 'outro']).optional(),
+  type: z.enum(CONVERSATION_TYPE_VALUES).optional(),
   date: z.coerce.date().optional(),
   duration: z.string().optional(),
   tags: z.array(z.string()).optional(),

@@ -7,6 +7,7 @@ import {
   ARTICLE_DRAFT_SYSTEM_PROMPT,
   createArticleDraftPrompt,
 } from '@/lib/ai/prompts/article-draft';
+import { contentIsEligibleSql, miningEligibleSql } from '@/lib/conversations/classification';
 
 interface ContentRow {
   id: string;
@@ -30,7 +31,10 @@ export async function POST(
   try {
     const { id } = await params;
     const contentRes = await pool.query<ContentRow>(
-      `SELECT id, title, platform, subtype, theme, outline FROM app_contents WHERE id=$1 LIMIT 1`,
+      `SELECT id, title, platform, subtype, theme, outline
+         FROM app_contents c
+        WHERE id=$1 AND ${contentIsEligibleSql('c')}
+        LIMIT 1`,
       [id]
     );
     if (contentRes.rowCount === 0) {
@@ -54,8 +58,9 @@ export async function POST(
     const sourcesRes = await pool.query<{ excerpt: string | null; conversation_title: string | null }>(
       `SELECT s.excerpt, c.title AS conversation_title
          FROM app_content_sources s
-         LEFT JOIN conversations c ON c.id = s.conversation_id
-        WHERE s.content_id = $1`,
+         JOIN conversations c ON c.id = s.conversation_id
+        WHERE s.content_id = $1
+          AND ${miningEligibleSql('c.type')}`,
       [id]
     );
 

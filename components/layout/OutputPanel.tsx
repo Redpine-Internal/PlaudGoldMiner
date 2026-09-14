@@ -5,13 +5,14 @@ import useSWR from "swr";
 import { useAppStore } from "@/stores/appStore";
 import { Icon, Tabs, TypeBadge, StatusBadge, EmptyState, Button, ScoreBadge, Markdown } from "@/components/ds";
 import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
+import type { ConversationType } from "@/lib/conversations/classification";
 
 interface ConversationDetail {
   id: string;
   title: string;
   date: string;
   duration: string | null;
-  type: "reuniao" | "treinamento" | "informal" | "outro";
+  type: ConversationType;
   status: "processado" | "pendente" | "processando" | "erro";
   summary: string | null;
   transcription: string | null;

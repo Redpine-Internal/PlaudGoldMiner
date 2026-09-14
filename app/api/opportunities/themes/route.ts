@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { groupBusinessThemes, type ThemeCandidate } from '@/lib/ai/services/business-theme-grouper';
+import { miningEligibleSql, opportunityHasEligibleSourceSql } from '@/lib/conversations/classification';
 
 /**
  * Temas de negócio: o agrupamento que transforma 20 cards em ~5 decisões.
@@ -58,6 +59,7 @@ const SELECT_THEMES = `
       FROM app_business_theme_members m
       JOIN app_opportunities o ON o.id = m.opportunity_id
      WHERE o.status IS DISTINCT FROM 'descartada'
+       AND ${opportunityHasEligibleSourceSql('o')}
   ),
   conversas AS (
     SELECT m.theme_id, c.id AS conversation_id, c.title, c.date
@@ -65,6 +67,7 @@ const SELECT_THEMES = `
       JOIN app_opportunity_sources s ON s.opportunity_id = m.opportunity_id
       JOIN conversations c ON c.id::text = s.conversation_id
      WHERE c.status = 'processado'
+       AND ${miningEligibleSql('c.type')}
      GROUP BY m.theme_id, c.id, c.title, c.date
   )
   SELECT t.id, t.name, t.rationale, t.updated_at::text AS updated_at,
@@ -89,6 +92,7 @@ const COUNT_UNGROUPED = `
   SELECT count(*)::int AS n
     FROM app_opportunities o
    WHERE o.status IS DISTINCT FROM 'descartada'
+     AND ${opportunityHasEligibleSourceSql('o')}
      AND NOT EXISTS (
      SELECT 1 FROM app_business_theme_members m WHERE m.opportunity_id = o.id
    )`;
@@ -116,9 +120,10 @@ export async function POST() {
   const client = await pool.connect();
   try {
     const candidates = await client.query<ThemeCandidate>(
-      `SELECT id, title, type, subtype
-         FROM app_opportunities
-        WHERE status IS DISTINCT FROM 'descartada'
+      `SELECT o.id, o.title, o.type, o.subtype
+         FROM app_opportunities o
+        WHERE o.status IS DISTINCT FROM 'descartada'
+          AND ${opportunityHasEligibleSourceSql('o')}
         ORDER BY created_at ASC`
     );
 

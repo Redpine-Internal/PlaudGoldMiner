@@ -29,7 +29,7 @@ describe('GET /api/enrichment/interesting', () => {
     expect(sql).not.toMatch(/\b(INSERT|UPDATE|DELETE)\b/);
   });
 
-  it('exclui apenas oportunidades órfãs, sem exigir origem local de insights ou conteúdos', async () => {
+  it('mantém insights legados e exige fonte elegível para oportunidades e conteúdos', async () => {
     const rows = [
       { enrichmentId: 'e1', sourceType: 'insight', sourceId: 'legacy', title: null },
       { enrichmentId: 'e2', sourceType: 'content', sourceId: 'legacy-content', title: null },
@@ -40,9 +40,10 @@ describe('GET /api/enrichment/interesting', () => {
 
     const sql = query.mock.calls[0][0] as string;
     const where = sql.slice(sql.indexOf('WHERE e.interesting')).replace(/\s+/g, ' ').trim();
-    expect(where).toBe(
-      "WHERE e.interesting = true AND (e.source_type <> 'opportunity' OR o.id IS NOT NULL) ORDER BY e.updated_at DESC"
-    );
+    expect(where).toContain("e.source_type = 'insight'");
+    expect(where).toContain("e.source_type = 'opportunity' AND o.id IS NOT NULL");
+    expect(where).toContain("e.source_type = 'content' AND c.id IS NOT NULL");
+    expect(where).toContain('eligible_conversation.type IN');
     expect(sql).toContain("LEFT JOIN app_opportunities o ON e.source_type = 'opportunity' AND o.id = e.source_id");
     expect(sql).toContain('e.notes');
     expect(sql).toContain('FROM app_idea_enrichment_reference');

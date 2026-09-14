@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { profileFirstName } from '@/lib/profile/default-profile';
+import {
+  contentIsEligibleSql,
+  miningEligibleSql,
+  opportunityHasEligibleSourceSql,
+} from '@/lib/conversations/classification';
 
 // GET /api/dashboard - Agregado do Dashboard "Resumo".
 // "conversations" é uma VIEW; somente leitura aqui (nunca .returning()).
@@ -105,22 +110,26 @@ export async function GET() {
       coverageRes,
     ] = await Promise.all([
       pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM conversations WHERE status = 'processado'`
+        `SELECT COUNT(*)::int AS count FROM conversations c
+          WHERE status = 'processado' AND ${miningEligibleSql('c.type')}`
       ),
       pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM app_opportunities
-          WHERE status IS DISTINCT FROM 'descartada'`
+        `SELECT COUNT(*)::int AS count FROM app_opportunities o
+          WHERE status IS DISTINCT FROM 'descartada'
+            AND ${opportunityHasEligibleSourceSql('o')}`
       ),
       pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM conversations
-          WHERE status = 'pendente' AND NULLIF(btrim(transcription), '') IS NOT NULL`
+        `SELECT COUNT(*)::int AS count FROM conversations c
+          WHERE status = 'pendente' AND NULLIF(btrim(transcription), '') IS NOT NULL
+            AND ${miningEligibleSql('c.type')}`
       ),
       pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM conversations
           WHERE source = 'plaud' AND NULLIF(btrim(transcription), '') IS NULL`
       ),
       pool.query<{ count: number }>(
-        `SELECT COUNT(*)::int AS count FROM app_contents WHERE status = 'sugerido'`
+        `SELECT COUNT(*)::int AS count FROM app_contents c WHERE status = 'sugerido'
+          AND ${contentIsEligibleSql('c')}`
       ),
       pool.query<WeekActivityRow>(
         `WITH weekly_opportunities AS (
@@ -128,6 +137,7 @@ export async function GET() {
              FROM app_opportunities
             WHERE status IS DISTINCT FROM 'descartada'
               AND created_at >= now() - interval '7 days'
+              AND ${opportunityHasEligibleSourceSql('app_opportunities')}
          ), top_type AS (
            SELECT type, COUNT(*)::int AS count
              FROM weekly_opportunities
@@ -141,10 +151,12 @@ export async function GET() {
              JOIN conversations c
                ON c.id::text = s.conversation_id
               AND c.status = 'processado'
+              AND ${miningEligibleSql('c.type')}
             GROUP BY s.conversation_id, c.date
          )
          SELECT (SELECT COUNT(*)::int FROM conversations
-                  WHERE status = 'processado'
+                 WHERE status = 'processado'
+                    AND ${miningEligibleSql('conversations.type')}
                     AND date BETWEEN current_date - interval '6 days' AND current_date) AS conversations,
                 (SELECT COUNT(*)::int FROM weekly_opportunities) AS opportunities,
                 (SELECT COUNT(*)::int FROM weekly_sources) AS source_conversations,
@@ -153,7 +165,8 @@ export async function GET() {
                   AS recent_source_conversations,
                 (SELECT COUNT(*)::int FROM app_contents
                   WHERE status = 'sugerido'
-                    AND created_at >= now() - interval '7 days') AS suggested_contents,
+                    AND created_at >= now() - interval '7 days'
+                    AND ${contentIsEligibleSql('app_contents')}) AS suggested_contents,
                 (SELECT type FROM top_type) AS top_type,
                 COALESCE((SELECT count FROM top_type), 0)::int AS top_type_count`
       ),
@@ -161,12 +174,14 @@ export async function GET() {
         `SELECT COALESCE(NULLIF(source_file_id, ''), id::text) AS id, title, date
            FROM conversations
           WHERE status = 'processado'
+            AND ${miningEligibleSql('conversations.type')}
           ORDER BY date DESC NULLS LAST
           LIMIT 4`
       ),
       pool.query<PipelineRow>(
         `SELECT id, title, status, score FROM app_opportunities
           WHERE status IS DISTINCT FROM 'descartada'
+            AND ${opportunityHasEligibleSourceSql('app_opportunities')}
           ORDER BY score DESC NULLS LAST
           LIMIT 4`
       ),
@@ -179,6 +194,7 @@ export async function GET() {
              FROM app_business_theme_members m
              JOIN app_opportunities o ON o.id = m.opportunity_id
             WHERE o.status IS DISTINCT FROM 'descartada'
+              AND ${opportunityHasEligibleSourceSql('o')}
          ), theme_conversations AS (
            SELECT m.theme_id, s.conversation_id
              FROM active_members m
@@ -186,6 +202,7 @@ export async function GET() {
              JOIN conversations c
                ON c.id::text = s.conversation_id
               AND c.status = 'processado'
+              AND ${miningEligibleSql('c.type')}
             GROUP BY m.theme_id, s.conversation_id
          )
          SELECT t.name,
@@ -205,6 +222,7 @@ export async function GET() {
            SELECT id
              FROM app_opportunities
             WHERE status IS DISTINCT FROM 'descartada'
+              AND ${opportunityHasEligibleSourceSql('app_opportunities')}
          )
          SELECT COUNT(*)::int AS total,
                 COUNT(*) FILTER (WHERE EXISTS (
@@ -236,16 +254,20 @@ export async function GET() {
                 COUNT(DISTINCT o.id)::int AS count,
                 COUNT(DISTINCT c.id)::int AS conversations,
                 (SELECT ROUND(AVG(scored.score))::int FROM app_opportunities scored
-                  WHERE scored.type = o.type AND scored.status IS DISTINCT FROM 'descartada') AS avg_score,
+                  WHERE scored.type = o.type AND scored.status IS DISTINCT FROM 'descartada'
+                    AND ${opportunityHasEligibleSourceSql('scored')}) AS avg_score,
                 (SELECT t.title FROM app_opportunities t
                   WHERE t.type = o.type AND t.status IS DISTINCT FROM 'descartada'
+                    AND ${opportunityHasEligibleSourceSql('t')}
                   ORDER BY t.score DESC NULLS LAST LIMIT 1) AS top_title
            FROM app_opportunities o
            LEFT JOIN app_opportunity_sources s ON s.opportunity_id = o.id
            LEFT JOIN conversations c
              ON c.id::text = s.conversation_id
             AND c.status = 'processado'
+            AND ${miningEligibleSql('c.type')}
           WHERE o.status IS DISTINCT FROM 'descartada'
+            AND ${opportunityHasEligibleSourceSql('o')}
           GROUP BY o.type
           ORDER BY conversations DESC, count DESC`
       ),
@@ -265,6 +287,7 @@ export async function GET() {
            LEFT JOIN conversations c
              ON date_trunc('month', c.date) = meses.m
             AND c.status = 'processado'
+            AND ${miningEligibleSql('c.type')}
           GROUP BY meses.m
           ORDER BY meses.m`
       ),
@@ -277,7 +300,9 @@ export async function GET() {
                LEFT JOIN conversations c
                  ON c.id::text = s.conversation_id
                 AND c.status = 'processado'
+                AND ${miningEligibleSql('c.type')}
               WHERE o.status IS DISTINCT FROM 'descartada'
+                AND ${opportunityHasEligibleSourceSql('o')}
               GROUP BY o.id
            ) t
           GROUP BY n_fontes
@@ -291,9 +316,11 @@ export async function GET() {
                    INNER JOIN conversations c
                      ON c.id::text = s.conversation_id
                     AND c.status = 'processado'
-                  WHERE o.status IS DISTINCT FROM 'descartada') AS linked,
-                (SELECT COUNT(*)::int FROM conversations
-                  WHERE status = 'processado') AS total`
+                    AND ${miningEligibleSql('c.type')}
+                  WHERE o.status IS DISTINCT FROM 'descartada'
+                    AND ${opportunityHasEligibleSourceSql('o')}) AS linked,
+                (SELECT COUNT(*)::int FROM conversations c
+                  WHERE status = 'processado' AND ${miningEligibleSql('c.type')}) AS total`
       ),
     ]);
 

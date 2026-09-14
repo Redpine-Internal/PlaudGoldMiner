@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { collectionPagination, collectionSearch, collectionValues, foldedSearchSql } from '@/lib/collection-query';
 import { conversationDuration } from '@/lib/presentation/conversation-duration';
 import { z } from 'zod';
+import { CONVERSATION_TYPE_VALUES, miningEligibleSql } from '@/lib/conversations/classification';
 import {
   conversationCreateSchema,
   conversationListSchema,
@@ -12,7 +13,7 @@ import {
 } from '@/lib/validators/conversation';
 
 const listFilters = conversationListSchema.omit({ type: true, limit: true }).extend({
-  types: z.array(z.enum(['reuniao', 'treinamento', 'informal', 'outro'])),
+  types: z.array(z.enum(CONVERSATION_TYPE_VALUES)),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   content: z.array(z.enum(['hasSummary', 'hasTranscription', 'hasInsights'])),
@@ -24,7 +25,7 @@ const contentFlags = {
   hasSummary: "NULLIF(btrim(c.summary), '') IS NOT NULL",
   hasTranscription: "NULLIF(btrim(c.transcription), '') IS NOT NULL",
   // The live view and legacy app tables mix uuid and text identifiers.
-  hasInsights: `EXISTS (SELECT 1 FROM app_opportunities o WHERE o.conversation_id::text = c.id::text
+  hasInsights: `${miningEligibleSql('c.type')} AND EXISTS (SELECT 1 FROM app_opportunities o WHERE o.conversation_id::text = c.id::text
     OR EXISTS (SELECT 1 FROM app_opportunity_sources s
       WHERE s.opportunity_id::text = o.id::text AND s.conversation_id::text = c.id::text))`,
 };

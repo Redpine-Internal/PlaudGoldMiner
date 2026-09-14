@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { conversations, opportunities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getConversationAiAnalysisById } from '@/lib/ai/conversation-analysis-store';
+import { isMiningEligibleConversationType } from '@/lib/conversations/classification';
 
 // Plaud recording ids are 32-hex; they don't exist in our DB until analyzed.
 const analyzeRequestSchema = z.object({
@@ -54,6 +55,12 @@ export async function POST(request: NextRequest) {
     // o resultado persistido (inclusive o formato legado) em vez de consumir
     // IA novamente e duplicar oportunidades.
     if (existing) {
+      if (!isMiningEligibleConversationType(existing.type)) {
+        return Response.json(
+          { error: 'Classifique esta gravação como uma reunião elegível antes de analisá-la.' },
+          { status: 409 }
+        );
+      }
       const persisted = await getConversationAiAnalysisById(existing.id);
       if (persisted?.analysis) {
         const existingOpportunities = await db
@@ -90,7 +97,7 @@ export async function POST(request: NextRequest) {
         id: conversationId,
         title: file.name || 'Conversa do Plaud',
         date: toTimestamp(file.start_at || file.created_at || ''),
-        type: 'reuniao',
+        type: 'nao_classificado',
         status: 'processando',
         transcription: transcript,
         summary: summary || null,
@@ -98,6 +105,13 @@ export async function POST(request: NextRequest) {
         source: 'plaud',
         sourceFileId: fileId,
       });
+      return Response.json(
+        {
+          error: 'A gravação foi adicionada ao acervo. Classifique-a antes de iniciar a mineração.',
+          data: { conversationId },
+        },
+        { status: 409 }
+      );
     }
 
     // Run the shared AI pipeline.

@@ -21,6 +21,7 @@ export type ConversationAiAnalysis = z.infer<typeof conversationAiAnalysisSchema
 
 export interface ConversationAiAnalysisLookup {
   localConversationId: string;
+  type: string;
   analysis: ConversationAiAnalysis | null;
 }
 
@@ -32,6 +33,7 @@ interface AnalysisRow {
   topics: unknown;
   participants: unknown;
   legacy_summary: string | null;
+  type: string | null;
 }
 
 function stringArray(value: unknown): string[] {
@@ -113,6 +115,7 @@ async function findAnalysis(whereSql: string, value: string): Promise<Conversati
             m.metadata->'ai_analysis' AS ai_analysis,
             m.metadata->'topics' AS topics,
             COALESCE(m.metadata->'participants', m.participants) AS participants,
+            COALESCE(m.metadata->>'type', 'nao_classificado') AS type,
             s.summary_text AS legacy_summary
        FROM meetings m
        LEFT JOIN LATERAL (
@@ -140,7 +143,7 @@ async function findAnalysis(whereSql: string, value: string): Promise<Conversati
     await saveConversationAiAnalysis(row.id, analysis);
   }
 
-  return { localConversationId: row.id, analysis };
+  return { localConversationId: row.id, type: row.type ?? 'nao_classificado', analysis };
 }
 
 export function getConversationAiAnalysisById(

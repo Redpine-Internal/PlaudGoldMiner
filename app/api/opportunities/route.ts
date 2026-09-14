@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { enrichWithConversation } from '@/lib/n8n/enrich';
 import { collectionPagination, collectionSearch, collectionValues, foldedSearchSql, statusCounts } from '@/lib/collection-query';
+import { miningEligibleSql, opportunityHasEligibleSourceSql } from '@/lib/conversations/classification';
 
 // Linha de app_opportunities (tabela local; 1 linha por oportunidade).
 // Casa 1:1 com OpportunityCard — sem achatamento jsonb.
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     const { limit, offset } = collectionPagination(searchParams);
     const status = searchParams.get('status');
     const types = collectionValues(searchParams, 'type');
-    const filters: string[] = [];
+    const filters: string[] = [opportunityHasEligibleSourceSql('o')];
     const values: unknown[] = [];
 
     // Colunas qualificadas com o alias o: o SELECT junta com as tabelas de tema,
@@ -67,7 +68,12 @@ export async function GET(request: NextRequest) {
       pool.query<AppOpportunityRow>(
       `SELECT o.id, o.conversation_id, o.title, o.pain, o.context, o.score, o.type, o.subtype,
               o.generated_idea, o.status, o.notes, o.created_at, o.priority,
-              (SELECT count(*)::int FROM app_opportunity_sources s WHERE s.opportunity_id = o.id) AS source_count,
+              (SELECT count(*)::int
+                 FROM app_opportunity_sources s
+                 JOIN conversations source_conversation
+                   ON source_conversation.id::text = s.conversation_id::text
+                WHERE s.opportunity_id = o.id
+                  AND ${miningEligibleSql('source_conversation.type')}) AS source_count,
               m.theme_id, t.name AS theme_name
          FROM app_opportunities o
          LEFT JOIN app_business_theme_members m ON m.opportunity_id = o.id

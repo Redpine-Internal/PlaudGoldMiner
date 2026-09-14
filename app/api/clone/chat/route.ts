@@ -4,7 +4,12 @@ import { streamText } from 'ai';
 import { anthropic, DEFAULT_MODEL, isAiConfigured, checkTokenBudget, estimateTokens } from '@/lib/ai/client';
 import { db } from '@/lib/db';
 import { conversations, opportunities, contents, userProfile } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
+import {
+  MINING_ELIGIBLE_CONVERSATION_TYPES,
+  contentIsEligibleSql,
+  opportunityHasEligibleSourceSql,
+} from '@/lib/conversations/classification';
 
 const chatRequestSchema = z.object({
   messages: z
@@ -41,9 +46,15 @@ function parseList(raw: string | null): string[] {
  */
 async function buildContext(): Promise<string> {
   const [convs, opps, cts, profile] = await Promise.all([
-    db.select().from(conversations).orderBy(desc(conversations.date)).limit(40),
-    db.select().from(opportunities).orderBy(desc(opportunities.score)).limit(30),
-    db.select().from(contents).orderBy(desc(contents.mentionCount)).limit(20),
+    db.select().from(conversations)
+      .where(inArray(conversations.type, MINING_ELIGIBLE_CONVERSATION_TYPES))
+      .orderBy(desc(conversations.date)).limit(40),
+    db.select().from(opportunities)
+      .where(sql.raw(opportunityHasEligibleSourceSql('app_opportunities')))
+      .orderBy(desc(opportunities.score)).limit(30),
+    db.select().from(contents)
+      .where(sql.raw(contentIsEligibleSql('app_contents')))
+      .orderBy(desc(contents.mentionCount)).limit(20),
     db.select().from(userProfile).where(eq(userProfile.id, 'default')).limit(1),
   ]);
 

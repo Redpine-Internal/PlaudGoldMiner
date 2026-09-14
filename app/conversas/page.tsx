@@ -5,11 +5,13 @@ import useSWR, { useSWRConfig } from "swr";
 import { UploadModal } from "@/components/upload";
 import { DriveImportModal } from "@/components/drive";
 import { SyncPlaudButton } from "@/components/SyncPlaudButton";
-import { Button, SearchInput, FilterChip, EmptyState, Icon, Pagination, Skeleton, TypeBadge, StatusBadge } from "@/components/ds";
+import { Button, SearchInput, FilterChip, EmptyState, Icon, Pagination, Skeleton, StatusBadge } from "@/components/ds";
 import { GlassList, GlassListRow, GlassListSection } from "@/components/lg/GlassList";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { CONVERSATION_TYPE_LABELS } from "@/lib/presentation/labels";
+import type { ConversationType } from "@/lib/conversations/classification";
+import { ConversationTypeSelect } from "@/components/conversation/ConversationTypeSelect";
 import { fetchJson } from "@/lib/http";
 
 const PAGE_SIZE = 20;
@@ -19,7 +21,7 @@ interface ApiConversation {
   title: string;
   date: string;
   duration: string | null;
-  type: "reuniao" | "treinamento" | "informal" | "outro";
+  type: ConversationType;
   status: "processado" | "pendente" | "aguardando_transcricao" | "processando" | "erro";
   summary: string | null;
   topics: string | null;
@@ -351,6 +353,7 @@ const ConversasView = ({ initialSearch }: { initialSearch: string }) => {
                       conversation={c}
                       livePlaud={livePlaud}
                       isMobile={isMobile}
+                      onTypeSaved={() => void mutate()}
                       onSelect={() => router.push(`/conversas/${c.source === "plaud" && /^[0-9a-f]{32}$/i.test(c.sourceFileId || "") ? c.sourceFileId : c.id}`)}
                     />
                   ))}
@@ -397,11 +400,13 @@ function ConversationRow({
   livePlaud,
   isMobile,
   onSelect,
+  onTypeSaved,
 }: {
   conversation: ApiConversation;
   livePlaud: boolean;
   isMobile: boolean;
   onSelect: () => void;
+  onTypeSaved: () => void;
 }) {
   const { data: status, error: statusError } = useSWR(
     livePlaud ? `/api/plaud/files/${c.id}/status` : null,
@@ -412,7 +417,9 @@ function ConversationRow({
   const dateFmt = fmtDate(c.date);
   const displayStatus = c.status;
   // The Plaud file list does not classify recordings or report local processing.
-  const typeBadge = livePlaud ? <span className="ds-badge">Gravação</span> : <TypeBadge type={c.type} />;
+  const typeBadge = livePlaud ? <span className="ds-badge">Gravação</span> : (
+    <ConversationTypeSelect conversationId={c.id} value={c.type} compact onSaved={onTypeSaved} />
+  );
   const statusBadge = livePlaud
     ? flags
       ? flags.hasTranscription
@@ -423,8 +430,10 @@ function ConversationRow({
 
   if (!isMobile) {
     return (
-      <GlassListRow className="pgm-conversation-row" onClick={onSelect} hideChevron aria-label={c.title}>
-        <span className="pgm-conversation-row__title">{c.title}</span>
+      <GlassListRow className="pgm-conversation-row" onClick={onSelect} hideChevron containsInteractiveControls aria-label={c.title}>
+        <button type="button" className="pgm-conversation-row__title pgm-conversation-row__open" onClick={(event) => { event.stopPropagation(); onSelect(); }}>
+          {c.title}
+        </button>
         {typeBadge}
         {statusBadge}
         <span className="pgm-conversation-row__muted">{dateFmt}</span>
@@ -439,10 +448,12 @@ function ConversationRow({
   }
 
   return (
-    <GlassListRow onClick={onSelect} aria-label={c.title}>
+    <GlassListRow onClick={onSelect} containsInteractiveControls aria-label={c.title}>
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-          <span
+          <button
+            type="button"
+            onClick={(event) => { event.stopPropagation(); onSelect(); }}
             style={{
               fontSize: 16,
               fontWeight: 600,
@@ -451,10 +462,17 @@ function ConversationRow({
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              border: 0,
+              padding: 0,
+              background: "transparent",
+              color: "inherit",
+              fontFamily: "inherit",
+              textAlign: "left",
+              cursor: "pointer",
             }}
           >
             {c.title}
-          </span>
+          </button>
           {typeBadge}
           {statusBadge}
         </div>

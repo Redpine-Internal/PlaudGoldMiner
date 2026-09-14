@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
         title,
         date: metadata.date || new Date(),
         duration: metadata.duration,
-        type: metadata.type || 'outro',
+        type: metadata.type || 'nao_classificado',
         status: 'pendente',
         transcription: content,
         source: 'upload',

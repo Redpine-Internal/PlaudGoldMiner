@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { lerProcedencia } from '@/lib/ai/excerpt-provenance';
+import { miningEligibleSql } from '@/lib/conversations/classification';
 
 // Conversas que originaram a oportunidade, com o trecho que serve de
 // justificativa. Lê app_opportunity_sources (N fontes por oportunidade) e traz
@@ -32,8 +33,9 @@ export async function GET(
               c.title            AS conversation_title,
               c.date::text       AS conversation_date
          FROM app_opportunity_sources s
-         LEFT JOIN conversations c ON c.id::text = s.conversation_id
+         JOIN conversations c ON c.id::text = s.conversation_id
         WHERE s.opportunity_id = $1
+          AND ${miningEligibleSql('c.type')}
         ORDER BY c.date DESC NULLS LAST, s.created_at ASC`,
       [id]
     );

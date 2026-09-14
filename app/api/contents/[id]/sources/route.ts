@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import { miningEligibleSql } from '@/lib/conversations/classification';
 
 // Conversas que originaram a sugestão de conteúdo, com o trecho da transcrição
 // que a justifica. Espelha app/api/opportunities/[id]/sources, com duas
@@ -27,8 +28,9 @@ export async function GET(
               c.title            AS conversation_title,
               c.date::text       AS conversation_date
          FROM app_content_sources s
-         LEFT JOIN conversations c ON c.id = s.conversation_id
+         JOIN conversations c ON c.id = s.conversation_id
         WHERE s.content_id = $1::text
+          AND ${miningEligibleSql('c.type')}
         ORDER BY c.date DESC NULLS LAST`,
       [id]
     );

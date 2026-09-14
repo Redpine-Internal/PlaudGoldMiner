@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getFileContent, PlaudApiError } from '@/lib/plaud/client';
 import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 import { getConversationAiAnalysisByPlaudFileId } from '@/lib/ai/conversation-analysis-store';
+import { isMiningEligibleConversationType } from '@/lib/conversations/classification';
 
 function formatDuration(ms: number): string {
   const totalMin = Math.round(ms / 60000);
@@ -25,13 +26,14 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
       getFileContent(id),
       getConversationAiAnalysisByPlaudFileId(id),
     ]);
+    const conversationType = persisted?.type ?? 'nao_classificado';
     return NextResponse.json({
       data: {
         id: file.id,
         title: file.name ?? '',
         date: (file.start_at || file.created_at || '').slice(0, 10),
         duration: formatDuration(file.duration ?? 0) || null,
-        type: 'reuniao' as const,
+        type: conversationType,
         status: transcript ? ('processado' as const) : ('aguardando_transcricao' as const),
         summary: summary || null,
         transcription: transcript || null,
@@ -42,7 +44,9 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
         audioUrl: file.presigned_url ?? null,
         source: 'plaud',
         localConversationId: persisted?.localConversationId ?? null,
-        aiAnalysis: persisted?.analysis ?? null,
+        aiAnalysis: isMiningEligibleConversationType(conversationType)
+          ? persisted?.analysis ?? null
+          : null,
       },
     });
   } catch (error) {

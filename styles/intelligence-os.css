@@ -625,7 +625,7 @@ main h2 {
 .pgm-conversations-columns,
 .pgm-conversation-row {
   display: grid !important;
-  grid-template-columns: minmax(0, 4fr) .85fr 1.05fr .95fr .8fr 1.25fr;
+  grid-template-columns: minmax(180px, 3.2fr) minmax(135px, 1.6fr) 1.05fr .95fr .8fr 1.25fr;
   align-items: center;
   column-gap: 12px;
 }
@@ -638,6 +638,8 @@ main h2 {
 }
 .pgm-conversation-row { min-height: 72px !important; padding: 14px 8px !important; }
 .pgm-conversation-row__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 600; }
+.pgm-conversation-row__open { border: 0; padding: 0; background: transparent; color: inherit; font-family: inherit; text-align: left; cursor: pointer; }
+.pgm-conversation-row__open:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 3px; border-radius: 2px; }
 .pgm-conversation-row__muted { color: var(--app-muted); font-size: 14px; white-space: nowrap; }
 .pgm-conversation-row__content { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
 .pgm-conversation-row__content > span { padding: 4px 0 !important; border: 0; border-radius: 0 !important; background: transparent !important; }

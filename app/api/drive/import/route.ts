@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/config';
 import { getDriveFileContent } from '@/lib/drive/client';
 import { db } from '@/lib/db';
-import { conversations, opportunities } from '@/lib/db/schema';
+import { conversations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { processTranscription } from '@/lib/ai/services/transcription-processor';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
@@ -42,18 +41,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process transcription with AI
-    const processed = await processTranscription(content);
-
-    if (!processed.success) {
-      return NextResponse.json(
-        { error: processed.error?.message || 'Falha ao processar a transcrição' },
-        { status: 500 }
-      );
-    }
-
-    const { data } = processed;
-
     // Extract title from filename (remove extension)
     const title = validated.fileName.replace(/\.[^/.]+$/, '');
 
@@ -65,16 +52,13 @@ export async function POST(request: NextRequest) {
       .insert(conversations)
       .values({
         id: conversationId,
-        title: data.suggestedTitle || title,
+        title,
         date: new Date(),
-        type: data.suggestedType || 'outro',
+        type: 'nao_classificado',
         source: 'drive',
         sourceFileId: validated.fileId,
-        status: 'processado',
+        status: 'pendente',
         transcription: content,
-        participants: JSON.stringify(data.participants || []),
-        summary: data.summary,
-        topics: JSON.stringify(data.topics || []),
       });
 
     const [created] = await db
@@ -83,30 +67,10 @@ export async function POST(request: NextRequest) {
       .where(eq(conversations.id, conversationId))
       .limit(1);
 
-    // Save opportunities
-    if (data.opportunities && data.opportunities.length > 0) {
-      await db.insert(opportunities).values(
-        data.opportunities.map((opp) => ({
-          id: randomUUID(),
-          conversationId,
-          title: opp.title,
-          pain: opp.pain,
-          context: opp.context,
-          type: opp.type,
-          score: opp.score,
-          status: 'nova' as const,
-        }))
-      );
-    }
-
     return NextResponse.json(
       {
         data: created,
-        processed: {
-          titulo: data.suggestedTitle,
-          participantes: data.participants?.length || 0,
-          oportunidades: data.opportunities?.length || 0,
-        },
+        message: 'Arquivo importado. Classifique a gravação no acervo antes de analisá-la.',
       },
       { status: 201 }
     );

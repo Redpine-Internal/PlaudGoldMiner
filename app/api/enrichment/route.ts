@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import {
+  contentIsEligibleSql,
+  opportunityHasEligibleSourceSql,
+} from '@/lib/conversations/classification';
 
 const SOURCE_TYPES = ['opportunity', 'insight', 'content'] as const;
 type SourceType = (typeof SOURCE_TYPES)[number];
@@ -32,6 +36,25 @@ interface ReferenceRow {
   createdAt: string;
 }
 
+async function sourceIsEligible(sourceType: SourceType, sourceId: string): Promise<boolean> {
+  if (sourceType === 'insight') return true;
+
+  const table = sourceType === 'opportunity' ? 'app_opportunities' : 'app_contents';
+  const alias = sourceType === 'opportunity' ? 'o' : 'c';
+  const eligibility = sourceType === 'opportunity'
+    ? opportunityHasEligibleSourceSql(alias)
+    : contentIsEligibleSql(alias);
+  const result = await pool.query<{ eligible: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM ${table} ${alias}
+        WHERE ${alias}.id::text = $1
+          AND ${eligibility}
+     ) AS eligible`,
+    [sourceId]
+  );
+  return result.rows[0]?.eligible === true;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams;
@@ -39,6 +62,9 @@ export async function GET(request: NextRequest) {
     const sourceId = sp.get('sourceId');
     if (!isSourceType(sourceType) || !sourceId) {
       return NextResponse.json({ error: 'sourceType e sourceId são obrigatórios' }, { status: 400 });
+    }
+    if (!(await sourceIsEligible(sourceType, sourceId))) {
+      return NextResponse.json({ data: null });
     }
     const enrich = await pool.query<EnrichmentRow>(
       `SELECT ${FIELDS} FROM app_idea_enrichment WHERE source_type = $1 AND source_id = $2`,
@@ -66,6 +92,12 @@ export async function PUT(request: NextRequest) {
     const { sourceType, sourceId, interesting, notes, textOverride } = body ?? {};
     if (!isSourceType(sourceType) || typeof sourceId !== 'string' || !sourceId) {
       return NextResponse.json({ error: 'sourceType e sourceId são obrigatórios' }, { status: 400 });
+    }
+    if (!(await sourceIsEligible(sourceType, sourceId))) {
+      return NextResponse.json(
+        { error: 'Esta origem está fora da mineração e não pode ser marcada como assunto de interesse.' },
+        { status: 409 }
+      );
     }
     const result = await pool.query<EnrichmentRow>(
       `INSERT INTO app_idea_enrichment (id, source_type, source_id, interesting, notes, text_override)

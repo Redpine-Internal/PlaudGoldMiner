@@ -7,6 +7,7 @@ import {
   createIdeaPrompt,
 } from '@/lib/ai/prompts/opportunity-idea';
 import { detectarTextoCorrompido } from '@/lib/ai/text-integrity';
+import { miningEligibleSql, opportunityHasEligibleSourceSql } from '@/lib/conversations/classification';
 
 interface IdeaRow {
   id: string;
@@ -32,8 +33,9 @@ export async function POST(request: NextRequest) {
       `SELECT o.id, o.title, o.pain, o.context, o.type, o.subtype, o.generated_idea,
               c.title AS conversation_title
          FROM app_opportunities o
-         LEFT JOIN conversations c ON c.id = o.conversation_id
-        WHERE o.id = $1`,
+         LEFT JOIN conversations c
+           ON c.id = o.conversation_id AND ${miningEligibleSql('c.type')}
+        WHERE o.id = $1 AND ${opportunityHasEligibleSourceSql('o')}`,
       [id]
     );
     const opp = res.rows[0];

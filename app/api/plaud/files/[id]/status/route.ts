@@ -4,6 +4,7 @@ import { PlaudAuthError, PLAUD_AUTH_CLIENT_MESSAGE } from '@/lib/plaud/tokens';
 import { db } from '@/lib/db';
 import { conversations, opportunities } from '@/lib/db/schema';
 import { eq, or, sql } from 'drizzle-orm';
+import { isMiningEligibleConversationType } from '@/lib/conversations/classification';
 
 /**
  * Lightweight content-status for a single Plaud recording, used by the Conversas
@@ -26,13 +27,14 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
         transcription: conversations.transcription,
         summary: conversations.summary,
         status: conversations.status,
+        type: conversations.type,
       })
       .from(conversations)
       .where(eq(conversations.sourceFileId, id))
       .limit(1);
 
     let hasInsights = false;
-    if (local) {
+    if (local && isMiningEligibleConversationType(local.type)) {
       const [opp] = await db
         .select({ id: opportunities.id })
         .from(opportunities)
@@ -57,7 +59,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
         hasSummary: Boolean(summary && summary.trim()),
         hasTranscription: Boolean(transcript && transcript.trim()),
         hasInsights,
-        analyzed: local?.status === 'processado',
+        analyzed: Boolean(local && isMiningEligibleConversationType(local.type) && local.status === 'processado'),
       },
     });
   } catch (error) {

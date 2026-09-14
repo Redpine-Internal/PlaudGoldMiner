@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       title: f.name,
       date: (f.start_at || f.created_at || '').slice(0, 10),
       duration: formatDuration(f.duration ?? 0) || null,
-      type: 'reuniao' as const,
+      type: 'nao_classificado' as const,
       status: 'processado' as const,
       summary: null,
       topics: null,

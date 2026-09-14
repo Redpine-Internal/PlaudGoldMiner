@@ -8,13 +8,16 @@ import type { ConversationAiAnalysis } from "@/lib/ai/conversation-analysis-stor
 import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
 import { formatCalendarDate } from "@/lib/presentation/calendar-date";
 import { ApiError, fetchJson } from "@/lib/http";
+import type { ConversationType } from "@/lib/conversations/classification";
+import { isMiningEligibleConversationType } from "@/lib/conversations/classification";
+import { ConversationTypeSelect } from "@/components/conversation/ConversationTypeSelect";
 
 interface ConversationDetail {
   id: string;
   title: string;
   date: string;
   duration: string | null;
-  type: "reuniao" | "treinamento" | "informal" | "outro";
+  type: ConversationType;
   status: "processado" | "pendente" | "aguardando_transcricao" | "processando" | "erro";
   summary: string | null;
   transcription: string | null;
@@ -187,6 +190,16 @@ function ConversationDetailContent({ id }: { id: string }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
           <TypeBadge type={c.type} />
           <StatusBadge status={status} />
+          {(plaud ? c.localConversationId : c.id) ? (
+            <ConversationTypeSelect
+              conversationId={(plaud ? c.localConversationId : c.id) as string}
+              value={c.type}
+              onSaved={(type) => void mutateConversation(
+                (current) => current ? { data: { ...current.data, type } } : current,
+                { revalidate: false }
+              )}
+            />
+          ) : null}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, font: "400 13px/18px var(--font-sans)", color: "var(--color-muted-foreground)" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -205,7 +218,7 @@ function ConversationDetailContent({ id }: { id: string }) {
         ) : null}
         {/* Bridge: turn a real Plaud recording into local opportunities. Only for
             Plaud conversations that already have a transcription to analyze. */}
-        {plaud && c.transcription && !c.aiAnalysis ? (
+        {plaud && c.transcription && !c.aiAnalysis && isMiningEligibleConversationType(c.type) ? (
           <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
             <Button icon={analyzing ? "reload" : "sparkles"} iconSpin={analyzing} disabled={analyzing} onClick={analyze} style={{ alignSelf: "flex-start" }}>
               {analyzing ? "Analisando..." : "Analisar conversa"}
@@ -218,6 +231,10 @@ function ConversationDetailContent({ id }: { id: string }) {
               </span>
             )}
           </div>
+        ) : plaud && c.transcription && !c.aiAnalysis ? (
+          <p style={{ marginTop: 16, color: "var(--color-muted-foreground)" }}>
+            Classifique esta gravação como uma reunião elegível para liberar a análise. Treinamentos permanecem somente no acervo.
+          </p>
         ) : null}
       </div>
 

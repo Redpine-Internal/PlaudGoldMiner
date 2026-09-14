@@ -59,6 +59,8 @@ export type GlassListRowProps = {
   onClick?: () => void;
   /** Oculta o chevron › mesmo quando a linha é clicável. */
   hideChevron?: boolean;
+  /** Mantém o clique por ponteiro sem criar um botão ARIA ao redor de controles internos. */
+  containsInteractiveControls?: boolean;
   className?: string;
   style?: CSSProperties;
   "aria-label"?: string;
@@ -68,6 +70,7 @@ export const GlassListRow = ({
   children,
   onClick,
   hideChevron = false,
+  containsInteractiveControls = false,
   className,
   style,
   "aria-label": ariaLabel,
@@ -85,11 +88,11 @@ export const GlassListRow = ({
   return (
     <div
       className={`lgl-row${clickable ? " lgl-row--clickable" : ""}${className ? ` ${className}` : ""}`}
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
+      role={clickable ? (containsInteractiveControls ? "group" : "button") : undefined}
+      tabIndex={clickable && !containsInteractiveControls ? 0 : undefined}
       aria-label={ariaLabel}
       onClick={onClick}
-      onKeyDown={onKeyDown}
+      onKeyDown={containsInteractiveControls ? undefined : onKeyDown}
       style={{
         display: "flex",
         alignItems: "center",

@@ -3,6 +3,7 @@ import { pool } from '@/lib/db';
 import type { ContentCard } from '@/lib/n8n/mappers';
 import { enrichWithConversation } from '@/lib/n8n/enrich';
 import { collectionPagination, collectionSearch, collectionValues, foldedSearchSql, statusCounts } from '@/lib/collection-query';
+import { contentIsEligibleSql, miningEligibleSql } from '@/lib/conversations/classification';
 
 // Fonte local: app_contents (1 linha por conteúdo). A conversa de origem vive em
 // app_content_sources (N por conteúdo); pegamos a 1ª via LEFT JOIN LATERAL para
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const platforms = collectionValues(searchParams, 'platform');
     const search = searchParams.get('search')?.trim();
-    const filters: string[] = [];
+    const filters: string[] = [contentIsEligibleSql('c')];
     const values: unknown[] = [];
 
     if (platforms.length) {
@@ -61,8 +62,13 @@ export async function GET(request: NextRequest) {
               src.conversation_id
          FROM app_contents c
          LEFT JOIN LATERAL (
-           SELECT conversation_id FROM app_content_sources
-            WHERE content_id = c.id ORDER BY id LIMIT 1
+           SELECT content_source.conversation_id
+             FROM app_content_sources content_source
+             JOIN conversations source_conversation
+               ON source_conversation.id::text = content_source.conversation_id::text
+            WHERE content_source.content_id = c.id
+              AND ${miningEligibleSql('source_conversation.type')}
+            ORDER BY content_source.id LIMIT 1
          ) src ON true
         ${where}
         ORDER BY c.created_at DESC, c.id DESC

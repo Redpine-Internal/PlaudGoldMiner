@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import type { ContentCard } from '@/lib/n8n/mappers';
 import { enrichWithConversation } from '@/lib/n8n/enrich';
+import { contentIsEligibleSql, miningEligibleSql } from '@/lib/conversations/classification';
 
 // Fonte local: app_contents. A conversa de origem vem da 1ª app_content_sources.
 interface AppContentRow {
@@ -48,10 +49,17 @@ export async function GET(
               src.conversation_id
          FROM app_contents c
          LEFT JOIN LATERAL (
-           SELECT conversation_id FROM app_content_sources
-            WHERE content_id = c.id LIMIT 1
+           SELECT content_source.conversation_id
+             FROM app_content_sources content_source
+             JOIN conversations source_conversation
+               ON source_conversation.id::text = content_source.conversation_id::text
+            WHERE content_source.content_id = c.id
+              AND ${miningEligibleSql('source_conversation.type')}
+            LIMIT 1
          ) src ON true
-        WHERE c.id = $1 LIMIT 1`,
+        WHERE c.id = $1
+          AND ${contentIsEligibleSql('c')}
+        LIMIT 1`,
       [id]
     );
     if (res.rowCount === 0) {
@@ -105,6 +113,7 @@ export async function PATCH(
     }
     const res = await pool.query<AppContentRow>(
       `UPDATE app_contents SET ${sets.join(', ')} WHERE id = $1
+         AND ${contentIsEligibleSql('app_contents')}
        RETURNING id, title, platform, subtype, theme, outline, mention_count,
                  relevance_score, status, notes, created_at,
                  (SELECT conversation_id FROM app_content_sources
