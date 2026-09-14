@@ -71,7 +71,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // Roda em tudo, exceto assets estáticos e as rotas do NextAuth/Google (Drive).
+  // O manifesto do PWA fica fora da proteção: o iOS o busca sem cookie de sessão
+  // e um redirect para /login faria a instalação na tela de início falhar.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|auth/signout|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|api/auth|auth/signout|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };

@@ -1322,3 +1322,46 @@ main h2 {
 @supports (container-type: inline-size) {
   .ds-card { container-type: inline-size; }
 }
+
+/* ─── Modo instalado (PWA) ────────────────────────────────────────────────
+   Vale só quando aberto pela tela de início, em janela própria. No Safari
+   comum nada muda — a rolagem elástica da página continua normal. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    /* Sem isto, o arrasto vertical estica o documento e revela o fundo do
+       sistema atrás da interface, denunciando que é uma página web. */
+    overscroll-behavior-y: none;
+    /* A shell já é 100dvh com overflow: hidden; a rolagem vive dentro dela. */
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Texto da interface não é selecionável em app nativo: o toque-e-segure
+     deve rolar, não abrir a lupa de seleção. Campos e conteúdo lido ficam
+     de fora — ali a seleção é o comportamento desejado. */
+  .pgm-shell {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* O conteúdo em si permanece selecionável: transcrição, resumo e respostas
+     do clone são texto para ler e copiar. São elementos de texto dentro da
+     área principal, não os controles da navegação. */
+  input,
+  textarea,
+  [contenteditable],
+  .pgm-main p,
+  .pgm-main li,
+  .pgm-main blockquote,
+  .pgm-main pre,
+  .pgm-main code,
+  .pgm-main h1,
+  .pgm-main h2,
+  .pgm-main h3 {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+}
