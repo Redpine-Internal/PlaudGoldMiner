@@ -24,7 +24,7 @@ ingest_secret="$(
 common_args=(
   --project="${project_id}"
   --location="${region}"
-  --schedule="0 5 * * *"
+  --schedule="${PLAUD_SCHEDULER_CRON:-0 20 * * *}"
   --time-zone="America/Sao_Paulo"
   --uri="${service_url}/api/plaud/ingest"
   --http-method=POST
@@ -41,4 +41,4 @@ else
   gcloud scheduler jobs create http "${job_name}" "${common_args[@]}"
 fi
 
-echo "Reconciliação automática do Plaud configurada para 05:00 (America/Sao_Paulo)."
+echo "Reconciliação automática do Plaud configurada para 20:00 (America/Sao_Paulo)."

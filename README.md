@@ -180,15 +180,22 @@ build**. Se forem vazias, a imagem sai sem configuração do Supabase e o login 
 O pipeline faz build → push no Artifact Registry → deploy. Segredos vêm do Secret Manager em
 runtime.
 
-Apó o primeiro deploy que inclui `INGEST_CRON_SECRET`, configure ou atualize a
+Após o primeiro deploy que inclui `INGEST_CRON_SECRET`, configure ou atualize a
 reconciliação diária do Plaud com:
 
 ```bash
 ./scripts/configure-plaud-scheduler.sh
 ```
 
-O job roda às 05:00 no fuso `America/Sao_Paulo`. O botão **Sincronizar com
-Plaud** continua disponível para uma atualização imediata.
+O job roda às 20:00 no fuso `America/Sao_Paulo`. Para outro horário, defina
+`PLAUD_SCHEDULER_CRON` (formato cron) antes de rodar o script:
+
+```bash
+PLAUD_SCHEDULER_CRON="0 7 * * *" ./scripts/configure-plaud-scheduler.sh
+```
+
+O botão **Sincronizar com Plaud** continua disponível para uma atualização
+imediata.
 
 ---
 
