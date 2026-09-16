@@ -1,7 +1,7 @@
 import React from "react";
 import { TypeBadge } from "./TypeBadge";
 import { StatusBadge } from "./StatusBadge";
-import { summaryExcerpt } from "@/lib/presentation/summary-excerpt";
+import { conversationExcerpt } from "@/lib/presentation/summary-excerpt";
 
 export interface ConversationCardProps {
   title?: string;
@@ -10,6 +10,8 @@ export interface ConversationCardProps {
   type?: string;
   status?: string;
   summary?: string;
+  /** Array JSON de tópicos; tem precedência sobre o resumo na prévia. */
+  topics?: string | null;
   selected?: boolean;
   onSelect?: React.MouseEventHandler<HTMLDivElement>;
   style?: React.CSSProperties;
@@ -26,13 +28,14 @@ export function ConversationCard({
   type = "outro",
   status = "pendente",
   summary,
+  topics,
   selected = false,
   onSelect,
   style,
   className = "",
   badges,
 }: ConversationCardProps) {
-  const excerpt = summaryExcerpt(summary);
+  const excerpt = conversationExcerpt(topics, summary);
   const d =
     date instanceof Date
       ? date

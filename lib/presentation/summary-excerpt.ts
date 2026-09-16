@@ -77,3 +77,47 @@ export function summaryExcerpt(summary?: string | null, options: SummaryExcerptO
   const lastSpace = clipped.lastIndexOf(" ");
   return (lastSpace > maxLength * 0.5 ? clipped.slice(0, lastSpace) : clipped).trimEnd() + "…";
 }
+
+/**
+ * Tópicos protocolares. Toda gravação começa com cumprimento e teste de áudio;
+ * usá-los como prévia diria o mesmo de todas as conversas.
+ */
+const SMALL_TALK_TOPIC =
+  /^\s*(?:abertura|saudaç(?:ão|ao)|saludo|cumprimentos?|in(?:í|i)cio|inicio|introduç(?:ão|ao)|apresentaç(?:ões|oes|ão|ao)|encerramento|cierre|despedida|conclus(?:ão|ao)|pr(?:ó|o)ximos passos|agradecimentos?)\b|\b(?:prueba|teste)\s+(?:de\s+)?(?:audio|áudio|som)\b/i;
+
+/**
+ * Prévia a partir dos tópicos da conversa: diz sobre o que se falou, enquanto o
+ * resumo costuma abrir com rótulo genérico ("Notas da Reunião"). Descarta os
+ * tópicos protocolares e junta os primeiros restantes.
+ *
+ * `raw` é o array JSON persistido em `conversations.topics`. Devolve string
+ * vazia quando não há tópico aproveitável — aí o chamador recorre ao resumo.
+ */
+export function topicsExcerpt(raw: string | null | undefined, limit = 3): string {
+  if (!raw) return '';
+  let list: unknown;
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    return '';
+  }
+  if (!Array.isArray(list)) return '';
+
+  const topics = list
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => stripInlineMarkdown(item))
+    .filter((item) => item.length > 0 && !SMALL_TALK_TOPIC.test(item));
+
+  return topics.slice(0, limit).join(' · ');
+}
+
+/**
+ * Prévia da conversa para a lista: tópicos quando existirem, senão a primeira
+ * frase do resumo. Vazio significa que a linha deve omitir a prévia.
+ */
+export function conversationExcerpt(
+  topics: string | null | undefined,
+  summary: string | null | undefined,
+): string {
+  return topicsExcerpt(topics) || summaryExcerpt(summary);
+}

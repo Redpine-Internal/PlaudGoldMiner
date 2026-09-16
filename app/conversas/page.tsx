@@ -6,7 +6,7 @@ import { UploadModal } from "@/components/upload";
 import { DriveImportModal } from "@/components/drive";
 import { SyncPlaudButton } from "@/components/SyncPlaudButton";
 import { Button, SearchInput, FilterChip, EmptyState, Icon, Pagination, Skeleton, StatusBadge } from "@/components/ds";
-import { summaryExcerpt } from "@/lib/presentation/summary-excerpt";
+import { conversationExcerpt } from "@/lib/presentation/summary-excerpt";
 import { GlassList, GlassListRow, GlassListSection } from "@/components/lg/GlassList";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -482,12 +482,12 @@ function ConversationRow({
           {typeBadge}
           {statusBadge}
         </div>
-        {/* O resumo chega como Markdown completo e, impresso cru, vazava
-            "> **Fecha:** …" e "## Informações da reunião" — marcação ilegível
-            que ainda repetia a data mostrada logo abaixo. summaryExcerpt reduz
-            à primeira frase de conteúdo; quando não sobra nada, a prévia é
-            omitida em vez de exibir uma linha vazia. */}
-        {summaryExcerpt(c.summary) ? (
+        {/* A prévia usa os tópicos da conversa: dizem sobre o que se falou,
+            enquanto o resumo costuma abrir com rótulo genérico ("Notas da
+            Reunião"). Sem tópicos, cai na primeira frase do resumo — que chega
+            como Markdown completo e, cru, vazava "> **Fecha:** …" e
+            "## Informações da reunião". Vazio omite a prévia. */}
+        {conversationExcerpt(c.topics, c.summary) ? (
           <span
             style={{
               fontSize: 15,
@@ -499,7 +499,7 @@ function ConversationRow({
               overflow: "hidden",
             }}
           >
-            {summaryExcerpt(c.summary)}
+            {conversationExcerpt(c.topics, c.summary)}
           </span>
         ) : null}
         {isMobile ? (
