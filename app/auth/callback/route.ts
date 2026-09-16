@@ -1,29 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { isAllowedUserEmail } from '@/lib/auth/access';
 import { createClient } from '@/lib/supabase/server';
+import { requestOrigin } from '@/lib/auth/request-origin';
 
 function safeNextPath(value: string | null) {
   return value?.startsWith('/') && !value.startsWith('//') ? value : '/';
-}
-
-function requestOrigin(request: NextRequest) {
-  const forwardedHost = request.headers
-    .get('x-forwarded-host')
-    ?.split(',')[0]
-    .trim();
-  const forwardedProto = request.headers
-    .get('x-forwarded-proto')
-    ?.split(',')[0]
-    .trim();
-
-  if (
-    forwardedHost &&
-    (forwardedProto === 'https' || forwardedProto === 'http')
-  ) {
-    return `${forwardedProto}://${forwardedHost}`;
-  }
-
-  return request.nextUrl.origin;
 }
 
 export async function GET(request: NextRequest) {
