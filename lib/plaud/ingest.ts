@@ -20,6 +20,20 @@ export interface IngestDeps {
 }
 const defaultDeps: IngestDeps = { getFileContent };
 
+/**
+ * Chave de idempotência da ingestão.
+ *
+ * Em setembro/2026 o Plaud passou a prefixar os ids de arquivo com `of_`. Como a
+ * comparação era por igualdade de string, nenhum registro existente foi
+ * reconhecido e uma única varredura recriou o acervo inteiro (314 conversas
+ * duplicadas). O prefixo é wire format, não identidade: a chave é o id nu.
+ *
+ * Toda leitura e toda escrita de `metadata->>'plaud_file_id'` passa por aqui.
+ */
+export function normalizePlaudFileId(id: string): string {
+  return id.replace(/^of_/, '');
+}
+
 /** Data do Plaud -> 'YYYY-MM-DD' (coluna meetings.meeting_date é DATE). null se inválida. */
 function toDateOnly(...candidates: string[]): string | null {
   for (const c of candidates) {
@@ -39,19 +53,22 @@ export async function stagePlaudFile(file: PlaudFile): Promise<PlaudFileStageRes
   const title = file.name || 'Conversa do Plaud';
   const meetingDate = toDateOnly(file.start_at || '', file.created_at || '');
   const duration = file.duration ?? null;
+  const normalizedFileId = normalizePlaudFileId(file.id);
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
-    await client.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 42))`, [file.id]);
+    // O lock precisa usar a chave normalizada: 'of_X' e 'X' são a mesma gravação
+    // e gerariam locks distintos, sem proteger contra a corrida.
+    await client.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 42))`, [normalizedFileId]);
 
     const existing = await client.query(
       `SELECT m.id, m.title, m.transcription, m.meeting_date::text AS meeting_date,
               m.metadata->>'duration' AS duration
          FROM meetings m
-        WHERE m.metadata->>'plaud_file_id' = $1
+        WHERE regexp_replace(m.metadata->>'plaud_file_id', '^of_', '') = $1
         LIMIT 1`,
-      [file.id]
+      [normalizedFileId]
     );
 
     if (existing.rowCount === 0) {
@@ -64,7 +81,7 @@ export async function stagePlaudFile(file: PlaudFile): Promise<PlaudFileStageRes
               'plaud_file_id',$3::text,'duration',$4::numeric,'type','nao_classificado',
               'plaud_transcription_status','pending')))
          RETURNING id`,
-        [title, meetingDate, file.id, duration]
+        [title, meetingDate, normalizedFileId, duration]
       );
       await client.query('COMMIT');
       return {
@@ -150,9 +167,9 @@ export async function ingestPlaudFile(
            SELECT summary_text FROM summaries s2
            WHERE s2.meeting_id = m.id ORDER BY s2.created_at DESC LIMIT 1
          ) s ON true
-        WHERE m.metadata->>'plaud_file_id' = $1
+        WHERE regexp_replace(m.metadata->>'plaud_file_id', '^of_', '') = $1
         LIMIT 1`,
-      [fileId]
+      [normalizePlaudFileId(fileId)]
     );
 
     if (existing.rowCount === 0) {
@@ -165,7 +182,7 @@ export async function ingestPlaudFile(
             jsonb_strip_nulls(jsonb_build_object(
               'plaud_file_id',$5::text,'duration',$6::numeric,'type','nao_classificado','topics',$7::jsonb)))
          RETURNING id`,
-        [title, transcript, transcript.length, meetingDate, fileId,
+        [title, transcript, transcript.length, meetingDate, normalizePlaudFileId(fileId),
          file.duration ?? null, topicsJson]
       );
       const meetingId = ins.rows[0].id as string;

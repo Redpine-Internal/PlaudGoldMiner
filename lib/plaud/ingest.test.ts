@@ -5,7 +5,7 @@ const { connect } = vi.hoisted(() => ({ connect: vi.fn() }));
 vi.mock('@/lib/db', () => ({ pool: { connect } }));
 vi.mock('@/lib/plaud/client', () => ({ getFileContent: vi.fn() }));
 
-const { ingestPlaudFile, stagePlaudFile } = await import('@/lib/plaud/ingest');
+const { ingestPlaudFile, stagePlaudFile, normalizePlaudFileId } = await import('@/lib/plaud/ingest');
 
 const file = {
   id: 'plaud-1',
@@ -23,6 +23,54 @@ function clientWith(
 
 beforeEach(() => {
   connect.mockReset();
+});
+
+describe('chave de idempotência do Plaud', () => {
+  it('trata o id prefixado com of_ como a mesma gravação', () => {
+    expect(normalizePlaudFileId('of_0008451f50a661c48b377fc50e9bf371')).toBe(
+      '0008451f50a661c48b377fc50e9bf371',
+    );
+    expect(normalizePlaudFileId('0008451f50a661c48b377fc50e9bf371')).toBe(
+      '0008451f50a661c48b377fc50e9bf371',
+    );
+  });
+
+  it('remove apenas o prefixo inicial, preservando of_ no meio do id', () => {
+    expect(normalizePlaudFileId('abcof_123')).toBe('abcof_123');
+    expect(normalizePlaudFileId('of_of_123')).toBe('of_123');
+  });
+
+  it('reconhece a gravação já existente quando o Plaud passa a prefixar o id', async () => {
+    const seen: unknown[][] = [];
+    const client = clientWith(async (sql, params) => {
+      if (params) seen.push(params as unknown[]);
+      if (sql.includes('SELECT m.id')) {
+        return {
+          rows: [
+            {
+              id: 'meeting-existente',
+              title: 'Conversa de teste',
+              transcription: 'conteúdo já transcrito',
+              meeting_date: '2026-09-08',
+              duration: '120000',
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    connect.mockResolvedValue(client);
+
+    const result = await stagePlaudFile({ ...file, id: `of_${file.id}` });
+
+    // Não pode criar uma segunda linha para a mesma gravação.
+    expect(result.outcome).not.toBe('created');
+    expect(result.meetingId).toBe('meeting-existente');
+    // A busca precisa usar o id sem prefixo.
+    expect(seen.some((p) => p.includes('plaud-1'))).toBe(true);
+    expect(seen.some((p) => p.includes('of_plaud-1'))).toBe(false);
+  });
 });
 
 describe('ingestão de gravações do Plaud', () => {

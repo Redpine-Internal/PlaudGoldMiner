@@ -17,6 +17,15 @@ export interface FullIngestResult {
 }
 
 /** Erro com o resumo parcial da varredura (para a rota devolver `partial`). */
+/**
+ * Limiares do guarda-corpo de criação em massa. Uma reconciliação de rotina
+ * reencontra quase tudo que lista; criar a maior parte do que se listou é
+ * sintoma de chave de idempotência quebrada, não de acervo novo. O piso evita
+ * disparar em bases pequenas e na primeira carga.
+ */
+const MASS_CREATE_FLOOR = 20;
+const MASS_CREATE_RATIO = 0.5;
+
 export class IngestRunError extends Error {
   constructor(message: string, readonly partial: IngestSummary, readonly cause?: unknown) {
     super(message);
@@ -81,6 +90,21 @@ export async function runFullIngest(trigger: 'manual' | 'cron', maxPages?: numbe
 
       if (data.length < pageSize) break; // última página
       page += 1;
+    }
+
+    // Guarda-corpo contra rekey da chave de idempotência. Em 16/09/2026 o Plaud
+    // passou a prefixar ids com 'of_', nenhuma gravação foi reconhecida e uma
+    // varredura recriou o acervo inteiro (314 duplicatas). Uma reconciliação de
+    // rotina cria poucas conversas; criar quase tudo que se listou significa que
+    // a chave deixou de casar — abortar antes de persistir o estrago.
+    const createdCount = stagedFiles.filter((f) => f.outcome === 'created').length;
+    if (createdCount > MASS_CREATE_FLOOR && createdCount > stagedFiles.length * MASS_CREATE_RATIO) {
+      throw new IngestRunError(
+        `Ingestão abortada: ${createdCount} de ${stagedFiles.length} gravações listadas seriam ` +
+          'criadas como novas. Isso indica que a chave de idempotência parou de casar (ex.: ' +
+          'mudança no formato do id do Plaud). Nenhum conteúdo foi buscado; verifique antes de reexecutar.',
+        summary
+      );
     }
 
     let lastDetailRequestAt = 0;

@@ -47,6 +47,45 @@ beforeEach(() => {
   mocks.processPendingConversations.mockResolvedValue({ processed: 0, failed: 0 });
 });
 
+describe('guarda-corpo de criação em massa', () => {
+  it('aborta quando quase tudo que foi listado seria criado como novo', async () => {
+    // Cenário do incidente de 16/09/2026: o Plaud prefixou os ids com 'of_',
+    // a chave parou de casar e a varredura recriou o acervo inteiro.
+    const ids = Array.from({ length: 40 }, (_, i) => `of_file-${i}`);
+    mocks.listFiles.mockResolvedValue({ data: ids.map(file), page: 1, page_size: 50 });
+    mocks.stagePlaudFile.mockImplementation(async (f: { id: string }) => ({
+      fileId: f.id, meetingId: `m-${f.id}`, outcome: 'created', needsContent: true,
+    }));
+
+    await expect(runFullIngest('cron')).rejects.toThrow(/idempotência/i);
+    // O corte acontece antes de gastar chamadas de detalhe no Plaud.
+    expect(mocks.ingestPlaudFile).not.toHaveBeenCalled();
+  });
+
+  it('não interfere numa reconciliação normal, em que quase tudo já existe', async () => {
+    const ids = Array.from({ length: 40 }, (_, i) => `file-${i}`);
+    mocks.listFiles.mockResolvedValue({ data: ids.map(file), page: 1, page_size: 50 });
+    mocks.stagePlaudFile.mockImplementation(async (f: { id: string }) => ({
+      fileId: f.id, meetingId: `m-${f.id}`, outcome: 'skipped', needsContent: false,
+    }));
+
+    const result = await runFullIngest('cron');
+    expect(result.ingest.created).toBe(0);
+    expect(result.ingest.skipped).toBe(40);
+  });
+
+  it('permite a primeira carga, quando o acervo ainda é pequeno', async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => `file-${i}`);
+    mocks.listFiles.mockResolvedValue({ data: ids.map(file), page: 1, page_size: 50 });
+    mocks.stagePlaudFile.mockImplementation(async (f: { id: string }) => ({
+      fileId: f.id, meetingId: `m-${f.id}`, outcome: 'created', needsContent: false,
+    }));
+
+    const result = await runFullIngest('manual');
+    expect(result.ingest.created).toBe(12);
+  });
+});
+
 describe('runFullIngest', () => {
   it('consulta detalhes apenas dos registros sem transcrição e reporta os pendentes', async () => {
     mocks.listFiles.mockResolvedValue({ data: [file('ready'), file('pending')], page: 1, page_size: 50 });
