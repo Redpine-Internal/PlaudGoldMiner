@@ -31,6 +31,19 @@ describe('limite do histórico do Clone', () => {
   });
 });
 
+describe('rótulo visível do chat', () => {
+  // A rota /clone, o tipo CloneMsg e os ids internos continuam "clone"; só o
+  // texto que a usuária lê virou "Chat".
+  it('mostra "Chat" no lugar de "Clone" nos rótulos da tela', () => {
+    const html = renderToStaticMarkup(<ClonePage />);
+    expect(html).toContain('<h1>Chat</h1>');
+    expect(html).toContain('aria-label="Mensagens do Chat"');
+    expect(html).toContain('aria-label="Pergunta para o Chat"');
+    expect(html).toContain('placeholder="Pergunte ao seu Chat..."');
+    expect(html).not.toMatch(/>Clone</);
+  });
+});
+
 describe('respostas Markdown do Clone', () => {
   it('mostra negrito e listas usando o renderizador existente e preserva o texto bruto do histórico', () => {
     const raw = '**Prioridades**\n\n- **Primeira:** revisar a conversa\n- Segunda: preparar a proposta\n\n1. Validar\n2. Executar';

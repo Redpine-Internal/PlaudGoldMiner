@@ -37,7 +37,7 @@ export function createCloneStream() {
         });
         if (!response.ok || !response.body) {
           const body = await response.json().catch(() => null);
-          throw new Error(body?.error || 'Não foi possível consultar o Clone. Tente novamente.');
+          throw new Error(body?.error || 'Não foi possível consultar o Chat. Tente novamente.');
         }
         const reader = response.body.getReader();
         const decoder = new TextDecoder();

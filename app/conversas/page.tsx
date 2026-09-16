@@ -6,6 +6,7 @@ import { UploadModal } from "@/components/upload";
 import { DriveImportModal } from "@/components/drive";
 import { SyncPlaudButton } from "@/components/SyncPlaudButton";
 import { Button, SearchInput, FilterChip, EmptyState, Icon, Pagination, Skeleton, StatusBadge } from "@/components/ds";
+import { summaryExcerpt } from "@/lib/presentation/summary-excerpt";
 import { GlassList, GlassListRow, GlassListSection } from "@/components/lg/GlassList";
 import { usePersistedFilters } from "@/components/lg/usePersistedFilters";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -481,17 +482,24 @@ function ConversationRow({
           {typeBadge}
           {statusBadge}
         </div>
-        {c.summary ? (
+        {/* O resumo chega como Markdown completo e, impresso cru, vazava
+            "> **Fecha:** …" e "## Informações da reunião" — marcação ilegível
+            que ainda repetia a data mostrada logo abaixo. summaryExcerpt reduz
+            à primeira frase de conteúdo; quando não sobra nada, a prévia é
+            omitida em vez de exibir uma linha vazia. */}
+        {summaryExcerpt(c.summary) ? (
           <span
             style={{
               fontSize: 15,
+              lineHeight: "21px",
               color: "var(--color-muted-foreground)",
+              display: "-webkit-box",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 2,
               overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
           >
-            {c.summary}
+            {summaryExcerpt(c.summary)}
           </span>
         ) : null}
         {isMobile ? (

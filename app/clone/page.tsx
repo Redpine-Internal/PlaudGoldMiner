@@ -160,7 +160,7 @@ function CloneChat({
       });
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") return;
-      const text = e instanceof Error ? e.message : "Falha ao consultar o Clone.";
+      const text = e instanceof Error ? e.message : "Falha ao consultar o Chat.";
       setReplyError(text);
       setMsgs((current) => current.map((message) => message.id === replyId && !message.text ? { ...message, text: "Resposta indisponível. Use Regenerar para tentar novamente." } : message));
     } finally {
@@ -215,13 +215,13 @@ function CloneChat({
 
   return (
     <section className="pgm-clone-chat">
-      <h1>Clone</h1>
+      <h1>Chat</h1>
       <p style={{ margin: 0, fontSize: 13, color: "var(--textSecondary)" }}>
         O histórico é mantido enquanto você navega. Recarregar ou fechar a página apaga estas conversas do chat.
       </p>
       <div className="pgm-clone-chat__rule" />
       <div className="pgm-clone-chat__body">
-        <div ref={endRef} className="pgm-clone-messages" aria-label="Mensagens do Clone" aria-busy={streaming}>
+        <div ref={endRef} className="pgm-clone-messages" aria-label="Mensagens do Chat" aria-busy={streaming}>
           {msgs.map((m) =>
             m.role === "user" ? (
               <div
@@ -240,7 +240,7 @@ function CloneChat({
               </div>
             ) : (
               <div key={m.id} className="pgm-clone-message">
-                <span>Clone</span>
+                <span>Chat</span>
                 <div>
                   <div className="[&_ul]:list-disc [&_ol]:list-decimal">
                     <Markdown>{m.text}</Markdown>
@@ -274,15 +274,15 @@ function CloneChat({
         <span role="status" style={{ fontSize: 13, color: "var(--textSecondary)" }}>{actionNotice || (streaming && !thinking ? "Recebendo resposta..." : "")}</span>
         <div className="pgm-clone-composer">
           <div className="pgm-clone-modes" role="group" aria-label="Modo do assistente">
-            <button type="button" aria-pressed="true">Clone</button>
+            <button type="button" aria-pressed="true">Chat</button>
             <button type="button" onClick={consultarBase} disabled={streaming}>Consultar base</button>
             <button type="button" onClick={gerarInsights} disabled={streaming}>Gerar insights</button>
           </div>
           <input
             className="ds-input"
             value={input}
-            placeholder="Pergunte ao seu Clone..."
-            aria-label="Pergunta para o Clone"
+            placeholder="Pergunte ao seu Chat..."
+            aria-label="Pergunta para o Chat"
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) send();

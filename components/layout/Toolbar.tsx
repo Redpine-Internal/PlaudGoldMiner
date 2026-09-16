@@ -13,7 +13,7 @@ const TITLES: [string, string][] = [
   ["/conteudos", "Conteúdos"],
   ["/projetos", "Projetos"],
   ["/assuntos-interesse", "Assuntos de Interesse"],
-  ["/clone", "Clone"],
+  ["/clone", "Chat"],
   ["/configuracoes", "Configurações"],
   ["/perfil", "Conta"],
 ];
@@ -204,10 +204,17 @@ const Toolbar = () => {
           </button>
         ) : null}
 
-        <Link href="/clone" className="pgm-toolbar__ask" aria-label="Perguntar à IA">
-          <span>Perguntar à IA</span>
-          <span aria-hidden>→</span>
-        </Link>
+        {/* No mobile este atalho ficava colado no avatar, num alvo de 36px e no
+            canto superior direito — a pior região para o polegar. O destino
+            (/clone) já é a aba "Chat" da barra inferior, que fica na zona de
+            alcance natural, então aqui ele só aparece no desktop. Nenhuma ação
+            some: muda apenas onde ela é oferecida. */}
+        {isMobile ? null : (
+          <Link href="/clone" className="pgm-toolbar__ask" aria-label="Perguntar à IA">
+            <span>Perguntar à IA</span>
+            <span aria-hidden>→</span>
+          </Link>
+        )}
 
         <div ref={avatarRef} style={{ position: "relative", display: "inline-flex" }}>
           <button

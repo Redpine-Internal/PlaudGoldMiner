@@ -295,25 +295,44 @@ const DashboardPage = () => {
         <section className="ds-card dashboard-evidence" aria-labelledby="evidence-title">
           <p className="dashboard-section-kicker">Rastreabilidade</p>
           <h2 id="evidence-title">Evidência por negócio</h2>
-          <div className="dashboard-evidence-hero"><strong>{formatDecimal(data?.evidence.avgSources ?? 0)}</strong><span>conversas por negócio, em média</span></div>
-          <p className="dashboard-muted dashboard-evidence-basis">
-            {data?.evidence.total ?? 0} negócios ativos · {data?.evidence.sourceLinks ?? 0} vínculos de evidência
-          </p>
-          <div className="dashboard-evidence-bars" aria-label="Distribuição das fontes por oportunidade">
+          {/* A leitura que importa é a concentração, não a média: quase todo o
+              portfólio se apoia em uma única conversa. Por isso o número em
+              destaque é o do bucket de 1 fonte, e a média virou contexto. */}
+          {(data?.evidence.total ?? 0) > 0 ? (
+            <>
+              <p className="dashboard-evidence-lead">
+                <strong>{data?.evidence.single ?? 0}</strong> de {data?.evidence.total ?? 0} negócios ativos
+                {(data?.evidence.single ?? 0) === 1 ? " depende" : " dependem"} de uma única conversa.
+              </p>
+              <p className="dashboard-muted dashboard-evidence-basis">
+                Média de {formatDecimal(data?.evidence.avgSources ?? 0)} conversas por negócio · {data?.evidence.sourceLinks ?? 0} vínculos de evidência
+              </p>
+            </>
+          ) : null}
+          {/* Cada barra é a fatia do portfólio (sobre o total), não sobre o
+              maior bucket: escalar pelo máximo fazia o bucket de 101 achatar
+              todos os outros em pontinhos ilegíveis. O valor e a porcentagem
+              ficam na mesma linha do rótulo, não flutuando abaixo da barra. */}
+          <ul className="dashboard-evidence-bars" aria-label="Distribuição das fontes por negócio">
             {data?.evidence.buckets.length ? data.evidence.buckets.map((bucket) => {
-              const width = data.evidence.max ? Math.max((bucket.opportunities / data.evidence.max) * 100, 2) : 2;
+              const share = data.evidence.total ? (bucket.opportunities / data.evidence.total) * 100 : 0;
+              const fragile = bucket.sources <= 1;
               return (
-                <div key={bucket.sources}>
-                  <span>{bucket.sources} fonte{bucket.sources === 1 ? "" : "s"}</span>
-                  <i><b style={{ width: `${width}%` }} /></i>
-                  <strong>{bucket.opportunities}</strong>
-                </div>
+                <li key={bucket.sources} data-fragile={fragile || undefined}>
+                  <span className="dashboard-evidence-bars__label">
+                    {bucket.sources === 0 ? "Sem fonte" : `${bucket.sources} fonte${bucket.sources === 1 ? "" : "s"}`}
+                  </span>
+                  <span className="dashboard-evidence-bars__value">
+                    <strong>{bucket.opportunities}</strong>
+                    <small>{share >= 1 ? Math.round(share) : "<1"}%</small>
+                  </span>
+                  <i aria-hidden><b style={{ width: `${Math.max(share, 1.5)}%` }} /></i>
+                </li>
               );
-            }) : <p className="dashboard-muted">Ainda não há negócios ativos para avaliar.</p>}
-          </div>
+            }) : <li className="dashboard-evidence-bars__empty">Ainda não há negócios ativos para avaliar.</li>}
+          </ul>
           <div className="dashboard-evidence-notes">
             {data?.evidence.withoutSources ? <p className="dashboard-muted">{data.evidence.withoutSources} negócio{data.evidence.withoutSources === 1 ? " ainda não tem" : "s ainda não têm"} conversa de origem vinculada.</p> : null}
-            {data?.evidence.single ? <p className="dashboard-muted">{data.evidence.single} negócio{data.evidence.single === 1 ? " ainda depende" : "s ainda dependem"} de uma única conversa.</p> : null}
           </div>
         </section>
 

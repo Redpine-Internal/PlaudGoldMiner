@@ -1,6 +1,7 @@
 import React from "react";
 import { TypeBadge } from "./TypeBadge";
 import { StatusBadge } from "./StatusBadge";
+import { summaryExcerpt } from "@/lib/presentation/summary-excerpt";
 
 export interface ConversationCardProps {
   title?: string;
@@ -31,6 +32,7 @@ export function ConversationCard({
   className = "",
   badges,
 }: ConversationCardProps) {
+  const excerpt = summaryExcerpt(summary);
   const d =
     date instanceof Date
       ? date
@@ -53,7 +55,8 @@ export function ConversationCard({
           {d.toLocaleDateString("pt-BR")}
           {duration ? " · " + duration : ""}
         </span>
-        {summary ? <span>{" · "}{summary}</span> : null}
+        {/* Mesma limpeza da lista: o resumo é Markdown e não pode ir cru. */}
+        {excerpt ? <span>{" · "}{excerpt}</span> : null}
       </p>
       {badges ? <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>{badges}</div> : null}
     </div>

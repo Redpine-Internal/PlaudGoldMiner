@@ -244,9 +244,16 @@ main h2 {
 
 /* Shell */
 .pgm-shell {
+  /* Altura da barra fixa de abas no mobile (60px) + a safe area do iPhone.
+     Centralizar aqui evita que o respiro do conteúdo vire um número mágico:
+     quem precisa "não ficar embaixo das abas" soma --pgm-tabbar-h. */
+  --pgm-tabbar-h: calc(60px + env(safe-area-inset-bottom));
   display: flex;
+  /* Só 100dvh. `min-height: 100vh` vencia a altura no iOS — onde 100vh é o
+     viewport GRANDE (sem a barra de endereço) e portanto maior que 100dvh —
+     e empurrava o fim de .pgm-main para fora da tela, debaixo das abas fixas.
+     Era essa a causa da paginação inalcançável, não a falta de padding. */
   height: 100dvh;
-  min-height: 100vh;
   overflow: hidden;
   background: var(--app-canvas);
   color: var(--app-ink);
@@ -1078,21 +1085,42 @@ main h2 {
 .dashboard-demand-item > em { grid-column: 1 / -1; color: var(--app-muted); font-size: 14px; font-style: normal; }
 .dashboard-demand-item > em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dashboard-demand-item > i,
-.dashboard-evidence-bars i,
+.dashboard-evidence-bars > li > i,
 .dashboard-meter { grid-column: 1 / -1; height: 5px; overflow: hidden; border-radius: 3px; background: var(--app-surface-soft); }
 .dashboard-demand-item > i > b,
-.dashboard-evidence-bars i > b,
+.dashboard-evidence-bars > li > i > b,
 .dashboard-meter > span { display: block; height: 100%; border-radius: 3px; background: var(--bronze); }
 .dashboard-evidence-hero { display: flex; align-items: baseline; gap: 10px; margin-bottom: 20px; }
 .dashboard-evidence-hero strong,
 .dashboard-coverage-value { font-family: var(--font-display); font-size: 48px; font-weight: 300; line-height: 1; }
 .dashboard-evidence-hero span { color: var(--app-muted); font-size: 15px; }
 .dashboard-evidence-basis { margin: -10px 0 16px; }
-.dashboard-evidence-bars { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+/* Evidência por negócio.
+   A barra ganhou linha própria abaixo do par rótulo/valor: com a barra e o
+   número na mesma linha, em 320px o valor era espremido para fora e aparecia
+   solto embaixo. Agora label e número dividem a primeira linha (baseline
+   comum) e a barra ocupa a segunda, largura total. */
+.dashboard-evidence-lead { margin: 0 0 6px; font-size: 17px; line-height: 1.45; }
+.dashboard-evidence-lead > strong {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 1;
+  margin-right: 4px;
+}
+.dashboard-evidence-bars { display: flex; flex-direction: column; gap: 14px; margin: 0 0 16px; padding: 0; list-style: none; }
 .dashboard-evidence-notes { display: flex; flex-direction: column; gap: 6px; }
-.dashboard-evidence-bars > div { display: grid; grid-template-columns: 80px minmax(0, 1fr) 32px; align-items: center; gap: 8px; font-size: 14px; }
-.dashboard-evidence-bars > div > span { color: var(--app-muted); }
-.dashboard-evidence-bars > div > strong { text-align: right; }
+.dashboard-evidence-bars > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 4px 12px; font-size: 15px; }
+.dashboard-evidence-bars__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-muted); }
+.dashboard-evidence-bars__value { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.dashboard-evidence-bars__value > strong { font-size: 17px; font-variant-numeric: tabular-nums; }
+.dashboard-evidence-bars__value > small { color: var(--app-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.dashboard-evidence-bars > li > i { grid-column: 1 / -1; }
+/* O bucket frágil (0 ou 1 conversa) é o alerta do gráfico. A cor não é o único
+   sinal: o rótulo já diz "1 fonte" e a nota abaixo repete em texto. */
+.dashboard-evidence-bars > li[data-fragile] .dashboard-evidence-bars__label { color: var(--app-ink); font-weight: 600; }
+.dashboard-evidence-bars > li[data-fragile] > i > b { background: var(--bronze-deep); }
+.dashboard-evidence-bars__empty { color: var(--app-muted); font-size: 15px; }
 .dashboard-coverage-value { margin: 4px 0 8px; }
 .dashboard-coverage-value > span { color: var(--app-muted); font: 400 16px/1.4 var(--font-sans); }
 .dashboard-coverage-lead { margin-top: 14px; }
@@ -1112,7 +1140,7 @@ main h2 {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(60px + env(safe-area-inset-bottom));
+  bottom: var(--pgm-tabbar-h);
   z-index: 45;
   padding: 20px 16px 16px;
   border-radius: 6px 6px 0 0;
@@ -1127,7 +1155,7 @@ main h2 {
   right: 0;
   bottom: 0;
   z-index: 46;
-  height: calc(60px + env(safe-area-inset-bottom));
+  height: var(--pgm-tabbar-h);
   display: flex;
   align-items: stretch;
   padding: 0 4px env(safe-area-inset-bottom);
@@ -1155,7 +1183,7 @@ main h2 {
 .pgm-mobile-tabs__item[data-active="true"] svg { color: var(--bronze-deep); stroke-width: 2; }
 
 @media (max-width: 900px) {
-  .pgm-main { padding: 24px 16px calc(88px + env(safe-area-inset-bottom)); }
+  .pgm-main { padding: 24px 16px calc(var(--pgm-tabbar-h) + 24px); }
   .pgm-toolbar { min-height: 56px; padding: 4px 8px; gap: 4px; }
   .pgm-toolbar__breadcrumb { flex: 1; padding-inline: 4px; font-size: 12px; }
   .pgm-toolbar__spacer { display: none; }
@@ -1201,25 +1229,58 @@ main h2 {
   .pgm-content-mobile-actions .ds-btn { width: 100%; }
   .pgm-process-strip { margin-top: -8px; overflow-x: auto; padding-bottom: 12px; }
   .pgm-process-strip__help { display: none !important; }
-  .pgm-opportunities-hero__actions { flex-wrap: wrap; }
-  .pgm-opportunities-hero__actions > .ds-btn { flex: 1 1 auto; }
+  /* Novos Negócios no mobile.
+     A ação primária ("Detectar Negócios") ganha a linha inteira; as
+     secundárias dividem a linha seguinte. Antes as três embaralhavam no
+     wrap e nenhuma parecia a principal. */
+  .pgm-opportunities-hero__actions { flex-wrap: wrap; gap: 8px; }
+  .pgm-opportunities-hero__actions > .ds-btn { flex: 1 1 auto; min-height: 48px; }
+  .pgm-opportunities-hero__actions > .ds-btn--primary { flex: 1 0 100%; order: -1; }
+  /* O botão de atualizar é só ícone: mantém quadrado em vez de esticar. */
+  .pgm-opportunities-hero__actions > .ds-btn--icononly { flex: 0 0 auto; width: 48px; min-width: 48px; }
   .pgm-opportunities-view { width: 100%; }
-  .pgm-opportunities-view button { flex: 1; }
+  .pgm-opportunities-view button { flex: 1; min-height: 44px; }
   .pgm-opportunities-layout { display: block; }
   .pgm-opportunities-toolbar { flex-wrap: wrap; border-bottom: 0; margin-bottom: 10px; }
   .pgm-opportunities-toolbar .ds-search { width: 100%; flex: 1 0 100%; }
   .pgm-opportunities-toolbar > span { margin-left: 0; }
+  /* Os filtros viram uma faixa de chips rolável — único jeito de filtrar aqui,
+     então precisam de alvo de toque real (44px), não dos 32px do chip padrão.
+     A faixa ganha borda inferior para não colar na lista. */
+  .pgm-opportunities-layout .ds-chip { min-height: 44px; padding: 0 14px; font-size: 14px; }
+  .pgm-opportunities-filters { margin-bottom: 12px; padding-bottom: 4px; border-bottom: 1px solid var(--app-hair); }
   .pgm-opportunity-card.ds-card {
-    grid-template-columns: 1fr auto;
-    gap: 10px;
-    padding: 16px;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 10px 8px;
+    min-height: 0;
+    padding: 18px 4px;
   }
   .pgm-opportunity-card__main { grid-column: 1 / -1; }
+  /* Tipo e status abaixo do texto, na mesma linha, lado a lado e alinhados à
+     esquerda: jogar o status para a direita criava um vão morto no meio. */
   .pgm-opportunity-card__type,
-  .pgm-opportunity-card__status { grid-row: 2; }
-  .pgm-opportunity-card__status { justify-self: end; }
-  .pgm-opportunity-card__actions { grid-column: 1 / -1; justify-content: stretch; }
-  .pgm-opportunity-card__actions > div { width: 100%; flex-direction: row; justify-content: flex-start; }
+  .pgm-opportunity-card__status { grid-row: 2; padding-top: 0; }
+  /* A segunda coluna é `auto` e empurrava o status para a borda, deixando um
+     vão morto entre os dois selos. Encostando a coluna 1 no conteúdo, os dois
+     ficam juntos à esquerda. */
+  .pgm-opportunity-card__type { justify-self: start; grid-column: 1; width: max-content; }
+  .pgm-opportunity-card__status { justify-self: start; grid-column: 2; margin-right: auto; }
+  .pgm-opportunity-card__heading h2 { font-size: 17px !important; }
+  .pgm-opportunity-card__meta { margin-bottom: 6px; font-size: 14px; }
+  /* Uma prévia de duas linhas basta: dor + contexto somavam quatro linhas de
+     texto cinza e faziam cada card ocupar meia tela sem dizer mais. */
+  .pgm-opportunity-card__context { display: none; }
+  .pgm-opportunity-card__actions { grid-column: 1 / -1; justify-content: stretch; margin-top: 2px; }
+  .pgm-opportunity-card__actions > div { width: 100%; flex-direction: row; justify-content: flex-start; gap: 12px !important; }
+  .pgm-opportunity-card__actions .ds-btn { flex: 1; min-height: 48px; }
+  /* 40px reprovava no mínimo de 44. */
+  .pgm-opportunity-card__actions .icon-btn {
+    width: 48px !important;
+    min-width: 48px;
+    height: 48px !important;
+    min-height: 48px;
+    flex-shrink: 0;
+  }
   .pgm-projects-hero { align-items: flex-start; flex-direction: column; gap: 16px; }
   .pgm-projects-hero__actions { width: 100%; }
   .pgm-projects-hero__actions .ds-btn { flex: 1; }
@@ -1246,7 +1307,7 @@ main h2 {
   .pgm-topic-row__updated,
   .pgm-topic-row__notes { grid-column: 1 / -1; }
   .pgm-topic-row__refs { grid-column: 2; grid-row: 1; }
-  .pgm-main--clone { padding: 0 16px calc(76px + env(safe-area-inset-bottom)); }
+  .pgm-main--clone { padding: 0 16px calc(var(--pgm-tabbar-h) + 16px); }
   .pgm-clone-history { display: none; }
   .pgm-clone-chat { padding: 24px 0 12px; }
   .pgm-clone-message { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; }

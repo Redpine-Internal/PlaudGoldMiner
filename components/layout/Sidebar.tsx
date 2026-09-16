@@ -23,7 +23,7 @@ const GROUPS: { label: string; items: NavDef[] }[] = [
     items: [
       { icon: "projects", label: "Projetos", path: "/projetos" },
       { icon: "topics", label: "Assuntos de Interesse", path: "/assuntos-interesse" },
-      { icon: "clone", label: "Clone", path: "/clone" },
+      { icon: "chat", label: "Chat", path: "/clone" },
     ],
   },
 ];

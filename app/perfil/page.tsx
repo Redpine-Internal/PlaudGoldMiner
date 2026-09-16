@@ -93,10 +93,10 @@ const PerfilPage = () => {
         <div className="pgm-profile-field">
           <div className="pgm-profile-field__label">
             <strong>Sobre você</strong>
-            <span>Contexto que ajuda o Clone a responder com mais precisão.</span>
+            <span>Contexto que ajuda o Chat a responder com mais precisão.</span>
           </div>
           <div className="pgm-profile-field__control">
-            <label htmlFor="profile-bio" className="ds-label">Sobre você (alimenta o Clone)</label>
+            <label htmlFor="profile-bio" className="ds-label">Sobre você (alimenta o Chat)</label>
             <textarea
               disabled={isLoading || saving || Boolean(loadError)}
               id="profile-bio"

@@ -11,7 +11,7 @@ const TABS: TabDef[] = [
   { icon: "dashboard", label: "Dashboard", path: "/" },
   { icon: "conversations", label: "Conversas", path: "/conversas" },
   { icon: "opportunities", label: "Negócios", path: "/novos-negocios" },
-  { icon: "clone", label: "Clone", path: "/clone" },
+  { icon: "chat", label: "Chat", path: "/clone" },
 ];
 
 const MORE_ITEMS: TabDef[] = [

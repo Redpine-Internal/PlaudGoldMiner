@@ -266,7 +266,7 @@ const NovosNegociosPage = () => {
   const rail = (
     <FilterRail
       open
-      style={{ width: 200 }}
+      style={isMobile ? undefined : { width: 200 }}
       onClear={hasFilters ? clearAll : undefined}
       sections={[
         {
@@ -395,7 +395,7 @@ const NovosNegociosPage = () => {
             </span>
           </div>
 
-          {isMobile ? <div style={{ marginBottom: 12 }}>{rail}</div> : null}
+          {isMobile ? <div className="pgm-opportunities-filters">{rail}</div> : null}
 
           {error || (byTheme && themesError) ? (
             <div

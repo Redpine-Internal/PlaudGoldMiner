@@ -6,6 +6,7 @@ type NavigationIconName =
   | "projects"
   | "topics"
   | "clone"
+  | "chat"
   | "settings"
   | "collapse"
   | "expand"
@@ -66,11 +67,19 @@ const NavigationIcon = ({ name, size = 18, className }: NavigationIconProps) => 
             <circle cx="6" cy="6" r="1" />
           </>
         );
+      // "clone" é o glifo de pessoa (cabeça + ombros): serve ao item Perfil.
       case "clone":
         return (
           <>
             <circle cx="9" cy="6" r="3" />
             <path d="M3.5 15.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" />
+          </>
+        );
+      // Balão de conversa — o Chat deixa de dividir o ícone de pessoa com o Perfil.
+      case "chat":
+        return (
+          <>
+            <path d="M15.5 10.5c0 2.5-2.9 4.5-6.5 4.5-.8 0-1.6-.1-2.3-.3L3 16l1.1-2.6C3.1 12.6 2.5 11.6 2.5 10.5c0-2.5 2.9-4.5 6.5-4.5s6.5 2 6.5 4.5Z" />
           </>
         );
       case "settings":
