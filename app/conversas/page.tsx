@@ -423,10 +423,10 @@ function ConversationRow({
   const statusBadge = livePlaud
     ? flags
       ? flags.hasTranscription
-        ? <span className="ds-badge">Disponível no Plaud</span>
-        : <StatusBadge status="aguardando_transcricao" />
-      : <span className="ds-badge">Consultando…</span>
-    : <StatusBadge status={displayStatus} />;
+        ? <span className="ds-badge" title="Disponível no Plaud">Disponível no Plaud</span>
+        : <StatusBadge status="aguardando_transcricao" short={!isMobile} />
+      : <span className="ds-badge" title="Consultando…">Consultando…</span>
+    : <StatusBadge status={displayStatus} short={!isMobile} />;
 
   if (!isMobile) {
     return (

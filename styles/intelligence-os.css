@@ -641,6 +641,10 @@ main h2 {
 .pgm-conversation-row__open { border: 0; padding: 0; background: transparent; color: inherit; font-family: inherit; text-align: left; cursor: pointer; }
 .pgm-conversation-row__open:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 3px; border-radius: 2px; }
 .pgm-conversation-row__muted { color: var(--app-muted); font-size: 14px; white-space: nowrap; }
+/* Rede de segurança: nenhum badge da linha invade a coluna vizinha. O rótulo
+   curto já cabe; isto contém qualquer status futuro mais longo dentro da célula
+   (o texto integral continua em title/aria-label no StatusBadge). */
+.pgm-conversation-row > .ds-badge { min-width: 0; max-width: 100%; justify-self: start; overflow: hidden; text-overflow: ellipsis; }
 .pgm-conversation-row__content { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
 .pgm-conversation-row__content > span { padding: 4px 0 !important; border: 0; border-radius: 0 !important; background: transparent !important; }
 

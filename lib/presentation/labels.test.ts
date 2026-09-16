@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatContentStatus,
   formatConversationStatus,
+  formatConversationStatusShort,
   formatConversationType,
   formatEnrichmentSourceType,
   formatLabel,
@@ -25,5 +26,22 @@ describe('rótulos de interface em português', () => {
 
   it('não produz texto para valor ausente', () => {
     expect(formatConversationType(null)).toBe('');
+  });
+});
+
+describe('forma curta do status de conversa', () => {
+  it('encurta apenas o rótulo que não cabe na coluna da tabela', () => {
+    expect(formatConversationStatus('aguardando_transcricao')).toBe('Aguardando transcrição do Plaud');
+    expect(formatConversationStatusShort('aguardando_transcricao')).toBe('Sem transcrição');
+  });
+
+  it('mantém os demais status idênticos ao rótulo integral', () => {
+    for (const status of ['processado', 'pendente', 'processando', 'erro']) {
+      expect(formatConversationStatusShort(status)).toBe(formatConversationStatus(status));
+    }
+  });
+
+  it('não produz texto para valor ausente', () => {
+    expect(formatConversationStatusShort(null)).toBe('');
   });
 });

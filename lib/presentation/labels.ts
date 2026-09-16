@@ -19,6 +19,16 @@ export const CONVERSATION_STATUS_LABELS = {
   erro: 'Erro',
 } as const;
 
+/**
+ * Forma curta do status para contextos de largura fixa (coluna de tabela).
+ * Só existe entrada aqui quando o rótulo canônico não cabe; os demais status
+ * reusam o rótulo integral. Quem exibe a forma curta é obrigado a manter o
+ * rótulo completo acessível (`title` + `aria-label`) — resumir sem remover.
+ */
+export const CONVERSATION_STATUS_SHORT_LABELS: Readonly<Record<string, string>> = {
+  aguardando_transcricao: 'Sem transcrição',
+};
+
 export const OPPORTUNITY_TYPE_LABELS = {
   treinamento: 'Treinamento',
   consultoria: 'Consultoria',
@@ -95,6 +105,15 @@ export const formatConversationType = (value: string | null | undefined) =>
 
 export const formatConversationStatus = (value: string | null | undefined) =>
   formatLabel(value, CONVERSATION_STATUS_LABELS);
+
+/**
+ * Rótulo curto quando existir; caso contrário devolve o rótulo integral — nunca
+ * uma string vazia para um status conhecido.
+ */
+export function formatConversationStatusShort(value: string | null | undefined): string {
+  if (!value) return '';
+  return CONVERSATION_STATUS_SHORT_LABELS[value] ?? formatConversationStatus(value);
+}
 
 export const formatOpportunityType = (value: string | null | undefined) =>
   formatLabel(value, OPPORTUNITY_TYPE_LABELS);
