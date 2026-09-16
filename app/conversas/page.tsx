@@ -354,7 +354,12 @@ const ConversasView = ({ initialSearch }: { initialSearch: string }) => {
                       livePlaud={livePlaud}
                       isMobile={isMobile}
                       onTypeSaved={() => void mutate()}
-                      onSelect={() => router.push(`/conversas/${c.source === "plaud" && /^[0-9a-f]{32}$/i.test(c.sourceFileId || "") ? c.sourceFileId : c.id}`)}
+                      // O acervo sempre navega pelo id interno. A rota por id do
+                      // Plaud (32 hex) existe para a aba "Disponíveis no Plaud",
+                      // onde a gravação ainda não foi ingerida — usá-la aqui faz
+                      // o detalhe consultar a API do Plaud em vez do banco, e
+                      // toda conversa cujo plaud_file_id é hex puro dá 404.
+                      onSelect={() => router.push(`/conversas/${livePlaud && c.sourceFileId ? c.sourceFileId : c.id}`)}
                     />
                   ))}
                 </GlassList>

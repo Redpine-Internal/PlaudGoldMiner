@@ -1,13 +1,16 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { conversations } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { conversationDuration } from '@/lib/presentation/conversation-duration';
 import {
   conversationUpdateSchema,
   formatZodError,
 } from '@/lib/validators/conversation';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (value: string) => UUID_RE.test(value);
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -16,10 +19,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
 
+    // Aceita tanto o id interno quanto o id do Plaud. Links antigos e
+    // marcadores apontam para o id do Plaud, e antes da normalização do
+    // prefixo 'of_' havia gravações indexadas pelas duas formas.
     const result = await db
       .select()
       .from(conversations)
-      .where(eq(conversations.id, id))
+      .where(
+        isUuid(id)
+          ? eq(conversations.id, id)
+          : sql`regexp_replace(${conversations.sourceFileId}, '^of_', '') = ${id.replace(/^of_/, '')}`,
+      )
       .limit(1);
 
     if (result.length === 0) {
