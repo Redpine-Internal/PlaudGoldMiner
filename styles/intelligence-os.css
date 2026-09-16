@@ -773,7 +773,11 @@ main h2 {
 .pgm-clone-history__list button { min-height: 44px; overflow: hidden; padding: 10px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--app-ink); font: 500 14px/20px var(--fontFamily); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .pgm-clone-history__list button[aria-pressed="true"] { background: var(--app-surface-subtle); }
 .pgm-clone-history > a { margin-top: auto; color: var(--app-ink); font-size: 14px; text-decoration: none; }
-.pgm-clone-chat { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 24px 32px 20px; }
+/* `min-height: 0` é o que permite o container de mensagens rolar. Sem ele, o
+   `min-height: auto` padrão de item flex deixa esta seção crescer até o tamanho
+   do conteúdo, a altura vaza para .pgm-clone-messages e o overflow-y: auto de lá
+   nunca tem o que recortar — a conversa empurra a página em vez de rolar. */
+.pgm-clone-chat { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 24px 32px 20px; }
 .pgm-clone-chat > h1 { margin: 0 0 14px; }
 .pgm-clone-chat__rule { height: 1px; margin-bottom: 18px; background: var(--app-hair); }
 .pgm-clone-chat__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -785,6 +789,19 @@ main h2 {
 .pgm-clone-message__actions button { align-items: center; gap: 4px; font-size: 13px; }
 .pgm-clone-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0 82px; }
 .pgm-clone-suggestions .ds-chip { min-height: 44px; background: #fff; border-color: var(--app-hair); font-size: 13px; letter-spacing: .05em; text-transform: uppercase; }
+/* Retorno ao fim da conversa. Só aparece quando a pessoa rolou para cima e há
+   conteúdo novo abaixo — é a saída dessa posição, não um enfeite. Linguagem
+   sóbria: mesma régua de fio de cabelo e tinta do resto da tela. */
+.pgm-clone-to-end {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 48px; margin-top: 10px; padding: 12px 16px;
+  border: 1px solid var(--app-hair); border-radius: 6px;
+  background: var(--app-paper, #fff); color: var(--app-ink);
+  font: 500 13px/20px var(--fontFamily); text-align: center; cursor: pointer;
+}
+.pgm-clone-to-end:hover { border-color: var(--app-ink); }
+.pgm-clone-to-end:focus-visible { outline: 2px solid var(--app-ink); outline-offset: 2px; }
+
 .pgm-clone-composer { display: flex; align-items: stretch; gap: 10px; padding-top: 12px; border-top: 1px solid var(--app-hair); }
 .pgm-clone-modes { display: inline-flex; align-items: center; padding: 3px; border: 1px solid var(--app-hair); border-radius: 6px; }
 .pgm-clone-modes button { min-height: 36px; padding: 7px 12px; border: 0; border-radius: 4px; background: transparent; color: var(--app-muted); font: 500 13px/20px var(--fontFamily); white-space: nowrap; cursor: pointer; }

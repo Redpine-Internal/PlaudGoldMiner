@@ -7,6 +7,7 @@ import { Icon, Markdown } from "@/components/ds";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { fetchJson } from "@/lib/http";
 import { createCloneStream, regenerationHistory, replaceCloneReply, type CloneMessage } from "@/lib/clone/chat-stream";
+import { isAtBottom, shouldFollowBottom } from "@/lib/clone/scroll-anchor";
 
 interface Opportunity {
   id: string;
@@ -123,14 +124,42 @@ function CloneChat({
   const [replyError, setReplyError] = useState<string | null>(null);
   const stream = useRef(createCloneStream());
   const endRef = useRef<HTMLDivElement>(null);
+  // Acompanhar o fim é o padrão; a pessoa desliga isso rolando para cima.
+  const followBottom = useRef(true);
+  // Próxima atualização deve voltar ao fim mesmo se ela estiver rolada para cima
+  // (ela acabou de enviar algo — intenção explícita).
+  const forceBottom = useRef(false);
+  const [showBackToEnd, setShowBackToEnd] = useState(false);
 
   useEffect(() => {
     const currentStream = stream.current;
     return () => currentStream.cancel();
   }, []);
 
+  const scrollToEnd = () => {
+    const node = endRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+    followBottom.current = true;
+    setShowBackToEnd(false);
+  };
+
+  // Só reancora no fim quem já estava no fim. Sem isso, cada fragmento do
+  // streaming arranca de volta quem rolou para cima para reler.
   useEffect(() => {
-    if (endRef.current) endRef.current.scrollTop = endRef.current.scrollHeight;
+    const node = endRef.current;
+    if (!node) return;
+    // `followBottom` foi medido pelo onScroll ANTES deste conteúdo entrar. Medir
+    // o nó agora daria "fora do fim" só porque `scrollHeight` acabou de crescer.
+    const follow = shouldFollowBottom(node, { force: forceBottom.current || followBottom.current });
+    forceBottom.current = false;
+    if (follow) {
+      node.scrollTop = node.scrollHeight;
+      followBottom.current = true;
+      setShowBackToEnd(false);
+    } else {
+      setShowBackToEnd(true);
+    }
   }, [msgs, thinking]);
 
   useEffect(() => {
@@ -173,6 +202,8 @@ function CloneChat({
     const q = (text ?? input).trim();
     if (!q || stream.current.pending) return;
     setInput("");
+    // Enviar é intenção explícita de ver a própria mensagem: volta ao fim.
+    forceBottom.current = true;
     const history: CloneMessage[] = [...msgs, { id: crypto.randomUUID(), role: "user", text: q }];
     const replyId = crypto.randomUUID();
     setMsgs([...history, { id: replyId, role: "clone", text: "" }]);
@@ -221,7 +252,20 @@ function CloneChat({
       </p>
       <div className="pgm-clone-chat__rule" />
       <div className="pgm-clone-chat__body">
-        <div ref={endRef} className="pgm-clone-messages" aria-label="Mensagens do Chat" aria-busy={streaming}>
+        <div
+          ref={endRef}
+          className="pgm-clone-messages"
+          aria-label="Mensagens do Chat"
+          aria-busy={streaming}
+          onScroll={(event) => {
+            // Sem `scrollend`: o suporte no Safari é irregular e o momentum do
+            // iOS continua emitindo `scroll` depois do toque terminar. Medir a
+            // cada evento é barato e sempre reflete a posição real.
+            const atEnd = isAtBottom(event.currentTarget);
+            followBottom.current = atEnd;
+            setShowBackToEnd((current) => (atEnd ? false : current));
+          }}
+        >
           {msgs.map((m) =>
             m.role === "user" ? (
               <div
@@ -270,6 +314,12 @@ function CloneChat({
           </div>
           ) : null}
         </div>
+        {showBackToEnd ? (
+          <button type="button" className="pgm-clone-to-end" onClick={scrollToEnd}>
+            <Icon name="chevron-down" size={15} />
+            {streaming ? "Resposta continua abaixo — voltar ao fim" : "Voltar ao fim da conversa"}
+          </button>
+        ) : null}
         {replyError ? <p role="alert" style={{ color: "var(--accent-error)", margin: "8px 0" }}>{replyError}</p> : null}
         <span role="status" style={{ fontSize: 13, color: "var(--textSecondary)" }}>{actionNotice || (streaming && !thinking ? "Recebendo resposta..." : "")}</span>
         <div className="pgm-clone-composer">
