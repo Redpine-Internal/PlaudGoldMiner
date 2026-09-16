@@ -4,10 +4,37 @@ import { conversations } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { conversationDuration } from '@/lib/presentation/conversation-duration';
+import { getFile } from '@/lib/plaud/client';
 import {
   conversationUpdateSchema,
   formatZodError,
 } from '@/lib/validators/conversation';
+
+/**
+ * URL do áudio da gravação. O arquivo não fica no banco: o Plaud emite uma URL
+ * assinada e temporária, buscada a cada leitura do detalhe.
+ *
+ * O id é guardado sem o prefixo `of_` (chave de idempotência da ingestão), mas a
+ * API do Plaud só responde à forma prefixada — o id nu devolve 404. Por isso o
+ * prefixo é reposto aqui na chamada.
+ *
+ * Falha do Plaud (offline, token expirado, gravação removida) não pode derrubar
+ * a conversa: sem áudio, o detalhe continua servindo transcrição e resumo.
+ */
+async function plaudAudioUrl(
+  source: string | null,
+  sourceFileId: string | null,
+): Promise<string | null> {
+  if (source !== 'plaud' || !sourceFileId) return null;
+  const remoteId = sourceFileId.startsWith('of_') ? sourceFileId : `of_${sourceFileId}`;
+  try {
+    const file = await getFile(remoteId);
+    return file.presigned_url ?? null;
+  } catch (error) {
+    console.warn('[API] áudio do Plaud indisponível para', remoteId, error);
+    return null;
+  }
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (value: string) => UUID_RE.test(value);
@@ -46,6 +73,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         ...conversation,
         status,
         duration: conversationDuration(conversation.duration, conversation.source),
+        audioUrl: await plaudAudioUrl(conversation.source, conversation.sourceFileId),
       },
     });
   } catch (error) {
