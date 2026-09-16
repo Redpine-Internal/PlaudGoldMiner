@@ -1,8 +1,9 @@
 "use client";
 import type React from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
+import { unsupportedAudioFormat } from "@/lib/presentation/audio-format";
 import { Icon, Tabs, TypeBadge, StatusBadge, EmptyState, Button, ScoreBadge, Markdown } from "@/components/ds";
 import type { ConversationAiAnalysis } from "@/lib/ai/conversation-analysis-store";
 import { formatOpportunityStatus, formatOpportunityType } from "@/lib/presentation/labels";
@@ -427,6 +428,10 @@ function ConversationAudio({ url, title, onRefresh, refreshing }: {
 }) {
   const audio = useRef<HTMLAudioElement | null>(null);
   const [failed, setFailed] = useState(false);
+  const [unsupported, setUnsupported] = useState<string | null>(null);
+  useEffect(() => {
+    setUnsupported(unsupportedAudioFormat(url));
+  }, [url]);
   const retry = async () => {
     try {
       await onRefresh();
@@ -441,7 +446,19 @@ function ConversationAudio({ url, title, onRefresh, refreshing }: {
       <audio ref={audio} src={url} controls preload="metadata" aria-label={`Áudio de ${title}`} onError={() => setFailed(true)} onLoadedMetadata={() => setFailed(false)} style={{ width: "100%", maxWidth: 560, height: 48 }}>
         Seu navegador não suporta reprodução de áudio.
       </audio>
-      {failed ? <div role="alert"><p>Não foi possível carregar o áudio. O link pode ter expirado.</p><Button variant="outline" size="sm" onClick={() => void retry()} disabled={refreshing}>{refreshing ? "Atualizando áudio…" : "Tentar carregar o áudio novamente"}</Button></div> : null}
+      {unsupported ? (
+        <div role="status" style={{ marginTop: 8 }}>
+          <p style={{ margin: "0 0 8px" }}>
+            Esta gravação está em {unsupported}, formato que o Safari não reproduz.
+            Baixe o arquivo para ouvir, ou abra esta conversa no Chrome ou no Firefox.
+          </p>
+          <a href={url} download className="ds-button ds-button--outline ds-button--sm">
+            Baixar o áudio
+          </a>
+        </div>
+      ) : failed ? (
+        <div role="alert"><p>Não foi possível carregar o áudio. O link pode ter expirado.</p><Button variant="outline" size="sm" onClick={() => void retry()} disabled={refreshing}>{refreshing ? "Atualizando áudio…" : "Tentar carregar o áudio novamente"}</Button></div>
+      ) : null}
     </div>
   );
 }
