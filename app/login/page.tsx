@@ -100,6 +100,11 @@ export default function LoginPage() {
       <section className={styles.formPanel} aria-labelledby="login-title">
         <form
           className={styles.form}
+          // Defesa em profundidade: o submit é tratado em JS (preventDefault).
+          // Se a hidratação falhar, o navegador faz o envio nativo — com method
+          // GET (padrão) a senha iria na query string, para o histórico e os
+          // logs. POST mantém as credenciais no corpo da requisição.
+          method="post"
           aria-busy={loading !== null}
           onSubmit={(event) => {
             event.preventDefault();
