@@ -16,6 +16,10 @@ export default function LoginPage() {
     const reason = new URLSearchParams(window.location.search).get("error");
     if (reason === "access") {
       setError("Este usuário não possui acesso ao Plaud Gold Miner.");
+    } else if (reason === "consent") {
+      setError(
+        "A EHS Brasil precisa autorizar o Plaud Gold Miner antes do primeiro acesso. Peça a liberação ao administrador do Microsoft 365.",
+      );
     } else if (reason === "sso") {
       setError("Não foi possível entrar com a Microsoft. Tente novamente.");
     }
@@ -54,7 +58,7 @@ export default function LoginPage() {
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: "azure",
         options: {
-          scopes: "email",
+          scopes: "openid profile email",
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });

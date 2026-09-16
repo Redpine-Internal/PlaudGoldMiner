@@ -31,6 +31,26 @@ describe('GET /auth/callback', () => {
     expect(response.headers.get('location')).toBe('https://app.example.com/conteudos');
   });
 
+  it('identifica consentimento negado pelo Entra ID sem trocar código', async () => {
+    const response = await GET(
+      new NextRequest(
+        'https://app.example.com/auth/callback?error=access_denied&error_description=AADSTS65001',
+      ),
+    );
+
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(response.headers.get('location')).toBe('https://app.example.com/login?error=consent');
+  });
+
+  it('trata outros erros do provedor como falha genérica de SSO', async () => {
+    const response = await GET(
+      new NextRequest('https://app.example.com/auth/callback?error=server_error'),
+    );
+
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(response.headers.get('location')).toBe('https://app.example.com/login?error=sso');
+  });
+
   it('impede redirecionamento para outro domínio', async () => {
     exchangeCodeForSession.mockResolvedValueOnce({ error: null });
     getUser.mockResolvedValueOnce({
