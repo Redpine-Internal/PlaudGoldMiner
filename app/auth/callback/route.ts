@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { isAllowedUserEmail } from '@/lib/auth/access';
 import { createClient } from '@/lib/supabase/server';
 import { requestOrigin } from '@/lib/auth/request-origin';
+import { staleVerifierCookieNames } from '@/lib/auth/pkce-cookies';
 
 function safeNextPath(value: string | null) {
   return value?.startsWith('/') && !value.startsWith('//') ? value : '/';
@@ -26,6 +27,32 @@ function safeFlowId(value: string | null) {
   return value && FLOW_ID_PATTERN.test(value) ? value : null;
 }
 
+/**
+ * Redireciona apagando os cookies de code verifier do PKCE.
+ *
+ * Chegar aqui encerra o fluxo em qualquer desfecho: com sessão criada o code
+ * já virou sessão, e nos caminhos de erro a tentativa acabou. Em nenhum deles
+ * resta verifier pendente legítimo, então todos são lixo — inclusive os órfãos
+ * que a corrida no índice do auth-js deixa fora do alcance da limpeza dele.
+ *
+ * Órfãos acumulados engordam o header `Cookie` até o teto de 16KB do Node, que
+ * responde 431 antes de qualquer código da aplicação rodar: uma tela branca
+ * depois de um login bem-sucedido, sem erro visível em lugar nenhum.
+ */
+function redirectClearingVerifiers(request: NextRequest, url: URL) {
+  const response = NextResponse.redirect(url);
+
+  for (const name of staleVerifierCookieNames(
+    request.cookies.getAll().map((cookie) => cookie.name),
+  )) {
+    // O path precisa bater com o da escrita (o @supabase/ssr usa `/`), senão o
+    // navegador trata como outro cookie e o original sobrevive.
+    response.cookies.set(name, '', { path: '/', maxAge: 0 });
+  }
+
+  return response;
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const next = safeNextPath(request.nextUrl.searchParams.get('next'));
@@ -43,7 +70,7 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get('error_subcode') === 'cancel'
         ? 'consent'
         : 'sso';
-    return NextResponse.redirect(new URL(`/login?error=${reason}`, origin));
+    return redirectClearingVerifiers(request, new URL(`/login?error=${reason}`, origin));
   }
 
   if (code) {
@@ -57,13 +84,13 @@ export async function GET(request: NextRequest) {
         data: { user },
       } = await supabase.auth.getUser();
       if (isAllowedUserEmail(user?.email)) {
-        return NextResponse.redirect(new URL(next, origin));
+        return redirectClearingVerifiers(request, new URL(next, origin));
       }
 
       await supabase.auth.signOut();
-      return NextResponse.redirect(new URL('/login?error=access', origin));
+      return redirectClearingVerifiers(request, new URL('/login?error=access', origin));
     }
   }
 
-  return NextResponse.redirect(new URL('/login?error=sso', origin));
+  return redirectClearingVerifiers(request, new URL('/login?error=sso', origin));
 }
