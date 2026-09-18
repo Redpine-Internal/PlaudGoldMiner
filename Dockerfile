@@ -42,4 +42,16 @@ USER nextjs
 EXPOSE 8080
 # server.js é gerado pelo output standalone e respeita $PORT/$HOSTNAME.
 ENV HOSTNAME=0.0.0.0
-CMD ["node", "server.js"]
+# O Node recusa com 431 (Request Header Fields Too Large) qualquer requisição
+# cujos headers passem de 16KB — o padrão de --max-http-header-size. O cookie de
+# sessão do Supabase (JWT fatiado em chunks) somado aos slots de code verifier do
+# PKCE chegou nesse teto em produção: o SSO autenticava, o callback redirecionava
+# para /, e / respondia 431 sem corpo — tela branca depois de um login que deu
+# certo. Nenhuma resposta de erro chega ao usuário porque o 431 é emitido pelo
+# parser de HTTP, antes de qualquer código da aplicação rodar.
+#
+# 32KB é folga para o pior caso realista (sessão + os 5 slots PKCE que o auth-js
+# mantém). Não é licença para o header crescer sem limite: a limpeza dos
+# verifiers órfãos em app/auth/callback/route.ts ataca a causa, este teto é a
+# rede de segurança para o que escapar dela.
+CMD ["node", "--max-http-header-size=32768", "server.js"]
