@@ -9,11 +9,13 @@ import { PlaudAuthError } from '@/lib/plaud/tokens';
 import { pool } from '@/lib/db';
 import { ingestPlaudFile, stagePlaudFile, type PlaudFileStageResult } from '@/lib/plaud/ingest';
 import { processPendingConversations, type ProcessPendingSummary } from '@/lib/plaud/process-pending';
+import { classifyPendingSpeakerSides, type ClassifySidesSummary } from '@/lib/plaud/classify-pending-sides';
 import { startIngestRun, finishIngestRun, type IngestSummary } from '@/lib/plaud/run-log';
 
 export interface FullIngestResult {
   ingest: IngestSummary;
   processing: ProcessPendingSummary;
+  sides: ClassifySidesSummary;
 }
 
 /** Erro com o resumo parcial da varredura (para a rota devolver `partial`). */
@@ -140,8 +142,22 @@ export async function runFullIngest(trigger: 'manual' | 'cron', maxPages?: numbe
     }
 
     const processing = await processPendingConversations();
+
+    // Classificação de lado do falante. Best-effort por desenho: a varredura e
+    // o processamento já terminaram e estão persistidos, então uma falha do
+    // TypeSafe aqui não pode derrubar uma ingestão que deu certo. O que não for
+    // classificado agora continua pendente para a próxima execução.
+    let sides: ClassifySidesSummary = { classified: 0, skipped: 0, failed: 0, unusable: 0 };
+    try {
+      sides = await classifyPendingSpeakerSides();
+    } catch (e) {
+      console.warn(
+        `[Sides] Etapa ignorada: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+
     await finishIngestRun(runId, { ok: summary.errors.length === 0, summary, processing });
-    return { ingest: summary, processing };
+    return { ingest: summary, processing, sides };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (runId) {
