@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { streamText } from 'ai';
-import { anthropic, DEFAULT_MODEL, isAiConfigured, checkTokenBudget, estimateTokens } from '@/lib/ai/client';
+import { anthropic, DEFAULT_MODEL, isAiConfigured, checkTokenBudget } from '@/lib/ai/client';
 import { db } from '@/lib/db';
 import { conversations, opportunities, contents, userProfile } from '@/lib/db/schema';
 import { desc, eq, inArray, sql } from 'drizzle-orm';
@@ -10,6 +10,7 @@ import {
   contentIsEligibleSql,
   opportunityHasEligibleSourceSql,
 } from '@/lib/conversations/classification';
+import { perConversationChars, trimToBudget } from '@/lib/clone/context-budget';
 
 const chatRequestSchema = z.object({
   messages: z
@@ -67,7 +68,9 @@ async function buildContext(): Promise<string> {
   // give each a per-conversation summary budget that shrinks as the number of
   // conversations grows — this is what lets the Clone answer "quem é X?" and
   // "quais os temas de Y?" instead of being blind past the first 240 chars.
-  const perConvChars = Math.max(600, Math.floor((CONTEXT_TOKEN_BUDGET * 3.5) / Math.max(1, convs.length)));
+  //
+  // The budget is a SHARE of the total, not the total — see lib/clone/context-budget.
+  const perConvChars = perConversationChars(CONTEXT_TOKEN_BUDGET, convs.length);
   parts.push(
     `CONVERSAS (${convs.length}):\n` +
       convs
@@ -100,16 +103,11 @@ async function buildContext(): Promise<string> {
     );
   }
 
-  const context = parts.join('\n\n');
-
-  // Hard cap: if the assembled context still exceeds the budget (many long
-  // summaries), trim from the end so we never blow past Azure's per-minute
-  // window. The conversation block is first, so it survives the trim.
-  const maxChars = CONTEXT_TOKEN_BUDGET * 3.5;
-  if (estimateTokens(context) > CONTEXT_TOKEN_BUDGET) {
-    return context.slice(0, Math.floor(maxChars)) + '\n\n[…contexto truncado para caber na cota…]';
-  }
-  return context;
+  // Hard cap. Trims the CONVERSATION block, not the end of the text: cutting
+  // from the end deleted whole sections, and conversations come first — so the
+  // ones that vanished were opportunities and contents, exactly what the Clone
+  // needed to answer "quais oportunidades existem?".
+  return trimToBudget(parts, CONTEXT_TOKEN_BUDGET);
 }
 
 const SYSTEM_PROMPT = `Você é o "Clone" — um assistente pessoal que aprendeu com as conversas, oportunidades e conteúdos do usuário.

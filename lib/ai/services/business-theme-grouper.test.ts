@@ -48,6 +48,10 @@ const tema = (name: string, refs: string[], rationale = 'o que une o grupo') => 
   opportunityRefs: refs,
 });
 
+/** Refs sequenciais de um lote: refs(1, 3) => ['N1','N2','N3']. */
+const refs = (from: number, to: number) =>
+  Array.from({ length: to - from + 1 }, (_, i) => `N${from + i}`);
+
 beforeEach(() => {
   responses.length = 0;
 });
@@ -176,13 +180,75 @@ describe('validação de entrada', () => {
     expect(res.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('recusa lista grande demais para uma resposta só', async () => {
-    const muitos = Array.from({ length: 121 }, (_, i) => neg(`id${i}`));
+  it('recusa acervo acima do teto de segurança', async () => {
+    // Acima de MAX_ITEMS (400) o agrupamento levaria minutos de chamadas
+    // sequenciais — quem chama decide filtrar, arquivar ou paginar.
+    const muitos = Array.from({ length: 401 }, (_, i) => neg(`id${i}`));
 
     const res = await groupBusinessThemes(muitos);
 
     expect(res.success).toBe(false);
     if (res.success) return;
     expect(res.error.code).toBe('VALIDATION_ERROR');
+  });
+
+});
+
+describe('conjunto maior que um lote', () => {
+  /**
+   * O acervo cresceu além de um lote e a tela "Por tema" parou de atualizar
+   * (o agrupador recusava acima de 120). Agora divide em lotes e consolida:
+   * o mesmo assunto sai de lotes diferentes com nomes diferentes, e a segunda
+   * passada funde os dois num tema só.
+   */
+  it('divide em lotes e funde temas equivalentes de lotes diferentes', async () => {
+    // 100 negócios = 2 lotes (80 + 20).
+    const muitos = Array.from({ length: 100 }, (_, i) => neg(`id${i}`));
+
+    // Lote 1 (refs N1..N80) e lote 2 (refs N1..N20) — a numeração reinicia
+    // por lote, que é o que a consolidação precisa resolver sem confundir.
+    responses.push({ themes: [tema('Gestão de terceiros', refs(1, 80))] });
+    responses.push({ themes: [tema('Governança de contratadas', refs(1, 20))] });
+    // Consolidação: os 2 temas acima viram itens N1 e N2, e são o mesmo.
+    responses.push({ themes: [tema('Gestão de terceiros', ['N1', 'N2'])] });
+
+    const res = await groupBusinessThemes(muitos);
+
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+
+    // Um tema só, com todos os 100 negócios — nenhum perdido, nenhum duplicado.
+    expect(res.data).toHaveLength(1);
+    expect(res.data[0].name).toBe('Gestão de terceiros');
+    expect(res.data[0].opportunityIds).toHaveLength(100);
+    expect(new Set(res.data[0].opportunityIds).size).toBe(100);
+  });
+
+  it('mantém os temas dos lotes quando a consolidação falha', async () => {
+    const muitos = Array.from({ length: 100 }, (_, i) => neg(`id${i}`));
+
+    responses.push({ themes: [tema('Tema A', refs(1, 80))] });
+    responses.push({ themes: [tema('Tema B', refs(1, 20))] });
+    // Sem 3ª resposta: a consolidação falha. Agrupamento parcial > erro na tela.
+
+    const res = await groupBusinessThemes(muitos);
+
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    expect(res.data).toHaveLength(2);
+    // A cobertura continua valendo mesmo com a consolidação quebrada.
+    expect(res.data.flatMap((t) => t.opportunityIds)).toHaveLength(100);
+  });
+
+  it('segue com os lotes que deram certo quando um lote falha', async () => {
+    const muitos = Array.from({ length: 100 }, (_, i) => neg(`id${i}`));
+
+    responses.push({ themes: [tema('Tema A', refs(1, 80))] });
+    // Lote 2 falha (sem resposta) e a consolidação também: sobra o lote 1.
+    const res = await groupBusinessThemes(muitos);
+
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    expect(res.data.flatMap((t) => t.opportunityIds)).toHaveLength(80);
   });
 });

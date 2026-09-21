@@ -37,15 +37,43 @@ export type GroupThemesResponse =
   | { success: false; error: { code: string; message: string; details?: unknown } };
 
 /**
- * Só os títulos vão para o modelo, então o conjunto inteiro cabe numa
- * requisição com folga mesmo com a cota apertada da Azure. Acima disso o custo
- * de uma resposta truncada é alto (o agrupamento fica pela metade), então
- * preferimos recusar e deixar o chamador decidir.
+ * Negócios por requisição. Só título/tipo/subtipo vão ao modelo (~47 chars por
+ * negócio), mas a cota da Azure é de 10k tokens/min e a resposta cresce junto
+ * com a entrada: acima disso o risco é `finish_reason=length`, que deixa o
+ * agrupamento pela metade.
+ *
+ * Conjuntos maiores não são recusados — são divididos em lotes e consolidados
+ * numa segunda passada (ver `groupBusinessThemes`). Recusar era pior: a tela
+ * "Por tema" simplesmente parava de atualizar quando o acervo crescia.
  */
-const MAX_ITEMS = 120;
+const BATCH_SIZE = 80;
 
 /**
- * Agrupa os negócios em temas usando UMA chamada de IA.
+ * Teto de segurança. Cada lote é uma chamada à Azure e as chamadas são
+ * sequenciais (a cota é por minuto), então um acervo muito grande levaria
+ * minutos. Acima disso o chamador decide — filtrar, arquivar ou paginar.
+ */
+const MAX_ITEMS = 400;
+
+/** Divide em lotes de no máximo `size`, preservando a ordem. */
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/**
+ * Agrupa os negócios em temas.
+ *
+ * Até `BATCH_SIZE`, é UMA chamada de IA. Acima disso são duas passadas:
+ *   1. cada lote vira temas (chamadas sequenciais, respeitando a cota);
+ *   2. os temas de todos os lotes são reagrupados entre si, porque o mesmo
+ *      assunto aparece em lotes diferentes com nomes diferentes.
+ *
+ * A consolidação usa a mesma chamada de agrupamento, tratando cada tema do
+ * primeiro passo como um item — são poucos e curtos, então cabe numa
+ * requisição. Se ela falhar, os temas do passo 1 são devolvidos como estão:
+ * agrupamento parcial ainda é melhor que erro na tela.
  *
  * O resultado é caro o suficiente para ser cacheado pelo chamador — ver
  * app_business_themes / app_business_theme_members. Esta função não toca no
@@ -82,6 +110,43 @@ export async function groupBusinessThemes(
     };
   }
 
+  const batches = chunk(items, BATCH_SIZE);
+
+  // Caminho simples: cabe numa requisição, sem consolidação.
+  if (batches.length === 1) {
+    const res = await groupOneBatch(items);
+    if (!res.success) return res;
+    return { success: true, data: res.data };
+  }
+
+  // Passo 1: cada lote vira temas. Sequencial — a cota da Azure é por minuto,
+  // então lotes em paralelo só adiantariam o 429.
+  const partial: GroupedTheme[] = [];
+  for (const [i, batch] of batches.entries()) {
+    console.log(`[AI] Agrupamento: lote ${i + 1}/${batches.length} (${batch.length} negócios)...`);
+    const res = await groupOneBatch(batch);
+    // Um lote que falha não invalida os anteriores: o que já foi agrupado vale.
+    // Só propaga o erro se nenhum lote tiver dado certo.
+    if (!res.success) {
+      if (!partial.length) return res;
+      console.error(`[AI] Agrupamento: lote ${i + 1} falhou, seguindo com os anteriores.`);
+      continue;
+    }
+    partial.push(...res.data);
+  }
+
+  if (partial.length <= 1) return { success: true, data: partial };
+
+  // Passo 2: o mesmo assunto aparece em lotes diferentes com nomes diferentes
+  // ("Gestão de terceiros" no lote 1, "Governança de contratadas" no lote 2).
+  // Reagrupa os temas entre si e funde os membros dos que forem o mesmo.
+  console.log(`[AI] Agrupamento: consolidando ${partial.length} temas dos lotes...`);
+  const merged = await consolidateThemes(partial);
+  return { success: true, data: merged };
+}
+
+/** Uma requisição de agrupamento sobre um conjunto que cabe em `BATCH_SIZE`. */
+async function groupOneBatch(items: ThemeCandidate[]): Promise<GroupThemesResponse> {
   const refToId = new Map<string, string>();
   const inputs: BusinessThemeInput[] = items.map((o, idx) => {
     const ref = `N${idx + 1}`;
@@ -93,6 +158,71 @@ export async function groupBusinessThemes(
   if (!res.success) return res;
 
   return { success: true, data: resolveThemes(res.data, refToId, items) };
+}
+
+/**
+ * Funde temas equivalentes vindos de lotes diferentes.
+ *
+ * Trata cada tema como um item de agrupamento (nome = título) e reaproveita a
+ * mesma chamada. O resultado diz quais temas são o mesmo; os membros de cada
+ * grupo são concatenados sem duplicar negócio.
+ *
+ * Falha aqui não é fatal: devolve os temas de entrada inalterados. Ver mais
+ * temas do que o ideal é melhor que ver um erro.
+ */
+async function consolidateThemes(themes: GroupedTheme[]): Promise<GroupedTheme[]> {
+  const byRef = new Map<string, GroupedTheme>();
+  const inputs: BusinessThemeInput[] = themes.map((t, idx) => {
+    const ref = `N${idx + 1}`;
+    byRef.set(ref, t);
+    // O "negócio" aqui é o próprio tema: nome no título, rationale como
+    // subtipo — é o que dá ao modelo o contexto do que o tema reúne.
+    return { ref, title: t.name, type: null, subtype: t.rationale || null };
+  });
+
+  const res = await runGrouping(inputs);
+  if (!res.success) {
+    console.error('[AI] Consolidação de temas falhou, mantendo os temas dos lotes.');
+    return themes;
+  }
+
+  const claimed = new Set<string>();
+  const out: GroupedTheme[] = [];
+
+  for (const group of res.data.themes) {
+    const name = group.name.trim();
+    if (!name) continue;
+
+    const opportunityIds: string[] = [];
+    const seen = new Set<string>();
+    let rationale = group.rationale.trim();
+
+    for (const raw of group.opportunityRefs) {
+      const ref = raw.trim().toUpperCase().replace(/[[\]]/g, '');
+      const theme = byRef.get(ref);
+      if (!theme || claimed.has(ref)) continue;
+      claimed.add(ref);
+      // Sem rationale próprio, herda o do primeiro tema fundido.
+      if (!rationale) rationale = theme.rationale;
+      for (const id of theme.opportunityIds) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        opportunityIds.push(id);
+      }
+    }
+
+    if (!opportunityIds.length) continue;
+    out.push({ name, rationale, opportunityIds });
+  }
+
+  // Tema que a consolidação esqueceu continua valendo por si — mesma garantia
+  // de `resolveThemes`: nenhum negócio pode sumir da tela.
+  for (const [ref, theme] of byRef) {
+    if (claimed.has(ref)) continue;
+    out.push(theme);
+  }
+
+  return out.sort((a, b) => b.opportunityIds.length - a.opportunityIds.length);
 }
 
 /**
