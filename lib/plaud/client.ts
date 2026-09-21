@@ -128,14 +128,50 @@ function findSeg(list: PlaudSegment[] | undefined, type: string): PlaudSegment |
   return (list ?? []).find((s) => s.data_type === type);
 }
 
-/** transaction content is a JSON array of speech segments — join their `content`. */
+/**
+ * transaction content é um array JSON de trechos de fala, cada um com o falante
+ * que o Plaud identificou: `[{content, speaker, start_time, end_time}]`.
+ *
+ * O falante é preservado como prefixo `Speaker N: ` na linha. Antes só o
+ * `content` era aproveitado, e a transcrição virava texto corrido — o que
+ * impede distinguir quem relatou o quê. Numa consultoria isso é a diferença
+ * entre o cliente descrevendo a própria dor e o consultor perguntando sobre
+ * ela, que são sinais opostos para a mineração.
+ *
+ * Trechos consecutivos do mesmo falante são unidos numa linha só: a alternância
+ * é o que importa, e um turno picado em cinco linhas não acrescenta nada.
+ */
 function parseTranscript(raw: string): string {
   try {
     const arr = JSON.parse(raw) as Array<{ content?: string; speaker?: string | number }>;
     if (!Array.isArray(arr)) return raw;
-    return arr
-      .map((s) => (s?.content ?? '').trim())
-      .filter(Boolean)
+
+    const turnos: Array<{ quem: string | null; texto: string }> = [];
+    for (const s of arr) {
+      const texto = (s?.content ?? '').trim();
+      if (!texto) continue;
+      // `speaker` pode vir como número; normaliza para rótulo estável.
+      const bruto = s?.speaker;
+      const quem =
+        bruto === undefined || bruto === null || bruto === ''
+          ? null
+          : typeof bruto === 'number'
+            ? `Speaker ${bruto}`
+            : String(bruto).trim();
+
+      const anterior = turnos[turnos.length - 1];
+      // Só funde quando há falante identificado e é o mesmo. Sem falante não há
+      // como saber se dois trechos são o mesmo turno, e fundi-los colaria falas
+      // de pessoas diferentes num parágrafo só — pior que a quebra original.
+      if (quem !== null && anterior && anterior.quem === quem) {
+        anterior.texto += ` ${texto}`;
+      } else {
+        turnos.push({ quem, texto });
+      }
+    }
+
+    return turnos
+      .map((t) => (t.quem ? `${t.quem}: ${t.texto}` : t.texto))
       .join('\n\n');
   } catch {
     return raw;
@@ -200,3 +236,6 @@ export async function isPlaudConnected(): Promise<boolean> {
     return false;
   }
 }
+
+/** Exposto só para teste: a montagem da transcrição é a parte com regra. */
+export const __testing = { parseTranscript };
