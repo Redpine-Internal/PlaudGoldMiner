@@ -124,11 +124,26 @@ export const opportunitySources = pgTable('app_opportunity_sources', {
 // Um tema agrupa negócios que são a mesma oferta escrita com títulos
 // diferentes. O agrupamento vem de uma chamada de IA e é cacheado aqui — sem
 // cache, abrir a página gastaria cota da Azure toda vez.
+//
+// O tema é PERMANENTE: sobrevive ao reagrupamento (UPSERT por `slug`, não
+// DELETE + INSERT). É o que permite acompanhar um assunto ao longo do tempo —
+// uma nova reunião sobre terceiros fortalece o tema existente em vez de criar
+// outro, e a prioridade que o operador marcou continua lá.
 export const businessThemes = pgTable('app_business_themes', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  /** Nome normalizado — chave estável entre reagrupamentos. */
+  slug: text('slug'),
   /** Uma frase dizendo o que une os negócios do grupo. */
   rationale: text('rationale'),
+  /** Decisão do operador: ativo | priorizado | arquivado. */
+  status: text('status').notNull().default('ativo'),
+  /** Anotação do operador — por que perseguir, com quem falar. */
+  notes: text('notes'),
+  /** Data da conversa mais antiga que sustenta o tema. */
+  firstSeenAt: timestamp('first_seen_at', { withTimezone: true }),
+  /** Data da conversa mais recente — responde "está esfriando?". */
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

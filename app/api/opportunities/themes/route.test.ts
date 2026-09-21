@@ -106,7 +106,7 @@ describe('POST /api/opportunities/themes', () => {
     rowCount: n,
   });
 
-  it('substitui o cache inteiro dentro de uma transação', async () => {
+  it('reagrupa dentro de uma transação, preservando os temas', async () => {
     // Um agrupamento parcial na tela é pior que o antigo: alguns negócios
     // apareceriam sem tema e outros num tema que já não corresponde.
     results.push(candidatos(2));
@@ -114,6 +114,9 @@ describe('POST /api/opportunities/themes', () => {
       success: true,
       data: [{ name: 'Cultura', rationale: 'porque sim', opportunityIds: ['o0', 'o1'] }],
     });
+    // A fila do mock é consumida em ordem: BEGIN e o DELETE dos vínculos vêm
+    // antes do UPSERT, que é quem devolve o id do tema.
+    results.push({ rows: [] }, { rows: [] }, { rows: [{ id: 'tema-existente' }], rowCount: 1 });
 
     const res = await POST();
     const body = await res.json();
@@ -121,14 +124,70 @@ describe('POST /api/opportunities/themes', () => {
     expect(res.status).toBe(200);
     const sqls = calls.map((c) => c.sql.trim());
     expect(sqls).toContain('BEGIN');
-    expect(sqls.some((s) => s.startsWith('DELETE FROM app_business_themes'))).toBe(true);
     expect(sqls).toContain('COMMIT');
-    // O DELETE precisa vir DEPOIS do sucesso da IA: apagar antes deixaria a tela
-    // vazia se o modelo falhasse.
+    // A transação só abre DEPOIS do sucesso da IA: apagar vínculos antes
+    // deixaria a tela vazia se o modelo falhasse.
     expect(sqls.indexOf('BEGIN')).toBeGreaterThan(0);
     expect(calls[0].sql).toContain("status IS DISTINCT FROM 'descartada'");
     expect(body.message).toContain('1 tema');
     expect(release).toHaveBeenCalled();
+  });
+
+  /**
+   * A invariante do tema permanente: antes, cada reagrupamento fazia
+   * `DELETE FROM app_business_themes` e recriava tudo com ids novos. A
+   * prioridade marcada, a nota escrita e a data da primeira conversa sumiam
+   * junto — e marcar prioridade num tema não fazia sentido nenhum.
+   */
+  it('NÃO apaga os temas — só os vínculos são recalculados', async () => {
+    results.push(candidatos(2));
+    groupBusinessThemes.mockResolvedValue({
+      success: true,
+      data: [{ name: 'Cultura', rationale: 'x', opportunityIds: ['o0', 'o1'] }],
+    });
+    results.push({ rows: [] }, { rows: [] }, { rows: [{ id: 't1' }], rowCount: 1 });
+
+    await POST();
+    const sqls = calls.map((c) => c.sql.trim());
+
+    // O DELETE da tabela de temas não pode mais existir.
+    expect(sqls.some((s) => /^DELETE FROM app_business_themes\s*$/.test(s))).toBe(false);
+    // Os vínculos, sim, são recalculados: um negócio pode mudar de tema.
+    expect(sqls.some((s) => s.startsWith('DELETE FROM app_business_theme_members'))).toBe(true);
+    // E o tema é gravado por UPSERT na chave estável.
+    expect(sqls.some((s) => s.includes('ON CONFLICT (slug)'))).toBe(true);
+  });
+
+  it('normaliza o slug para o mesmo tema reencontrar seu registro', async () => {
+    results.push(candidatos(1));
+    groupBusinessThemes.mockResolvedValue({
+      success: true,
+      data: [{ name: '  Gestão   DE Terceiros  ', rationale: null, opportunityIds: ['o0'] }],
+    });
+    results.push({ rows: [] }, { rows: [] }, { rows: [{ id: 't1' }], rowCount: 1 });
+
+    await POST();
+    const upsert = calls.find((c) => c.sql.includes('ON CONFLICT (slug)'));
+
+    // Espaço duplicado e caixa não podem criar um tema novo.
+    expect(upsert?.params[2]).toBe('gestão de terceiros');
+  });
+
+  it('recalcula as datas e arquiva tema que ficou sem negócios', async () => {
+    results.push(candidatos(1));
+    groupBusinessThemes.mockResolvedValue({
+      success: true,
+      data: [{ name: 'Cultura', rationale: null, opportunityIds: ['o0'] }],
+    });
+    results.push({ rows: [] }, { rows: [] }, { rows: [{ id: 't1' }], rowCount: 1 });
+
+    await POST();
+    const sqls = calls.map((c) => c.sql);
+
+    // "Desde quando" e "última menção" saem das conversas, não do registro.
+    expect(sqls.some((s) => s.includes('first_seen_at') && s.includes('LEAST'))).toBe(true);
+    // Tema vazio é arquivado, nunca apagado: pode ter anotação do operador.
+    expect(sqls.some((s) => s.includes("status = 'arquivado'"))).toBe(true);
   });
 
   it('não apaga o cache quando a IA falha', async () => {
