@@ -2,12 +2,13 @@
 
 **Author:** Wesley
 **Date:** 2025-11-28
-**Version:** 1.2 (atualizado 2026-09-02 — sistema em produção)
+**Version:** 1.3 (atualizado 2026-09-21 — TypeSafe, Exa, temas permanentes)
 
 > **Nota de versão.** As seções marcadas com **[IMPLEMENTADO]** descrevem o
-> comportamento que está no ar hoje, verificado no código e no banco. As demais
-> permanecem como intenção de produto. O nome do produto no PRD original era
-> "Andresa AI"; o sistema em produção chama-se **EHS Insights**.
+> comportamento que está no ar hoje, verificado no código e no banco. As marcadas
+> *(especificado, não implementado)* têm decisão tomada e escrita, mas não existem em
+> código ainda. As demais permanecem como intenção de produto. O nome do produto no PRD
+> original era "Andresa AI"; o sistema em produção chama-se **EHS Insights**.
 
 ---
 
@@ -24,6 +25,8 @@ A IA vai além da transcrição e organização. Ela:
 - **Mede recorrência** com denominador explícito ("8 de 50 conversas, 16%"), não contagem solta
 - **Qualifica** o que é oportunidade real e o que é apenas padrão observado
 - **Sustenta cada afirmação** com o trecho da conversa que a originou, linkado à fonte
+- **Separa quem escreve de quem decide** — um modelo redige, outro julga em escala comparável
+- **Confere com o mundo lá fora** — o tema recorrente é cruzado com o mercado que já existe
 
 Exemplo real do sistema: *"Esse tema de treinamento em altura apareceu em 8 de 50 conversas (16%), subindo em relação à geração anterior (5 de 50). Qualificado como oportunidade real, tipo treinamento, subtipo 'Treinamento NR-35', com 8 evidências rastreáveis."*
 
@@ -41,18 +44,18 @@ Exemplo real do sistema: *"Esse tema de treinamento em altura apareceu em 8 de 5
 
 **Status:** em produção no Google Cloud Run. **[IMPLEMENTADO]**
 
-Situação atual (verificada no banco em 2026-09-02):
+Situação atual (verificada no código em 2026-09-21):
 
 | Área | Estado |
 |---|---|
-| Conversas ingeridas | 257 |
-| Oportunidades detectadas | 20 |
-| Temas de negócio | 6 |
-| Conteúdos | 20 |
-| Projetos | 2 |
-| Páginas | 11, todas funcionais (nenhuma placeholder) |
-| Rotas de API | 43 |
-| Testes | 70, cobrindo a lógica de análise e ingestão |
+| Conversas ingeridas | 272 (245 elegíveis para mineração; 27 apresentações da consultora excluídas) |
+| Páginas | 12, todas funcionais (nenhuma placeholder) |
+| Rotas de API | 45 |
+| Tabelas | 15 (`conversations` é VIEW) |
+| Testes | 429, em 56 arquivos |
+
+> Números de conversas/oportunidades/temas variam com a operação; o que está fixado aqui é a
+> superfície do sistema (páginas, rotas, tabelas, testes), medida no código.
 
 ---
 
@@ -86,6 +89,8 @@ O produto é bem-sucedido quando:
 ### Sistemas Externos **[IMPLEMENTADO]**
 - **n8n:** Pipeline de embeddings e agentes, sobre o mesmo Postgres. Comunicação por webhooks autenticados (`x-plaude-api-key`). O app nunca fala com o Postgres do n8n diretamente.
 - **Clone:** Deixou de ser sistema externo. Hoje é chat interno sobre a base (`/api/clone/chat`), com as conversas, oportunidades, conteúdos e perfil como contexto.
+- **TypeSafe (System One / modelo `jev-latest`):** Camada de julgamento tipado. Recebe estado e devolve probabilidade ou nível numa régua ordenada — não texto livre. Usado onde a saída precisa ser comparável e componível em código. Ver "Camada de decisão tipada" na arquitetura.
+- **Exa:** Busca web com conteúdo, para a leitura de mercado por tema. Traz páginas reais e datadas; quem julga o que elas significam é o TypeSafe, não o buscador.
 
 ### Fluxo de Dados **[IMPLEMENTADO]**
 ```
@@ -95,15 +100,27 @@ O produto é bem-sucedido quando:
 └─────────────┘      ├────▶│   EHS Insights   │◀───▶│ Supabase Postgres│
 ┌─────────────┐      │     │  ingestão + IA   │     │  (compartilhado) │
 │Google Drive │──────┘     └──────────────────┘     └──────────────────┘
-│ (opcional)  │                     │                         ▲
-└─────────────┘                     │ webhooks                │
-                                    ▼                         │
-                            ┌──────────────┐                  │
-                            │     n8n      │──────────────────┘
-                            │ embeddings + │
-                            │   agentes    │
-                            └──────────────┘
+│ (opcional)  │              │        │   │                   ▲
+└─────────────┘              │        │   │ webhooks          │
+                  prosa      │        │   └──────────────┐    │
+                  ┌──────────┘        │ julgamento       ▼    │
+                  ▼                   ▼                ┌──────────────┐
+          ┌───────────────┐   ┌───────────────┐        │     n8n      │
+          │ Azure OpenAI  │   │   TypeSafe    │        │ embeddings + │
+          │ generateObject│   │  jev-latest   │        │   agentes    │
+          └───────────────┘   └───────┬───────┘        └──────────────┘
+                                      │ julga sobre
+                                      ▼
+                              ┌───────────────┐
+                              │      Exa      │
+                              │ busca datada  │
+                              └───────────────┘
 ```
+
+**Divisão de trabalho entre os dois modelos.** Azure OpenAI escreve — resumo, pauta,
+rascunho, nome de tema, proposta de ideia. TypeSafe decide — este negócio pertence a este
+tema? este falante está do lado do cliente? este mercado está saturado? A separação existe
+porque decisão precisa ser comparável entre execuções e componível em código; prosa não.
 
 ---
 
@@ -122,6 +139,11 @@ O MVP foca em entregar valor imediato com o mínimo de complexidade técnica.
 | **Oportunidades** | Detecção + qualificação | P0 | **[IMPLEMENTADO]** Separa oportunidade real de padrão observado |
 | **Conexões** | Insights cross-conversation | P0 | **[IMPLEMENTADO]** Análise em lote com recorrência e evidências |
 | **Temas** | Agrupamento por tema recorrente | P0 | **[IMPLEMENTADO]** Une ofertas iguais escritas com títulos diferentes |
+| **Temas** | Tema permanente e acumulativo | P0 | **[IMPLEMENTADO]** Identidade estável por `slug`; reagrupar não destrói o tema nem a marcação do operador |
+| **Temas** | Encaixe incremental do negócio novo | P0 | **[IMPLEMENTADO]** Órfão é roteado contra os temas existentes por julgamento tipado, sem reprocessar o acervo |
+| **Temas** | Leitura de mercado | P1 | **[IMPLEMENTADO]** Exa busca o mercado real do tema; TypeSafe julga saturação, grandes players e se há só conteúdo |
+| **Transcrição** | Quem falou cada trecho | P0 | **[IMPLEMENTADO]** Falante preservado na ingestão (`Speaker N:`); acervo histórico reprocessado |
+| **Mineração** | Excluir apresentações da consultora | P0 | **[IMPLEMENTADO]** Palestra e treinamento dado pela Andresa não são demanda de cliente |
 | **Conteúdos** | Pauta → rascunho integral | P1 | **[IMPLEMENTADO]** Artigo, post, carrossel ou roteiro |
 | **Projetos** | Quadro de tarefas por oportunidade | P1 | **[IMPLEMENTADO]** Com geração de ações por IA |
 | **Clone** | Chat sobre a base | P1 | **[IMPLEMENTADO]** Consulta interna, não export externo |
@@ -245,6 +267,58 @@ Fluxo Alternativo (Google Drive):
 | FR-7.4 | Sistema deve gerar "insight cruzado" combinando informações de múltiplas fontes | P0 |
 | FR-7.5 | Sistema deve exibir "Você sabia?" com conexões descobertas | P1 |
 
+### FR-8: Temas permanentes **[IMPLEMENTADO]**
+
+| ID | Requisito | Prioridade |
+|----|-----------|------------|
+| FR-8.1 | Tema deve ter identidade estável (`slug`) que sobrevive ao reagrupamento | P0 |
+| FR-8.2 | Sistema deve registrar quando o tema apareceu pela primeira e pela última vez | P0 |
+| FR-8.3 | Operador deve poder marcar o tema como ativo, priorizado ou arquivado, e anotar | P0 |
+| FR-8.4 | Negócio novo deve ser encaixado nos temas existentes sem reprocessar o acervo | P0 |
+| FR-8.5 | Sistema deve limitar quantos órfãos processa por execução, para conter custo | P1 |
+
+### FR-9: Leitura de mercado por tema **[IMPLEMENTADO]**
+
+| ID | Requisito | Prioridade |
+|----|-----------|------------|
+| FR-9.1 | Sistema deve buscar na web o que já existe para o tema, com fontes datadas | P1 |
+| FR-9.2 | Sistema deve julgar saturação do mercado numa escala comparável entre temas | P1 |
+| FR-9.3 | Sistema deve indicar se há grandes players e se a oferta existente é só conteúdo | P1 |
+| FR-9.4 | Sistema deve persistir as fontes consultadas e a data da varredura | P1 |
+| FR-9.5 | Leitura de mercado deve ser sob demanda, não automática — cada varredura custa | P1 |
+
+### FR-10: Atribuição de falante **[IMPLEMENTADO]**
+
+| ID | Requisito | Prioridade |
+|----|-----------|------------|
+| FR-10.1 | Ingestão deve preservar qual falante disse cada trecho | P0 |
+| FR-10.2 | Trechos consecutivos do mesmo falante devem virar um turno; trechos sem falante não devem ser fundidos entre si | P0 |
+| FR-10.3 | Sistema deve classificar de que lado está cada falante (consultora, cliente, indeterminado) | P1 |
+| FR-10.4 | Falante com pouca fala deve ser indeterminado sem consultar modelo | P1 |
+| FR-10.5 | Sistema deve medir a proporção de fala indeterminada, ponderada por volume | P1 |
+
+### FR-11: Mineração seletiva **[IMPLEMENTADO]**
+
+| ID | Requisito | Prioridade |
+|----|-----------|------------|
+| FR-11.1 | Apresentação dada pela consultora (palestra, treinamento) não deve entrar no pool de mineração | P0 |
+| FR-11.2 | Detecção deve ser conservadora: na dúvida, não marcar como apresentação | P0 |
+| FR-11.3 | Exclusão deve ser por classificação (`type`), nunca por deleção do registro | P0 |
+| FR-11.4 | Reunião, entrevista e consulta nunca devem ser tratadas como apresentação | P0 |
+
+### FR-12: Qualificação binária *(especificado, não implementado)*
+
+> Metodologia completa em [`qualificacao-metodologia.md`](./qualificacao-metodologia.md).
+> Substitui o score 0-100 por categorias compostas em código a partir de respostas binárias.
+
+| ID | Requisito | Prioridade | Estado |
+|----|-----------|------------|--------|
+| FR-12.1 | Perguntas dos blocos A–E devem ser respondidas por julgamento tipado | P0 | Pendente |
+| FR-12.2 | Categoria deve ser composta em código, não escolhida pelo modelo | P0 | Pendente |
+| FR-12.3 | Sistema deve persistir categoria e estado de atribuição de falante por oportunidade | P0 | Pendente |
+| FR-12.4 | Tela deve exibir categoria no lugar do score numérico | P0 | Pendente |
+| FR-12.5 | Estado de atribuição (`marcado`/`inferido`/`ausente`) deve ser determinado em código | P0 | **Pré-requisito pronto** (FR-10) |
+
 ---
 
 ## Non-Functional Requirements
@@ -272,7 +346,7 @@ Fluxo Alternativo (Google Drive):
 |----|-----------|
 | NFR-3.1 | Dados armazenados com criptografia em repouso |
 | NFR-3.2 | Conexões via HTTPS apenas |
-| NFR-3.3 | API keys de IA armazenadas de forma segura (env vars) |
+| NFR-3.3 | API keys de IA e de busca (`TYPESAFE_API_KEY`, `EXA_API_KEY`, Azure, Anthropic) injetadas pelo Secret Manager via `--set-secrets`, nunca `--set-env-vars` — env var fica legível na configuração da revisão do Cloud Run |
 | NFR-3.4 | Uso pessoal - sem necessidade de autenticação complexa no MVP |
 
 ### NFR-4: Manutenibilidade
@@ -319,8 +393,10 @@ Fluxo Alternativo (Google Drive):
 | **Styling** | Tailwind CSS v4, shadcn/ui | — |
 | **State** | Zustand (local), SWR (dados) | — |
 | **Backend** | Next.js API Routes | Simplicidade, mesmo stack |
-| **IA — análise** | Azure OpenAI via AI SDK | `generateObject` com schema Zod garante saída estruturada |
+| **IA — prosa** | Azure OpenAI via AI SDK | `generateObject` com schema Zod garante saída estruturada |
+| **IA — decisão** | TypeSafe System One (`jev-latest`) | Julgamento tipado: probabilidade ou nível em régua ordenada, comparável entre execuções |
 | **IA — clone** | Anthropic Claude via AI SDK | Streaming de chat sobre a base |
+| **Busca web** | Exa (`/search` com conteúdo) | Páginas reais e datadas para a leitura de mercado |
 | **Database** | Supabase Postgres + Drizzle ORM | Compartilhado com os agentes n8n |
 | **Auth** | Supabase Auth (email/senha) | Sessão validada no middleware a cada request |
 | **Ingestão** | API do Plaud | Varredura completa, idempotente |
@@ -342,11 +418,52 @@ Secret Manager — invalida no primeiro refresh feito por outra instância. Com 
 `min-instances=0`, o estado precisa ser central. O refresh roda sob `SELECT ... FOR UPDATE`
 para que instâncias concorrentes não invalidem o token uma da outra. Ver ADR-0001.
 
-**Agrupamento por tema é cacheado** em `app_business_themes`. Sem cache, abrir "Novos
-Negócios" consumiria cota da Azure a cada visita.
+**Tema deixou de ser cache e virou entidade.** Antes, `app_business_themes` era resultado
+descartável do agrupamento: reagrupar apagava tudo e recriava com ids novos, levando junto
+qualquer marcação do operador. Hoje o tema tem `slug` estável, `first_seen_at`/`last_seen_at`,
+`status` e `notes`, e o reagrupamento é UPSERT por `slug`. O tema acumula histórico em vez de
+renascer a cada varredura.
+
+**Encaixe incremental no lugar de reagrupamento total.** Negócio novo é roteado contra os
+temas que já existem, em blocos, com teto por execução. Reprocessar o acervo inteiro a cada
+conversa nova seria caro e instável — o tema mudaria de forma sem que nada de relevante
+tivesse mudado.
 
 **Prioridade da oportunidade vive em `app_opportunities`**, não na tabela de temas, para
 sobreviver a um reagrupamento.
+
+**Buscador e juiz são separados na leitura de mercado.** O Exa traz páginas reais e datadas;
+o julgamento de saturação é feito depois, sobre esses resultados. Pedir a conclusão direto ao
+buscador produziria opinião sem fonte; pedir ao modelo sem buscar produziria opinião sem
+mundo.
+
+**A exclusão de apresentações é classificação, não deleção.** Palestra e treinamento dados
+pela consultora são gravações legítimas — só não são demanda de cliente. Ficam no acervo com
+`type='treinamento'` e saem do pool de mineração pelo filtro `miningEligible`. Detecção é
+conservadora por desenho: na dúvida, não marca.
+
+### Camada de decisão tipada **[IMPLEMENTADO]**
+
+Um cliente único (`lib/ai/typesafe-client.ts`) expõe três primitivas e nunca lança exceção —
+indisponibilidade devolve resultado vazio e quem chama decide o fallback:
+
+| Primitiva | Devolve | Uso |
+|---|---|---|
+| `noul` | Probabilidade de sim | "Este falante representa o cliente?" |
+| `score` | Nível numa régua ordenada (até 10) | "Quão saturado está este mercado?" |
+| `choice` | Uma entre até 255 opções | "Qual trecho sustenta esta dor?" |
+
+Perguntas sobre o mesmo estado vão num único request, e o limiar deixou de ser número mágico
+no código: virou régua nomeada, e a decisão (`decide()`) virou código legível.
+
+**Serviços em produção:** roteamento de tema (`theme-router.ts`, consumido pelo encaixe
+incremental) e leitura de mercado (`market-scan.ts`, consumido por
+`/api/opportunities/themes/[id]/market`).
+
+**Serviços prontos mas ainda não ligados ao pipeline:** classificação de lado do falante
+(`speaker-side.ts`) e seleção de evidência (`evidence-selector.ts`) — hoje exercitados por
+testes e por scripts de medição de viabilidade. Entram junto com a qualificação binária
+(FR-12).
 
 **O ambiente local roda em container.** `next dev` não reproduz o runtime de produção — um bug
 de autenticação (`UntrustedHost`) só apareceu no build standalone, depois de já estar no ar.
@@ -360,7 +477,7 @@ de autenticação (`UntrustedHost`) só apareceu no build standalone, depois de 
 | `conversations` (view sobre `meetings` + `summaries`) | Gravação ingerida: transcrição, resumo, participantes, data |
 | `app_opportunities` | Oportunidade detectada: dor, contexto, score, tipo, subtipo, status, prioridade |
 | `app_opportunity_sources` | Evidências: as conversas que originaram a oportunidade, com o trecho justificador |
-| `app_business_themes` | Tema que agrupa ofertas iguais escritas com títulos diferentes |
+| `app_business_themes` | Tema permanente: `slug` estável, janela (`first_seen_at`/`last_seen_at`), `status`, `notes` e leitura de mercado (`market_saturation`, `market_confidence`, `market_big_players`, `market_content_only`, `market_sources`, `market_scanned_at`) |
 | `app_business_theme_members` | Vínculo oportunidade → tema (um tema por oportunidade) |
 | `app_contents` | Pauta ou artigo completo, com rascunho gerado |
 | `app_content_sources` | Evidências da pauta |
@@ -396,13 +513,14 @@ interface Opportunity {
 
 ### API Routes **[IMPLEMENTADO]**
 
-43 rotas. As principais, por domínio:
+45 rotas. As principais, por domínio:
 
 | Domínio | Rotas | Papel |
 |---|---|---|
 | **Ingestão Plaud** | `/api/plaud/ingest` · `/ingest/status` · `/sync` · `/files` · `/files/[id]` · `/analyze` | Varredura (cron autenticado por `INGEST_CRON_SECRET` ou botão da UI), status e análise |
 | **Conversas** | `/api/conversations` · `/[id]` · `/[id]/opportunities` · `/upload` | Listagem, detalhe, oportunidades geradas |
-| **Oportunidades** | `/api/opportunities` · `/[id]` · `/[id]/sources` · `/analyze` · `/themes` · `/idea` | CRUD, evidências, análise em lote, agrupamento por tema, ideia gerada |
+| **Oportunidades** | `/api/opportunities` · `/[id]` · `/[id]/sources` · `/analyze` · `/idea` | CRUD, evidências, análise em lote, ideia gerada |
+| **Temas** | `/api/opportunities/themes` · `/themes/[id]` (PATCH) · `/themes/[id]/market` (POST) | Agrupamento, marcação do operador (`status`/`notes`), leitura de mercado sob demanda |
 | **Conteúdos** | `/api/contents` · `/[id]` · `/[id]/draft` · `/[id]/sources` · `/analyze` | Pauta, rascunho integral, evidências |
 | **Projetos** | `/api/projects` · `/[id]` · `/[id]/columns` · `/[id]/generate` · `/[id]/tasks` · `/api/tasks/[id]` · `/api/columns/[id]` | Quadro de tarefas com geração por IA |
 | **Enriquecimento** | `/api/enrichment` · `/interesting` · `/reference` · `/upload` | Assuntos de interesse e material de referência |
@@ -423,6 +541,9 @@ Todas exigem sessão, exceto `/api/plaud/ingest` com o header `x-ingest-secret` 
 | **Custo de API** - Processamento de muitas transcrições fica caro | Médio | Médio | Usar modelos mais baratos para tarefas simples, cache de resultados |
 | **Formato Plaud** - Formato de exportação muda | Baixo | Baixo | Abstrair parser, documentar formato esperado |
 | **Escopo creep** - Adicionar features demais no MVP | Alto | Alto | Seguir prioridades P0 rigorosamente, revisar antes de implementar |
+| **Dependência de terceiro no julgamento** — TypeSafe fora do ar trava roteamento de tema e leitura de mercado | Médio | Baixo | Cliente nunca lança exceção; encaixe incremental para e devolve parcial; tema existente continua servindo |
+| **Custo da busca web** — cada leitura de mercado consome cota do Exa | Baixo | Médio | Sob demanda por tema, nunca automática; resultado persistido com data da varredura |
+| **Atribuição de falante ausente** — conversa sem `Speaker N:` inviabiliza a qualificação binária | Médio | Médio | Estado de atribuição explícito por oportunidade (FR-12.5); 90% do acervo histórico recuperado da API do Plaud |
 
 ---
 
@@ -445,7 +566,9 @@ Todas exigem sessão, exceto `/api/plaud/ingest` com o header `x-ingest-secret` 
 | 3 | Qual provedor de IA usar (OpenAI vs Claude)? | Custo e qualidade | **Resolvido** — Azure OpenAI para análise estruturada, Claude para o chat do Clone |
 | 4 | Onde hospedar o app? (Vercel, self-hosted) | Custo e complexidade | **Resolvido** — Google Cloud Run, container, escala a zero |
 | 5 | Como paginar/limitar o universo da análise em lote? | Custo de IA e representatividade | Aberta — hoje: 50 conversas mais recentes, com filtro opcional de período |
-| 6 | Qual gatilho promove padrão observado a oportunidade real? | Precisão da qualificação | Aberta — critério vive no prompt, não em regra explícita |
+| 6 | Qual gatilho promove padrão observado a oportunidade real? | Precisão da qualificação | **Respondida em metodologia, pendente em código** — ver [qualificacao-metodologia.md](./qualificacao-metodologia.md): categorias compostas a partir de perguntas binárias (blocos A–E), no lugar do score 0-100. Hoje o critério ainda vive no prompt |
+| 7 | Régua de saturação de mercado é comparável entre temas de naturezas diferentes? | Confiança na leitura de mercado | Aberta — a régua é a mesma para todo tema; falta validar com casos conhecidos |
+| 8 | Quanto do acervo tem atribuição de falante boa o bastante para a qualificação binária? | Cobertura da FR-12 | Parcial — 231 transcrições elegíveis têm marcação; indeterminado medido em 15% numa amostra de 12 conversas (limite aceito: 30%) |
 
 ---
 
@@ -464,7 +587,12 @@ relevantes entre o planejado e o construído:
 | Export para Clone externo | Clone como chat interno sobre a base |
 | Tipos `produto`/`servico` | Taxonomia `treinamento`/`consultoria`/`sistema` com subtipo livre |
 | Hospedagem a decidir | Google Cloud Run, container, escala a zero |
-| Páginas placeholder | 11 páginas funcionais |
+| Páginas placeholder | 12 páginas funcionais |
+| Um único provedor de IA | Dois papéis separados: Azure OpenAI escreve, TypeSafe decide |
+| Tema como cache do agrupamento | Tema permanente, com identidade, janela e marcação do operador |
+| Insight só do que foi dito | Leitura de mercado externa por tema (Exa + julgamento tipado) |
+| Transcrição como bloco de texto | Transcrição com atribuição de falante |
+| Score 0-100 pela IA | Qualificação binária com categorias compostas em código *(especificada, em implementação)* |
 
 Referência: [Documentação do Projeto](./index.md) · [README](../README.md) · [ADR-0001](./adr/0001-tokens-plaud-persistidos-no-banco.md)
 
@@ -476,6 +604,7 @@ Referência: [Documentação do Projeto](./index.md) · [README](../README.md) �
 | [Component Inventory](./component-inventory.md) | Componentes existentes |
 | [Data Models](./data-models.md) | Tipos TypeScript atuais |
 | [Development Guide](./development-guide.md) | Guia de desenvolvimento |
+| [Metodologia de Qualificação](./qualificacao-metodologia.md) | Perguntas binárias, composição em categorias e fundamentação (SPIN, JOLT, MEDDIC) |
 
 ---
 
@@ -485,6 +614,7 @@ Referência: [Documentação do Projeto](./index.md) · [README](../README.md) �
 |--------|------|-------|----------|
 | 1.0 | 2025-11-28 | Wesley | Versão inicial - Discovery e estrutura |
 | 1.1 | 2025-12-01 | PM Agent | Escopo MVP, requisitos funcionais/não-funcionais, arquitetura |
+| 1.3 | 2026-09-21 | Claude | Camada de decisão tipada (TypeSafe `jev-latest`) separada da geração de prosa (Azure OpenAI); leitura de mercado por tema (Exa + julgamento); tema deixa de ser cache e vira entidade permanente com `slug`, janela, status e notas; encaixe incremental de negócio novo; atribuição de falante na transcrição e classificação de lado; exclusão de apresentações da consultora do pool de mineração; FR-8 a FR-12; metodologia de qualificação binária referenciada (especificada, não implementada); contagens atualizadas (45 rotas, 12 páginas, 429 testes); questão 6 respondida em metodologia, questões 7–8 abertas |
 | 1.2 | 2026-09-02 | Claude | Alinhamento com o sistema em produção: stack real (Supabase Postgres, Azure OpenAI, Cloud Run) no lugar de SQLite/indefinidos; taxonomia de oportunidade (`treinamento`/`consultoria`/`sistema`); ingestão automática no lugar de upload manual; Clone como chat interno; modelo de dados com as 15 tabelas; 43 rotas de API; decisões de arquitetura não-óbvias; questões 1–4 fechadas, 5–6 abertas |
 
 ---
