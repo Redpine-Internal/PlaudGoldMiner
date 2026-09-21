@@ -25,6 +25,10 @@ interface ThemeRow {
   notes: string | null;
   first_seen_at: string | null;
   last_seen_at: string | null;
+  market_saturation: number | null;
+  market_big_players: number | null;
+  market_content_only: boolean | null;
+  market_scanned_at: string | null;
   updated_at: string;
   opportunity_ids: string[];
   conversation_count: number;
@@ -43,6 +47,14 @@ export interface ThemeDTO {
   firstSeenAt: string | null;
   /** Conversa mais recente — responde "está esfriando?". */
   lastSeenAt: string | null;
+  /** Leitura de mercado: 0 ninguém oferece … 3 consolidado. Null = nunca medido. */
+  marketSaturation: number | null;
+  /** Probabilidade de haver grande consultoria entre os fornecedores. */
+  marketBigPlayers: number | null;
+  /** A busca achou conteúdo, não ofertas — a leitura pede conferência. */
+  marketContentOnly: boolean | null;
+  /** Quando foi medido. Leitura antiga não vale como se fosse de hoje. */
+  marketScannedAt: string | null;
   updatedAt: string;
   opportunityIds: string[];
   /** Conversas distintas que sustentam o tema — a recorrência real. */
@@ -59,6 +71,10 @@ const toDTO = (r: ThemeRow): ThemeDTO => ({
   notes: r.notes,
   firstSeenAt: r.first_seen_at,
   lastSeenAt: r.last_seen_at,
+  marketSaturation: r.market_saturation,
+  marketBigPlayers: r.market_big_players,
+  marketContentOnly: r.market_content_only,
+  marketScannedAt: r.market_scanned_at,
   updatedAt: r.updated_at,
   opportunityIds: r.opportunity_ids,
   conversationCount: r.conversation_count,
@@ -94,6 +110,8 @@ const SELECT_THEMES = `
   SELECT t.id, t.name, t.rationale, t.status, t.notes,
          t.first_seen_at::text AS first_seen_at,
          t.last_seen_at::text  AS last_seen_at,
+         t.market_saturation, t.market_big_players, t.market_content_only,
+         t.market_scanned_at::text AS market_scanned_at,
          t.updated_at::text AS updated_at,
          COALESCE(
            (SELECT array_agg(mb.opportunity_id ORDER BY mb.score DESC NULLS LAST)

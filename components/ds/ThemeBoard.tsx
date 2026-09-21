@@ -37,6 +37,38 @@ export interface ThemeBoardTheme {
   firstSeenAt?: string | null;
   /** Conversa mais recente — é o que diz se o assunto esfriou. */
   lastSeenAt?: string | null;
+  /** Leitura de mercado: 0 ninguém oferece … 3 consolidado. Null = não medido. */
+  marketSaturation?: number | null;
+  /** Probabilidade de haver grande consultoria entre os fornecedores. */
+  marketBigPlayers?: number | null;
+  /** A busca achou conteúdo, não ofertas — a leitura pede conferência. */
+  marketContentOnly?: boolean | null;
+  marketScannedAt?: string | null;
+}
+
+/**
+ * Leitura curta do mercado para o cabeçalho do tema.
+ *
+ * A combinação é o que decide: demanda alta com as grandes consultorias na
+ * frente é disputa cara; demanda menor sem especialista é campo aberto.
+ * Nenhum dos dois números diz isso sozinho.
+ */
+export function formatMarket(theme: ThemeBoardTheme): { texto: string; livre: boolean } | null {
+  if (theme.marketSaturation == null) return null;
+  if (theme.marketContentOnly) return { texto: 'mercado a conferir', livre: false };
+
+  const nivel = Math.round(theme.marketSaturation);
+  const comGrandes = (theme.marketBigPlayers ?? 0) > 0.5;
+
+  if (nivel === 0) return { texto: 'ninguém oferece', livre: true };
+  if (nivel === 1) return { texto: 'poucos fornecedores', livre: true };
+  if (nivel === 2)
+    return comGrandes
+      ? { texto: 'mercado formado', livre: false }
+      : { texto: 'mercado formado, sem as grandes', livre: true };
+  return comGrandes
+    ? { texto: 'consolidado, com as grandes', livre: false }
+    : { texto: 'consolidado entre especialistas', livre: false };
 }
 
 export interface ThemeBoardProps {
@@ -222,6 +254,7 @@ export function ThemeBoard({
         // `members` só tem os que estão na página aberta.
         const totalMembers = theme.opportunityIds.length;
         const janela = formatThemeWindow(theme.firstSeenAt, theme.lastSeenAt);
+        const mercado = formatMarket(theme);
         return (
           <section
             key={theme.id}
@@ -258,6 +291,19 @@ export function ThemeBoard({
                     }}
                   >
                     {janela}
+                  </span>
+                ) : null}
+                {mercado ? (
+                  <span
+                    className="ds-badge ds-badge--compact"
+                    title="Leitura de mercado — confira as fontes antes de decidir"
+                    style={
+                      mercado.livre
+                        ? { background: 'var(--opp-qualificada-bg)', color: 'var(--opp-qualificada-fg)' }
+                        : { background: 'var(--opp-descartada-bg)', color: 'var(--opp-descartada-fg)' }
+                    }
+                  >
+                    {mercado.texto}
                   </span>
                 ) : null}
                 {onSetThemeStatus ? (

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   themeWeight,
   formatThemeWindow,
+  formatMarket,
   type ThemeBoardTheme,
   type ThemeBoardItem,
 } from './ThemeBoard';
@@ -127,5 +128,46 @@ describe('contagem de negócios do tema', () => {
 
     expect(t.opportunityIds.length).toBe(4);
     expect(naPagina.length).toBe(2);
+  });
+});
+
+/**
+ * A leitura de mercado entra na decisão ao lado da recorrência: um tema muito
+ * citado cujo mercado já tem as grandes consultorias é disputa cara; um tema
+ * menos citado sem especialista é campo aberto.
+ */
+describe('formatMarket', () => {
+  it('não mostra nada quando o mercado nunca foi medido', () => {
+    expect(formatMarket(tema())).toBeNull();
+  });
+
+  it('separa mercado formado COM e SEM as grandes consultorias', () => {
+    // Mesmo nível de saturação, decisões opostas.
+    const comGrandes = formatMarket(tema({ marketSaturation: 2, marketBigPlayers: 0.9 }));
+    const semGrandes = formatMarket(tema({ marketSaturation: 2, marketBigPlayers: 0.1 }));
+
+    expect(comGrandes?.livre).toBe(false);
+    expect(semGrandes?.livre).toBe(true);
+    expect(semGrandes?.texto).toContain('sem as grandes');
+  });
+
+  it('marca campo aberto quando ninguém foi encontrado', () => {
+    const r = formatMarket(tema({ marketSaturation: 0, marketBigPlayers: 0 }));
+    expect(r?.livre).toBe(true);
+    expect(r?.texto).toBe('ninguém oferece');
+  });
+
+  it('pede conferência quando a busca só achou conteúdo', () => {
+    // Confundir "a busca não achou fornecedor" com "não existe fornecedor"
+    // faria a tela recomendar um tema pelo motivo errado.
+    const r = formatMarket(tema({ marketSaturation: 0, marketContentOnly: true }));
+    expect(r?.texto).toContain('conferir');
+    expect(r?.livre).toBe(false);
+  });
+
+  it('marca consolidado e disputado como não livre', () => {
+    const r = formatMarket(tema({ marketSaturation: 3, marketBigPlayers: 0.95 }));
+    expect(r?.livre).toBe(false);
+    expect(r?.texto).toContain('com as grandes');
   });
 });
