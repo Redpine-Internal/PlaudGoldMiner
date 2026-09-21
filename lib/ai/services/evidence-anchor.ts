@@ -26,7 +26,37 @@ export interface AnchorResult {
   /** `true` só quando se sabe que é fala literal de alguém na reunião. */
   fromTranscription: boolean;
   /** Por que não confirmou — para log e medição, não para a tela. */
-  reason?: 'nao-existe' | 'e-pergunta' | 'baixa-confianca' | 'indisponivel' | 'sem-candidatos';
+  reason?:
+    | 'nao-existe'
+    | 'e-pergunta'
+    | 'baixa-confianca'
+    | 'indisponivel'
+    | 'sem-candidatos'
+    | 'nao-e-afirmacao';
+}
+
+/**
+ * Reconhece o excerpt que é índice de assuntos, não afirmação.
+ *
+ * No modo resumo a IA às vezes devolve a lista de tópicos da conversa —
+ * "Controles diretos vs treinamentos; Controles críticos na rodovia;
+ * Treinamento de sinalização" — em vez de uma frase sobre a dor. Medido em
+ * produção: 12 de 46 fontes vieram assim, e nenhuma delas confirmou.
+ *
+ * Isso não é falha do julgamento; é pergunta mal formulada. Uma lista de cinco
+ * assuntos não tem passagem correspondente na fala, porque não afirma nada — e
+ * as palavras-chave de cinco assuntos diferentes fazem o pré-filtro promover as
+ * janelas que tocam em tudo superficialmente em vez da que relata a dor.
+ *
+ * Mandar isso ao modelo gasta chamada para ouvir "não existe", que é a resposta
+ * correta à pergunta errada.
+ */
+export function isTopicList(phrase: string): boolean {
+  const t = phrase.trim();
+  if (t.includes('[...]')) return true;
+  // Ponto-e-vírgula separa itens; duas ou mais separações indicam enumeração.
+  // Uma só pode ser pontuação legítima de uma frase composta.
+  return (t.match(/;/g) ?? []).length >= 2;
 }
 
 /**
@@ -98,6 +128,14 @@ export async function anchorEvidence(
   opts: { signal?: AbortSignal } = {}
 ): Promise<AnchorResult> {
   const heuristico = deps.fallback(transcription, phrase);
+
+  // Índice de assuntos não é afirmação: não há passagem que o sustente, e a
+  // heurística que "acha" uma está casando palavra solta de tópico com fala
+  // qualquer. Não confirmar é o resultado certo, e chegar nele sem gastar
+  // julgamento é só não fazer a pergunta errada.
+  if (isTopicList(phrase)) {
+    return { excerpt: phrase, fromTranscription: false, reason: 'nao-e-afirmacao' };
+  }
 
   if (!isTypeSafeConfigured()) {
     return { excerpt: heuristico ?? phrase, fromTranscription: !!heuristico, reason: 'indisponivel' };

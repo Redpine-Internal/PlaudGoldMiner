@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { anchorEvidence, buildCandidates, MAX_CANDIDATES, type AnchorDeps } from './evidence-anchor';
+import { anchorEvidence, buildCandidates, isTopicList, MAX_CANDIDATES, type AnchorDeps } from './evidence-anchor';
 import * as selector from './evidence-selector';
 import * as client from '../typesafe-client';
 
@@ -56,7 +56,46 @@ describe('buildCandidates', () => {
   });
 });
 
+describe('isTopicList', () => {
+  // Casos colhidos da análise real de 21/09 em produção.
+  it('reconhece o índice de assuntos que a IA devolve no modo resumo', () => {
+    expect(
+      isTopicList(
+        'Controles diretos vs treinamentos; [...] Controles críticos na rodovia; Treinamento de sinalização prática; Planejamento de obras e segurança'
+      )
+    ).toBe(true);
+  });
+
+  it('reconhece a lista mesmo sem a marca de corte', () => {
+    expect(isTopicList('Gestão de terceiros; Cultura de segurança; Reporte de desvios')).toBe(true);
+  });
+
+  it('não confunde frase composta com lista', () => {
+    expect(
+      isTopicList('A operação sofre com isso todo mês; ninguém confere a documentação.')
+    ).toBe(false);
+  });
+
+  it('frase comum não é lista', () => {
+    expect(isTopicList('O prestador entrou sem NR-35 e só descobrimos depois.')).toBe(false);
+    expect(isTopicList('')).toBe(false);
+  });
+});
+
 describe('anchorEvidence', () => {
+  it('não gasta julgamento com índice de assuntos', async () => {
+    comChave();
+    const spy = vi.spyOn(selector, 'selectEvidence');
+    const lista = 'Controles diretos; Barreiras rígidas; Treinamento prático; Obras';
+
+    const r = await anchorEvidence(DOR, lista, TRANSCRICAO, deps({ fallback: () => 'qualquer coisa' }));
+
+    expect(spy).not.toHaveBeenCalled();
+    expect(r.fromTranscription).toBe(false);
+    expect(r.excerpt).toBe(lista);
+    expect(r.reason).toBe('nao-e-afirmacao');
+  });
+
   it('confirma a passagem que o julgamento escolheu', async () => {
     comChave();
     vi.spyOn(selector, 'selectEvidence').mockResolvedValue({
