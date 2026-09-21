@@ -19,6 +19,7 @@ import {
   type OpportunityBatchResult,
   type BatchConversationInput,
 } from '../prompts/opportunity-batch';
+import { anchorEvidence } from './evidence-anchor';
 
 /** Conversa como vem do banco, antes de virar entrada do prompt. */
 export interface BatchConversation {
@@ -128,30 +129,46 @@ export async function analyzeOpportunityBatch(
     for (const opp of res.data.opportunities) {
       const key = opp.title.trim().toLowerCase();
       // Só aceita refs que existem neste grupo — o modelo às vezes inventa.
-      const sources = opp.sources
-        .map((s) => {
-          // O modelo alterna entre "C1" e "[C1]" — normaliza antes de resolver.
-          const ref = s.conversationRef.trim().toUpperCase().replace(/[[\]]/g, '');
-          const conversationId = refToId.get(ref) ?? null;
-          const raw = s.excerpt?.trim() ? s.excerpt.trim() : null;
-          // No modo resumo o excerpt vem do resumo, não da fala. Tenta trocar
-          // pela passagem correspondente da transcrição, que é o que o usuário
-          // quer ver no modal.
-          const source = conversationId ? byId.get(conversationId) : undefined;
+      const sources: BatchSource[] = [];
+      for (const s of opp.sources) {
+        // O modelo alterna entre "C1" e "[C1]" — normaliza antes de resolver.
+        const ref = s.conversationRef.trim().toUpperCase().replace(/[[\]]/g, '');
+        const conversationId = refToId.get(ref) ?? null;
+        // Só aceita refs que existem neste grupo — o modelo às vezes inventa.
+        // Descartar antes de ancorar evita gastar julgamento numa fonte que
+        // seria filtrada logo em seguida.
+        if (!conversationId) continue;
 
-          if (form !== 'resumo') {
-            // Modo transcrição: o modelo leu a fala, então o excerpt já é fala.
-            return { conversationId, excerpt: raw, fromTranscription: !!raw };
-          }
+        const raw = s.excerpt?.trim() ? s.excerpt.trim() : null;
+        // No modo resumo o excerpt vem do resumo, não da fala. Tenta trocar
+        // pela passagem correspondente da transcrição, que é o que o usuário
+        // quer ver no modal.
+        const source = byId.get(conversationId);
 
-          const ancorado = raw && source ? findInTranscription(source.transcription, raw) : null;
-          return {
-            conversationId,
-            excerpt: ancorado ?? raw,
-            fromTranscription: !!ancorado,
-          };
-        })
-        .filter((s): s is BatchSource & { conversationId: string } => !!s.conversationId);
+        if (form !== 'resumo') {
+          // Modo transcrição: o modelo leu a fala, então o excerpt já é fala.
+          sources.push({ conversationId, excerpt: raw, fromTranscription: !!raw });
+          continue;
+        }
+
+        if (!raw || !source) {
+          sources.push({ conversationId, excerpt: raw, fromTranscription: false });
+          continue;
+        }
+
+        const anchored = await anchorEvidence(opp.pain, raw, source.transcription, {
+          fallback: findInTranscription,
+          rank: (_t, phrase, window) => rankWindow(phrase, window),
+        });
+        if (anchored.reason && anchored.reason !== 'indisponivel') {
+          console.log(`[AI] Trecho não confirmado (${anchored.reason}): "${opp.title}"`);
+        }
+        sources.push({
+          conversationId,
+          excerpt: anchored.excerpt,
+          fromTranscription: anchored.fromTranscription,
+        });
+      }
 
       // Sem fonte válida a oportunidade não é rastreável — descarta.
       if (!sources.length) {
@@ -225,6 +242,37 @@ const STOP_WORDS = new Set([
   'sim', 'the', 'and', 'são', 'está', 'estão', 'pela', 'pelo',
 ]);
 
+/** Normaliza para comparação: minúsculas, sem acento. */
+function normalizar(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/** Palavras da frase que valem para distinguir uma passagem de outra. */
+function palavrasChave(phrase: string): string[] {
+  return [
+    ...new Set(
+      normalizar(phrase)
+        .split(/[^a-z0-9]+/)
+        .filter((w) => w.length > 3 && !STOP_WORDS.has(w))
+    ),
+  ];
+}
+
+/**
+ * Quantas palavras-chave da frase aparecem numa janela da transcrição.
+ *
+ * Pré-filtro do julgamento de evidência: ordena as passagens plausíveis sem
+ * decidir qual é a certa. Sobreposição léxica alta não significa que a passagem
+ * sustenta a dor — a pergunta do consultor sobre o tema pontua tão alto quanto
+ * o relato de quem vive o problema.
+ */
+export function rankWindow(phrase: string, window: string): number {
+  const keywords = palavrasChave(phrase);
+  if (keywords.length < 2) return 0;
+  const hay = normalizar(window);
+  return keywords.filter((k) => hay.includes(k)).length;
+}
+
 /**
  * Acha na transcrição a passagem que corresponde a uma frase do resumo.
  *
@@ -232,6 +280,10 @@ const STOP_WORDS = new Set([
  * da IA, não fala do participante. O modal precisa mostrar de onde a coisa saiu,
  * então procura-se na transcrição a janela com mais palavras-chave em comum.
  * Sem correspondência boa devolve null, e o chamador mantém o texto do resumo.
+ *
+ * Continua sendo o caminho quando o julgamento de evidência não está
+ * disponível; com TypeSafe configurado, ela passa a ser pré-filtro e quem
+ * decide é `anchorEvidence`.
  */
 function findInTranscription(transcription: string, phrase: string): string | null {
   const keywords = [
