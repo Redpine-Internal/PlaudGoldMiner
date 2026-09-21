@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { themeWeight, type ThemeBoardTheme, type ThemeBoardItem } from './ThemeBoard';
+import {
+  themeWeight,
+  formatThemeWindow,
+  type ThemeBoardTheme,
+  type ThemeBoardItem,
+} from './ThemeBoard';
 
 /**
  * A ordenação dos temas É a recomendação do acessório "decidir o que perseguir".
@@ -73,5 +78,54 @@ describe('themeWeight', () => {
     );
 
     expect(comFantasma).toBe(3 * 80);
+  });
+});
+
+/**
+ * A janela do tema responde "isto está crescendo ou esfriando?" — a pergunta
+ * que decide perseguir. Recorrência sem data não diz se é de agora ou de seis
+ * meses atrás.
+ */
+describe('formatThemeWindow', () => {
+  it('mostra desde quando e a última menção', () => {
+    const out = formatThemeWindow('2026-06-17', '2026-09-14');
+    expect(out).toContain('desde');
+    expect(out).toContain('14/09');
+  });
+
+  it('colapsa para uma data só quando o tema tem um dia só', () => {
+    expect(formatThemeWindow('2026-09-02', '2026-09-02')).toBe('em 02/09');
+  });
+
+  it('funciona com só uma das pontas', () => {
+    expect(formatThemeWindow(null, '2026-09-14')).toContain('14/09');
+    expect(formatThemeWindow('2026-06-17', null)).toContain('desde');
+  });
+
+  it('devolve null sem datas — a tela então não mostra nada', () => {
+    expect(formatThemeWindow(null, null)).toBeNull();
+    expect(formatThemeWindow(undefined, undefined)).toBeNull();
+  });
+
+  it('ignora data inválida em vez de imprimir "Invalid Date"', () => {
+    expect(formatThemeWindow('nao-e-data', null)).toBeNull();
+  });
+
+  it('não desloca o dia por fuso — 01/09 continua 01/09', () => {
+    // Data pura (sem hora) é UTC; formatar em horário local puxaria para 31/08.
+    expect(formatThemeWindow(null, '2026-09-01')).toContain('01/09');
+  });
+});
+
+describe('contagem de negócios do tema', () => {
+  it('conta os negócios do TEMA, não os da página aberta', () => {
+    // O card dizia "2 negócios" num tema de 48 porque contava `members`, que só
+    // tem os itens paginados. O total vem de `opportunityIds`, que o servidor
+    // devolve inteiro.
+    const t = tema({ opportunityIds: ['a', 'b', 'c', 'd'], conversationCount: 34 });
+    const naPagina = [item('a', 80), item('b', 70)];
+
+    expect(t.opportunityIds.length).toBe(4);
+    expect(naPagina.length).toBe(2);
   });
 });

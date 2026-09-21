@@ -235,6 +235,30 @@ const NovosNegociosPage = () => {
     }
   };
 
+  // Decisão sobre o TEMA: "vale perseguir este assunto?". Sobrevive ao
+  // reagrupamento porque o tema é permanente — antes, o próximo agrupamento
+  // apagava o registro e a marca ia junto.
+  const setThemeStatus = async (id: string, status: string) => {
+    setGenError(null);
+    try {
+      const res = await fetch(`/api/opportunities/themes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setGenError(body?.error || `Falha ao atualizar o tema (HTTP ${res.status}).`);
+        return;
+      }
+      // Arquivar tira o tema da lista e a ordenação muda: recarrega do servidor.
+      await mutateThemes();
+    } catch (err) {
+      console.error("Failed to update theme status:", err);
+      setGenError("Não foi possível atualizar o tema. Verifique a conexão e tente novamente.");
+    }
+  };
+
   // Prioridade é a única coisa que o usuário edita no negócio. Atualização
   // otimista: o select responde na hora e o servidor só reconcilia.
   const setPriority = async (id: string, priority: string | null) => {
@@ -423,6 +447,7 @@ const NovosNegociosPage = () => {
               loading={isLoading || themesLoading}
               onRegroup={regroup}
               onSetPriority={setPriority}
+              onSetThemeStatus={setThemeStatus}
               onOpenItem={openOpportunity}
             /> : null}
             {!isLoading && !opps.length ? <EmptyState icon="lightbulb" title="Nenhum negócio encontrado" message="Nenhum novo negócio corresponde aos filtros selecionados." /> : null}

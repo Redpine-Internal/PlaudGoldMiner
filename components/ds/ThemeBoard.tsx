@@ -31,6 +31,12 @@ export interface ThemeBoardTheme {
   opportunityIds: string[];
   conversationCount: number;
   conversationTitles: string[];
+  /** Decisão do operador: ativo | priorizado | arquivado. */
+  status?: string;
+  /** Conversa mais antiga do tema — desde quando o assunto aparece. */
+  firstSeenAt?: string | null;
+  /** Conversa mais recente — é o que diz se o assunto esfriou. */
+  lastSeenAt?: string | null;
 }
 
 export interface ThemeBoardProps {
@@ -43,7 +49,42 @@ export interface ThemeBoardProps {
   onRegroup: () => void;
   onSetPriority: (id: string, priority: string | null) => void;
   onOpenItem?: (id: string) => void;
+  /** Marca o tema como priorizado/ativo. Sem isto o seletor não aparece. */
+  onSetThemeStatus?: (id: string, status: string) => void;
   loading?: boolean;
+}
+
+/**
+ * "desde jun/2026 · última menção em 14/09".
+ *
+ * É o que responde "isto está crescendo ou esfriando?" — a pergunta que decide
+ * perseguir um tema. Sem isso o card mostra recorrência sem dizer se ela é de
+ * agora ou de seis meses atrás.
+ */
+export function formatThemeWindow(
+  firstSeenAt?: string | null,
+  lastSeenAt?: string | null
+): string | null {
+  const parse = (v?: string | null) => {
+    if (!v) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const first = parse(firstSeenAt);
+  const last = parse(lastSeenAt);
+  if (!first && !last) return null;
+
+  const mes = (d: Date) =>
+    d.toLocaleDateString("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" });
+  const dia = (d: Date) =>
+    d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
+
+  if (first && last) {
+    // Mesmo dia: uma janela de um dia só não é "de X até Y".
+    if (first.getTime() === last.getTime()) return `em ${dia(last)}`;
+    return `desde ${mes(first)} · última menção em ${dia(last)}`;
+  }
+  return last ? `última menção em ${dia(last)}` : `desde ${mes(first!)}`;
 }
 
 /** As três marcas, na ordem em que aparecem no seletor. */
@@ -83,6 +124,7 @@ export function ThemeBoard({
   onRegroup,
   onSetPriority,
   onOpenItem,
+  onSetThemeStatus,
   loading = false,
 }: ThemeBoardProps) {
   const [openSources, setOpenSources] = useState<string | null>(null);
@@ -169,6 +211,10 @@ export function ThemeBoard({
 
       {ranked.map(({ theme, members }) => {
         const sourcesOpen = openSources === theme.id;
+        // `opportunityIds` vem do servidor com TODOS os negócios do tema;
+        // `members` só tem os que estão na página aberta.
+        const totalMembers = theme.opportunityIds.length;
+        const janela = formatThemeWindow(theme.firstSeenAt, theme.lastSeenAt);
         return (
           <section
             key={theme.id}
@@ -192,8 +238,27 @@ export function ThemeBoard({
                     color: "var(--color-muted-foreground)",
                   }}
                 >
-                  {members.length === 1 ? "1 negócio" : `${members.length} negócios`}
+                  {/* Conta os negócios DO TEMA, não os que caíram nesta página:
+                      `members` só tem os itens paginados, e o card dizia
+                      "2 negócios" num tema de 48. */}
+                  {totalMembers === 1 ? "1 negócio" : `${totalMembers} negócios`}
                 </span>
+                {janela ? (
+                  <span
+                    style={{
+                      font: "400 12px/20px var(--font-sans)",
+                      color: "var(--color-muted-foreground)",
+                    }}
+                  >
+                    {janela}
+                  </span>
+                ) : null}
+                {onSetThemeStatus ? (
+                  <ThemeStatusSelect
+                    value={theme.status ?? "ativo"}
+                    onChange={(s) => onSetThemeStatus(theme.id, s)}
+                  />
+                ) : null}
               </div>
               {theme.rationale ? (
                 <p
@@ -262,6 +327,20 @@ export function ThemeBoard({
               ))}
             </ul>
 
+            {/* Sem isto o card parece incompleto sem explicar por quê: a lista
+                mostra os negócios da página aberta, o contador mostra o tema. */}
+            {totalMembers > members.length ? (
+              <p
+                style={{
+                  font: "400 12px/20px var(--font-sans)",
+                  color: "var(--color-muted-foreground)",
+                  margin: 0,
+                }}
+              >
+                Mostrando {members.length} de {totalMembers} — os demais estão nas outras páginas.
+              </p>
+            ) : null}
+
             {/* Prova de origem: de onde o tema veio, sem abrir card nenhum. */}
             <div>
               <button
@@ -311,6 +390,57 @@ export function ThemeBoard({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Prioridade do TEMA — o que o operador decidiu sobre o assunto.
+ *
+ * Diferente da prioridade do negócio: aqui a decisão é "vale perseguir este
+ * assunto?". Sobrevive ao reagrupamento porque o tema agora é permanente
+ * (UPSERT por slug); antes o próximo reagrupamento apagava a marca junto com o
+ * registro, e marcar prioridade não fazia sentido.
+ */
+function ThemeStatusSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (status: string) => void;
+}) {
+  const priorizado = value === "priorizado";
+  return (
+    <label style={{ display: "inline-flex", alignItems: "center" }}>
+      <span
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+          clip: "rect(0 0 0 0)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Situação do tema
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          font: "500 12px/20px var(--font-sans)",
+          padding: "2px 8px",
+          borderRadius: 999,
+          border: "1px solid var(--color-border)",
+          background: priorizado ? "var(--opp-qualificada-bg)" : "transparent",
+          color: priorizado ? "var(--opp-qualificada-fg)" : "var(--color-muted-foreground)",
+          cursor: "pointer",
+        }}
+      >
+        <option value="ativo">Acompanhando</option>
+        <option value="priorizado">Perseguir</option>
+        <option value="arquivado">Arquivar</option>
+      </select>
+    </label>
   );
 }
 
