@@ -213,12 +213,22 @@ const NovosNegociosPage = () => {
 
   // O agrupamento gasta uma chamada de IA e substitui o cache inteiro, então
   // roda só quando o usuário pede — nunca ao abrir a página.
-  const regroup = async () => {
+  // `full` força reler o acervo inteiro e refazer todos os temas; o padrão é
+  // encaixar só os negócios novos nos temas que já existem.
+  const regroup = async (full = false) => {
     setRegrouping(true);
     setGenError(null);
     setGenNote(null);
     try {
-      const res = await fetch("/api/opportunities/themes", { method: "POST" });
+      // Com temas já na tela, encaixa só os negócios novos: é uma pergunta por
+      // órfão em vez de reler o acervo inteiro. O servidor cai sozinho no
+      // agrupamento completo quando não dá para seguir por esse caminho.
+      const incremental = !full && Boolean(themeData?.data.length);
+      const res = await fetch("/api/opportunities/themes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(incremental ? { mode: "incremental" } : {}),
+      });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         setGenError(body?.error || `Falha ao agrupar por tema (HTTP ${res.status}).`);
@@ -445,7 +455,8 @@ const NovosNegociosPage = () => {
               ungrouped={themeData?.ungrouped ?? 0}
               regrouping={regrouping}
               loading={isLoading || themesLoading}
-              onRegroup={regroup}
+              onRegroup={() => regroup(false)}
+              onRegroupFull={() => regroup(true)}
               onSetPriority={setPriority}
               onSetThemeStatus={setThemeStatus}
               onOpenItem={openOpportunity}
@@ -453,7 +464,7 @@ const NovosNegociosPage = () => {
             {!isLoading && !opps.length ? <EmptyState icon="lightbulb" title="Nenhum negócio encontrado" message="Nenhum novo negócio corresponde aos filtros selecionados." /> : null}
             {!isLoading && ungroupedItems.length ? <section style={{ marginTop: 16 }}>
               <h2>Negócios fora dos temas exibidos</h2>
-              {!themesLoading && !visibleThemes.length && Boolean(themeData?.data.length) ? <Button variant="outline" onClick={regroup} disabled={regrouping}>
+              {!themesLoading && !visibleThemes.length && Boolean(themeData?.data.length) ? <Button variant="outline" onClick={() => regroup(false)} disabled={regrouping}>
                 {regrouping ? "Agrupando…" : "Reagrupar"}
               </Button> : null}
               {ungroupedItems.map((item) => <button key={item.id} type="button" className="ds-btn ds-btn--link" onClick={() => openOpportunity(item.id)}>{item.title}</button>)}

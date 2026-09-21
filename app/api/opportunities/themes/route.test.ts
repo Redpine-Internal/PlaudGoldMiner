@@ -34,7 +34,19 @@ vi.mock('@/lib/ai/services/business-theme-grouper', () => ({
   groupBusinessThemes: (...args: unknown[]) => groupBusinessThemes(...args),
 }));
 
-const { GET, POST } = await import('./route');
+const { GET, POST: postRoute } = await import('./route');
+
+/**
+ * O POST passa a receber a requisição para ler `{ mode }`. Sem body, o
+ * comportamento é o de sempre: reagrupamento completo.
+ */
+const POST = (body?: unknown) =>
+  postRoute({
+    json: async () => {
+      if (body === undefined) throw new Error('sem body');
+      return body;
+    },
+  } as never);
 
 /** Linha como o Postgres devolve, já agregada. */
 const linha = (over: Record<string, unknown> = {}) => ({

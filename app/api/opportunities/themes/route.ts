@@ -1,6 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import type { PoolClient } from 'pg';
 import { pool } from '@/lib/db';
 import { groupBusinessThemes, type ThemeCandidate } from '@/lib/ai/services/business-theme-grouper';
+import {
+  assignOrphansToThemes,
+  MAX_ORPHANS_PER_RUN,
+} from '@/lib/ai/services/incremental-theme-assign';
 import { miningEligibleSql, opportunityHasEligibleSourceSql } from '@/lib/conversations/classification';
 
 /**
@@ -143,9 +148,118 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+/**
+ * Encaixa só os negócios órfãos nos temas que já existem.
+ *
+ * O reagrupamento completo relê todos os negócios e reescreve todos os temas —
+ * caro e desnecessário quando o que mudou foram cinco negócios de uma reunião
+ * nova. Aqui cada órfão é roteado por julgamento semântico contra os temas
+ * atuais, e o que já estava na tela não se move.
+ *
+ * Devolve null quando não dá para seguir por este caminho (sem tema, sem órfão
+ * ou roteador indisponível) — aí quem chama cai no agrupamento completo.
+ */
+async function assignIncremental(client: PoolClient) {
+  const [temas, orfaos] = await Promise.all([
+    client.query<{ id: string; name: string; rationale: string | null }>(
+      `SELECT id, name, rationale FROM app_business_themes WHERE status <> 'arquivado'`
+    ),
+    client.query<{ id: string; title: string; pain: string | null; context: string | null }>(
+      `SELECT o.id, o.title, o.pain, o.context
+         FROM app_opportunities o
+        WHERE o.status IS DISTINCT FROM 'descartada'
+          AND ${opportunityHasEligibleSourceSql('o')}
+          AND NOT EXISTS (
+            SELECT 1 FROM app_business_theme_members m WHERE m.opportunity_id = o.id
+          )
+        ORDER BY o.created_at ASC
+        LIMIT ${MAX_ORPHANS_PER_RUN}`
+    ),
+  ]);
+
+  if (!temas.rowCount || !orfaos.rowCount) return null;
+
+  const res = await assignOrphansToThemes(
+    orfaos.rows.map((o) => ({
+      id: o.id,
+      title: o.title,
+      pain: o.pain ?? '',
+      context: o.context ?? '',
+    })),
+    temas.rows
+  );
+
+  // Roteador fora do ar e nada decidido: não vale gravar meia decisão.
+  if (res.unavailable && !res.assigned.length) return null;
+  if (!res.assigned.length) return res;
+
+  // Só os vínculos novos são gravados; os temas não são tocados.
+  await client.query('BEGIN');
+  try {
+    await client.query(
+      `INSERT INTO app_business_theme_members (opportunity_id, theme_id)
+       SELECT * FROM unnest($1::text[], $2::text[])
+       ON CONFLICT (opportunity_id) DO UPDATE SET theme_id = EXCLUDED.theme_id`,
+      [res.assigned.map((a) => a.opportunityId), res.assigned.map((a) => a.themeId)]
+    );
+    // A janela do tema muda: um negócio novo traz conversas novas com ele.
+    await client.query(
+      `WITH janela AS (
+         SELECT m.theme_id, min(c.date) AS primeira, max(c.date) AS ultima
+           FROM app_business_theme_members m
+           JOIN app_opportunity_sources s ON s.opportunity_id = m.opportunity_id
+           JOIN conversations c ON c.id::text = s.conversation_id::text
+          WHERE m.theme_id = ANY($1::text[])
+          GROUP BY m.theme_id
+       )
+       UPDATE app_business_themes t
+          SET first_seen_at = LEAST(COALESCE(t.first_seen_at, j.primeira), j.primeira),
+              last_seen_at  = GREATEST(COALESCE(t.last_seen_at, j.ultima), j.ultima),
+              updated_at = now()
+         FROM janela j
+        WHERE j.theme_id = t.id`,
+      [[...new Set(res.assigned.map((a) => a.themeId))]]
+    );
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  }
+
+  return res;
+}
+
+export async function POST(request: NextRequest) {
   const client = await pool.connect();
   try {
+    // `{ mode: 'incremental' }` encaixa só os órfãos nos temas atuais. Sem body,
+    // o comportamento segue o de sempre: reagrupamento completo.
+    const body = await request.json().catch(() => null);
+    if (body?.mode === 'incremental') {
+      const inc = await assignIncremental(client);
+      if (inc) {
+        const themes = await client.query<ThemeRow>(SELECT_THEMES);
+        const ungrouped = await client.query<{ n: number }>(COUNT_UNGROUPED);
+        const partes = [
+          inc.assigned.length
+            ? `${inc.assigned.length} negócio(s) encaixado(s) em temas existentes`
+            : null,
+          inc.needsNewTheme.length ? `${inc.needsNewTheme.length} sem tema parecido` : null,
+          inc.needsOperator.length ? `${inc.needsOperator.length} em dúvida` : null,
+        ].filter(Boolean);
+        return NextResponse.json({
+          data: themes.rows.map(toDTO),
+          ungrouped: ungrouped.rows[0].n,
+          assigned: inc.assigned,
+          needsOperator: inc.needsOperator,
+          message:
+            (partes.join(', ') || 'Nada a encaixar') +
+            (inc.unavailable ? ' — roteamento interrompido, refaça o agrupamento completo.' : '.'),
+        });
+      }
+      // Sem tema, sem órfão ou roteador fora: segue para o agrupamento completo.
+    }
+
     const candidates = await client.query<ThemeCandidate>(
       `SELECT o.id, o.title, o.type, o.subtype
          FROM app_opportunities o

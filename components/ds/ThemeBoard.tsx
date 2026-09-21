@@ -47,6 +47,8 @@ export interface ThemeBoardProps {
   ungrouped: number;
   regrouping?: boolean;
   onRegroup: () => void;
+  /** Refaz todos os temas do zero. Sem isto, só o encaixe incremental aparece. */
+  onRegroupFull?: () => void;
   onSetPriority: (id: string, priority: string | null) => void;
   onOpenItem?: (id: string) => void;
   /** Marca o tema como priorizado/ativo. Sem isto o seletor não aparece. */
@@ -122,6 +124,7 @@ export function ThemeBoard({
   ungrouped,
   regrouping = false,
   onRegroup,
+  onRegroupFull,
   onSetPriority,
   onOpenItem,
   onSetThemeStatus,
@@ -198,14 +201,18 @@ export function ThemeBoard({
               ? "1 negócio novo ainda está fora dos temas."
               : `${ungrouped} negócios novos ainda estão fora dos temas.`}
           </span>
-          <Button
-            variant="outline"
-            onClick={onRegroup}
-            disabled={regrouping}
-            style={{ marginLeft: "auto" }}
-          >
-            {regrouping ? "Agrupando…" : "Reagrupar"}
-          </Button>
+          <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+            <Button variant="outline" onClick={onRegroup} disabled={regrouping}>
+              {regrouping ? "Encaixando…" : "Encaixar nos temas"}
+            </Button>
+            {/* Refazer tudo relê o acervo inteiro e pode renomear temas: é a
+                saída quando o encaixe não resolve, não a ação do dia a dia. */}
+            {onRegroupFull ? (
+              <Button variant="ghost" onClick={onRegroupFull} disabled={regrouping}>
+                Refazer todos
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
