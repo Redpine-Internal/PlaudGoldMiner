@@ -1,23 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
- * A regra de corte É a decisão de produto: ela diz quando um assunto novo
- * fortalece um tema que já existe e quando abre outro. Errar para o lado de
- * juntar dilui a recorrência — e é a recorrência que justifica perseguir.
+ * A régua É a decisão de produto: ela diz quando um negócio novo fortalece um
+ * tema que já existe e quando abre outro. Errar para o lado de juntar dilui a
+ * recorrência — e é a recorrência que justifica perseguir.
  *
- * O modelo é substituído por probabilidades fixas; o que se exercita aqui é o
- * limiar, não a IA.
+ * Os três níveis são as três saídas (0 descarta, 1 vai ao operador, 2 acumula),
+ * então não há constante de threshold para calibrar: o que se exercita aqui é a
+ * leitura da régua, não a IA.
  */
 
-const askNouls = vi.fn();
+const ask = vi.fn();
 let configured = true;
 
 vi.mock('../typesafe-client', () => ({
-  askNouls: (...args: unknown[]) => askNouls(...args),
+  ask: (...args: unknown[]) => ask(...args),
   isTypeSafeConfigured: () => configured,
 }));
 
-const { routeToTheme, ACCUMULATE_THRESHOLD, NEW_THEME_THRESHOLD } = await import('./theme-router');
+const { routeToTheme, routeManyToThemes } = await import('./theme-router');
 
 const negocio = {
   title: 'Consultoria para gestão de terceiros',
@@ -30,33 +31,35 @@ const temas = [
   { id: 'th-cultura', name: 'Cultura e liderança', rationale: 'transformação cultural' },
 ];
 
-/** Resposta do modelo, uma probabilidade por tema na ordem de `temas`. */
-const responde = (...probs: number[]) => {
-  askNouls.mockResolvedValue({
+/** Resposta do modelo: uma posição na régua por tema, na ordem de `temas`. */
+const responde = (...scores: number[]) => {
+  ask.mockResolvedValue({
     success: true,
-    answers: Object.fromEntries(probs.map((p, i) => [`t${i}`, p])),
+    answers: Object.fromEntries(
+      scores.map((s, i) => [`t${i}`, { score: s, confidence: 0.8, probabilities: {} }])
+    ),
   });
 };
 
 beforeEach(() => {
-  askNouls.mockReset();
+  ask.mockReset();
   configured = true;
 });
 
 describe('acumula no tema existente', () => {
-  it('entra no tema quando a probabilidade é alta', async () => {
-    responde(0.94, 0.08);
+  it('entra no tema quando a régua diz "mesmo assunto"', async () => {
+    responde(1.92, 0.41);
 
     const d = await routeToTheme(negocio, temas);
 
     expect(d.kind).toBe('accumulate');
     if (d.kind !== 'accumulate') return;
     expect(d.themeId).toBe('th-terceiros');
-    expect(d.probability).toBe(0.94);
+    expect(d.score).toBe(1.92);
   });
 
-  it('escolhe o tema de maior probabilidade, não o primeiro da lista', async () => {
-    responde(0.31, 0.88);
+  it('escolhe o tema de maior posição, não o primeiro da lista', async () => {
+    responde(0.31, 1.88);
 
     const d = await routeToTheme(negocio, temas);
 
@@ -67,8 +70,8 @@ describe('acumula no tema existente', () => {
 });
 
 describe('cria tema novo', () => {
-  it('abre tema quando nenhum chega perto', async () => {
-    responde(0.12, 0.09);
+  it('abre tema quando a régua diz "assuntos diferentes"', async () => {
+    responde(0.29, 0.16);
 
     const d = await routeToTheme(negocio, temas);
 
@@ -79,13 +82,15 @@ describe('cria tema novo', () => {
     const d = await routeToTheme(negocio, []);
 
     expect(d.kind).toBe('new-theme');
-    expect(askNouls).not.toHaveBeenCalled();
+    expect(ask).not.toHaveBeenCalled();
   });
 });
 
 describe('pergunta ao operador', () => {
-  it('na zona cinzenta entre os dois limiares', async () => {
-    responde(0.55, 0.2);
+  it('no nível do meio: assunto vizinho, nem o mesmo nem outro', async () => {
+    // O nível 1 enumera os casos — caso particular, causa/consequência, mesmo
+    // problema visto de áreas diferentes. É decisão humana por desenho.
+    responde(1.17, 0.4);
 
     const d = await routeToTheme(negocio, temas);
 
@@ -94,10 +99,10 @@ describe('pergunta ao operador', () => {
     expect(d.candidates[0].themeId).toBe('th-terceiros');
   });
 
-  it('quando dois temas empatam acima do limiar', async () => {
-    // 0,88 e 0,85: escolher por 0,03 de diferença seria arbitrário, e o erro
-    // ficaria invisível na tela.
-    responde(0.88, 0.85);
+  it('quando dois temas empatam no nível "mesmo assunto"', async () => {
+    // 1,88 e 1,80: escolher por 0,08 seria arbitrário, e o erro ficaria
+    // invisível na tela.
+    responde(1.88, 1.8);
 
     const d = await routeToTheme(negocio, temas);
 
@@ -107,7 +112,7 @@ describe('pergunta ao operador', () => {
   });
 
   it('não chama de empate quando há folga entre o primeiro e o segundo', async () => {
-    responde(0.95, 0.78);
+    responde(1.95, 1.55);
 
     const d = await routeToTheme(negocio, temas);
 
@@ -122,11 +127,11 @@ describe('degrada sem derrubar a rota', () => {
     const d = await routeToTheme(negocio, temas);
 
     expect(d.kind).toBe('unavailable');
-    expect(askNouls).not.toHaveBeenCalled();
+    expect(ask).not.toHaveBeenCalled();
   });
 
   it('avisa quando o fornecedor falha — quem chama cai no agrupamento em lote', async () => {
-    askNouls.mockResolvedValue({
+    ask.mockResolvedValue({
       success: false,
       error: { code: 'TIMEOUT', message: 'TypeSafe não respondeu em 10000ms.' },
     });
@@ -138,9 +143,12 @@ describe('degrada sem derrubar a rota', () => {
     expect(d.reason).toContain('10000ms');
   });
 
-  it('trata tema sem resposta como probabilidade zero', async () => {
+  it('trata tema sem resposta como posição zero', async () => {
     // Se o modelo omitir um id, o tema não pode virar o escolhido por acidente.
-    askNouls.mockResolvedValue({ success: true, answers: { t0: 0.9 } });
+    ask.mockResolvedValue({
+      success: true,
+      answers: { t0: { score: 1.9, confidence: 0.9, probabilities: {} } },
+    });
 
     const d = await routeToTheme(negocio, temas);
 
@@ -150,20 +158,60 @@ describe('degrada sem derrubar a rota', () => {
   });
 });
 
-describe('limiares', () => {
-  it('acumular exige mais confiança do que descartar', () => {
-    // Juntar dores diferentes dilui a recorrência que justifica o tema; o erro
-    // caro é esse, então o limiar de acumular tem de ser o mais alto.
-    expect(ACCUMULATE_THRESHOLD).toBeGreaterThan(NEW_THEME_THRESHOLD);
-    expect(ACCUMULATE_THRESHOLD).toBeGreaterThanOrEqual(0.7);
+describe('vários negócios numa requisição', () => {
+  /**
+   * O estado é quase todo o custo e as perguntas são avaliadas em paralelo,
+   * então N negócios × M temas num request sai muito mais barato que N
+   * requests — e as respostas não mudam, porque nenhuma pergunta vê as outras.
+   */
+  it('decide cada negócio com as perguntas do seu próprio bloco de estado', async () => {
+    ask.mockResolvedValue({
+      success: true,
+      answers: {
+        o0_t0: { score: 1.95, confidence: 0.9, probabilities: {} },
+        o0_t1: { score: 0.2, confidence: 0.8, probabilities: {} },
+        o1_t0: { score: 0.1, confidence: 0.8, probabilities: {} },
+        o1_t1: { score: 0.15, confidence: 0.8, probabilities: {} },
+      },
+    });
+
+    const out = await routeManyToThemes(
+      [
+        { id: 'a', ...negocio },
+        { id: 'b', title: 'Ergonomia', pain: 'LER no escritório', context: '' },
+      ],
+      temas
+    );
+
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(out.get('a')?.kind).toBe('accumulate');
+    expect(out.get('b')?.kind).toBe('new-theme');
   });
 
-  it('manda ao operador exatamente no limiar de acumular', async () => {
-    responde(ACCUMULATE_THRESHOLD, 0.1);
+  it('dá a cada negócio seu próprio campo no estado', async () => {
+    ask.mockResolvedValue({ success: true, answers: {} });
 
-    const d = await routeToTheme(negocio, temas);
+    await routeManyToThemes([{ id: 'a', ...negocio }], temas);
 
-    // >= é acumular: o limiar é inclusivo.
-    expect(d.kind).toBe('accumulate');
+    const [state, questions] = ask.mock.calls[0];
+    expect(Object.keys(state)).toEqual(['negocio_0']);
+    // Uma pergunta por par (negócio, tema).
+    expect(Object.keys(questions)).toHaveLength(2);
+  });
+
+  it('marca todos como indisponíveis quando a requisição falha', async () => {
+    ask.mockResolvedValue({ success: false, error: { code: 'TIMEOUT', message: 'sem resposta' } });
+
+    const out = await routeManyToThemes([{ id: 'a', ...negocio }, { id: 'b', ...negocio }], temas);
+
+    expect(out.get('a')?.kind).toBe('unavailable');
+    expect(out.get('b')?.kind).toBe('unavailable');
+  });
+
+  it('sem tema nenhum, todos abrem tema novo sem chamar o modelo', async () => {
+    const out = await routeManyToThemes([{ id: 'a', ...negocio }], []);
+
+    expect(out.get('a')?.kind).toBe('new-theme');
+    expect(ask).not.toHaveBeenCalled();
   });
 });
