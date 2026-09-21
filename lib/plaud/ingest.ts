@@ -1,5 +1,6 @@
 import { pool } from '@/lib/db';
 import { getFileContent, type PlaudFile } from '@/lib/plaud/client';
+import { detectPresentation } from '@/lib/conversations/presentation-detector';
 
 export type IngestOutcome = 'created' | 'updated' | 'skipped';
 
@@ -174,16 +175,27 @@ export async function ingestPlaudFile(
 
     if (existing.rowCount === 0) {
       // CREATE
+      // Palestra/treinamento/workshop da consultora entra já classificada como
+      // 'treinamento' (não minerável). Minerar a própria apresentação devolve
+      // como "oportunidade do cliente" o discurso comercial dela — viés
+      // circular. O operador pode reclassificar depois; o padrão é o seguro.
+      const presentation = detectPresentation(title, cleanSummary);
+      if (presentation.isPresentation) {
+        console.log(
+          `[Plaud] "${title}" classificada como treinamento (${presentation.reason}) — fora da mineração.`
+        );
+      }
       const ins = await client.query(
         `INSERT INTO meetings
            (title, transcription, transcription_length, meeting_date, participants,
             source, status, metadata)
          VALUES ($1,$2,$3,$4,'[]'::jsonb,'plaud','received',
             jsonb_strip_nulls(jsonb_build_object(
-              'plaud_file_id',$5::text,'duration',$6::numeric,'type','nao_classificado','topics',$7::jsonb)))
+              'plaud_file_id',$5::text,'duration',$6::numeric,'type',$8::text,'topics',$7::jsonb)))
          RETURNING id`,
         [title, transcript, transcript.length, meetingDate, normalizePlaudFileId(fileId),
-         file.duration ?? null, topicsJson]
+         file.duration ?? null, topicsJson,
+         presentation.isPresentation ? 'treinamento' : 'nao_classificado']
       );
       const meetingId = ins.rows[0].id as string;
       if (cleanSummary) {
